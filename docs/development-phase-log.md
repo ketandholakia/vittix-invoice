@@ -217,6 +217,13 @@ This log records the implemented milestones so future development can build on t
 - Added print-bank-details and low-stock warning preferences.
 - Added an auto-backup preference flag, while background Drive backup execution remains disabled because Google Sign-In requires foreground authentication.
 
+## Phase 31: Customer Statement Reporting
+
+- Added a customer statement report path under Reports.
+- Added statement rows that combine invoices, payments, refunds, and voided payments into a running balance.
+- Added CSV export for customer statements.
+- Added provider-backed test coverage for signed statement row ordering and balance math.
+
 ## Next Likely Phases
 
 1. Recurring/subscription invoices.

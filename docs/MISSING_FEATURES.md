@@ -41,9 +41,15 @@ Do not re-plan the following as missing work: receivables aging, empty states, r
 ### Phase 35: Reporting And Data Quality Expansion
 
 - Add profit/margin reports once purchase cost or inventory purchase records exist.
-- Add customer statement exports with invoices, payments, refunds, voids, and balance.
 - Add template and backup flows to automated regression coverage.
 - Add import/deduplication workflows for customers, products, HSN codes, and UOMs if bulk onboarding becomes a priority.
+
+### Phase 36: Profit And Margin Reporting
+
+- Add margin reporting once purchase cost or inventory purchase records exist.
+- Support per-invoice and per-customer profitability breakdowns.
+- Add filters for date range, customer, and product/category.
+- Add tests for margin math and negative-margin scenarios.
 
 ## Known Technical Risks
 

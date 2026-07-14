@@ -7,6 +7,7 @@ import '../../providers/shared_preferences_provider.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/quote_provider.dart';
 import '../../services/share_service.dart';
+import 'customer_statement_report.dart';
 
 enum ReportRange { currentMonth, allTime, custom }
 
@@ -22,6 +23,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   bool _isExportingInvoices = false;
   bool _isExportingQuotes = false;
   bool _isExportingCustomerSummary = false;
+  bool _isExportingCustomerStatement = false;
   bool _isExportingReceivablesAging = false;
   bool _isExportingHsnSummary = false;
   bool _isExportingQuoteConversion = false;
@@ -233,6 +235,37 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
+  Future<void> _exportCustomerStatement(
+    List<CustomerStatementRow> rows,
+  ) async {
+    setState(() => _isExportingCustomerStatement = true);
+    try {
+      final csvRows = <List<String>>[
+        [
+          'Customer',
+          'Date',
+          'Entry Type',
+          'Document',
+          'Amount',
+          'Running Balance',
+          'Note',
+        ],
+        for (final row in rows) row.toCsvRow(),
+      ];
+
+      await ShareService.shareCsv(
+        csvRows,
+        'customer_statement.csv',
+        subject: 'Customer Statement',
+        text: 'Customer statement export',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isExportingCustomerStatement = false);
+      }
+    }
+  }
+
   Future<void> _exportReceivablesAging(
     List<_ReceivablesAgingRow> agingRows,
   ) async {
@@ -433,6 +466,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
               final operationalData =
                   snapshot.data ?? const _OperationalReportData();
+              final statementRows = operationalData.customerStatementRows;
               final agingSummary = _ReceivablesAgingSummary.fromRows(
                 operationalData.receivablesAgingRows,
               );
@@ -635,6 +669,45 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
+                    'Customer Statements',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  if (statementRows.isEmpty)
+                    const Text('No customer statement data in this range.')
+                  else ...[
+                    ...statementRows.take(12).map(
+                      (row) => _ReportTile(
+                        title: '${row.customerName} - ${row.entryType}',
+                        value:
+                            'Rs. ${row.runningBalance.toStringAsFixed(2)}',
+                        subtitle:
+                            '${row.entryDate.toIso8601String().split('T')[0]} | ${row.documentNumber} | ${row.note}',
+                      ),
+                    ),
+                    if (statementRows.length > 12)
+                      Text(
+                        '+ ${statementRows.length - 12} more entries',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _isExportingCustomerStatement
+                          ? null
+                          : () => _exportCustomerStatement(statementRows),
+                      icon: const Icon(Icons.download),
+                      label: Text(
+                        _isExportingCustomerStatement
+                            ? 'Exporting...'
+                            : 'Export Statements',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
                     'HSN / SAC Tax Summary',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -791,6 +864,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final items = await invoiceDao.getItemsForInvoices(
       invoices.map((invoice) => invoice.id).toList(),
     );
+    final payments = await invoiceDao.getPaymentsForInvoices(
+      invoices.map((invoice) => invoice.id).toList(),
+    );
 
     final customerNameById = {
       for (final customer in customers) customer.id: customer.name,
@@ -890,6 +966,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             .toList()
           ..sort((a, b) => b.sales.compareTo(a.sales));
 
+    final customerStatementRows = buildCustomerStatementRows(
+      customers: customers,
+      invoices: invoices,
+      payments: payments,
+    );
+
     final hsnRows =
         hsnAggregates.values
             .map(
@@ -962,6 +1044,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     return _OperationalReportData(
       customerRows: customerRows,
+      customerStatementRows: customerStatementRows,
       receivablesAgingRows: receivablesAgingRows,
       hsnRows: hsnRows,
       quoteConversionRows: quoteConversionRows,
@@ -995,6 +1078,7 @@ class _ReportTile extends StatelessWidget {
 
 class _OperationalReportData {
   final List<_CustomerReportRow> customerRows;
+  final List<CustomerStatementRow> customerStatementRows;
   final List<_ReceivablesAgingRow> receivablesAgingRows;
   final List<_HsnReportRow> hsnRows;
   final List<_QuoteConversionRow> quoteConversionRows;
@@ -1002,6 +1086,7 @@ class _OperationalReportData {
 
   const _OperationalReportData({
     this.customerRows = const [],
+    this.customerStatementRows = const [],
     this.receivablesAgingRows = const [],
     this.hsnRows = const [],
     this.quoteConversionRows = const [],

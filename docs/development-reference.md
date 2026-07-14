@@ -70,6 +70,7 @@ This document tracks the implemented structure of VittixInvoice so future work c
 - Dashboard includes billing and quote activity summaries.
 - Reports include invoice metrics, quote conversion metrics, and follow-up queue visibility.
 - Reports include receivables aging buckets for current, 1-30, 31-60, 61-90, and 90+ day outstanding balances.
+- Reports now include customer statement rows with invoices, payments, refunds, voids, and running balances, plus CSV export.
 - Reminder and follow-up copy/share actions use customer phone/email when available.
 - The Reminder Center queues unpaid invoices due within seven days or overdue, plus active quotes expiring within seven days or expired.
 - The Reminder Center supports long-press selection for bulk copy, share, and CSV export of reminder messages.

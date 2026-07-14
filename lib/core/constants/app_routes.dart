@@ -1,0 +1,30 @@
+class AppRoutes {
+  static const String onboarding = '/onboarding';
+  static const String dashboard = '/dashboard';
+  static const String businesses = '/businesses';
+  static const String addBusiness = '/add-business';
+  static const String editBusiness = '/edit-business';
+  static const String customers = '/customers';
+  static const String addCustomer = '/add-customer';
+  static const String editCustomer = '/edit-customer';
+  static const String customerDetail = '/customer-detail/:id';
+  static const String products = '/products';
+  static const String addProduct = '/add-product';
+  static const String editProduct = '/edit-product';
+  static const String invoices = '/invoices';
+  static const String createInvoice = '/create-invoice';
+  static const String editInvoice = '/edit-invoice';
+  static const String invoicePreview = '/invoice-preview/:id';
+  static const String quotes = '/quotes';
+  static const String createQuote = '/create-quote';
+  static const String editQuote = '/edit-quote';
+  static const String quotePreview = '/quote-preview/:id';
+  static const String settings = '/settings';
+  static const String documentNumbering = '/document-numbering';
+  static const String templateManager = '/template-manager';
+  static const String templateEditor = '/template-editor';
+  static const String hsnRates = '/hsn-rates';
+  static const String uoms = '/uoms';
+  static const String reports = '/reports';
+  static const String reminders = '/reminders';
+}

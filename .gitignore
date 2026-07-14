@@ -1,0 +1,61 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+*.class
+
+# IDEs and editors
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# The .vscode folder can contain shared launch/tasks config, so keep it
+# tracked unless you prefer a purely local setup.
+#.vscode/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub/
+.pub-cache/
+build/
+coverage/
+**/doc/api/
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/captures/
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# iOS / macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+macos/Pods/
+macos/Flutter/ephemeral/
+macos/Runner.xcworkspace/xcuserdata/
+macos/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Xcode user state
+**/xcuserdata/
+**/*.xcuserstate
+**/DerivedData/
+
+# Misc build caches
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/

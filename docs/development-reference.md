@@ -8,6 +8,7 @@ This document tracks the implemented structure of VittixInvoice so future work c
 - State layer: Riverpod providers under `lib/providers/**`
 - Data layer: Drift database, DAOs, and generated table classes under `lib/database/**`
 - Sharing and output: PDF and share services under `lib/services/**`
+- Persistence helpers: user preferences in `SharedPreferences`, local SQLite through Drift, file backup through `file_selector`, Google Drive through `googleapis`, and Nextcloud through WebDAV.
 
 ## Core Data Model
 
@@ -20,15 +21,19 @@ This document tracks the implemented structure of VittixInvoice so future work c
 - Overpaid invoices keep the collected amount intact while clamping pending balance to zero in reports and reminders.
 - Payment history also supports voided entries, which preserve audit history but no longer affect invoice balances.
 - Businesses store invoice and quote PDF template choices that drive classic or modern document layouts.
+- Businesses also store configurable invoice and quote numbering formats, default invoice/quote template IDs, and an optional UPI ID for QR rendering.
 - Google Drive sign-in now supports cloud backup upload/restore and shareable invoice or quote PDF links.
+- Nextcloud WebDAV backup upload/restore is also available when credentials are configured in Settings.
 - Products now track on-hand stock quantity for linked invoice items.
 - Units of measure are stored in a database-backed catalog with family, base-unit, and conversion-factor metadata.
+- Template configuration records store JSON-encoded layout, label, column, color, watermark, footer, and visibility options.
 
 ## Implemented Billing Flows
 
 - Invoice creation is transactional and assigns per-business, per-financial-year numbering.
 - Quote creation is transactional and uses the same numbering rules with a `QT` prefix.
 - Quote conversion creates a fresh invoice and marks the quote as converted.
+- Invoice and quote numbering uses each active business's configured series format, with defaults of `INV-{FY}-{SEQ4}` and `QT-{FY}-{SEQ4}`.
 - Invoice editing, duplication, deletion, and payment updates are supported.
 - Quote editing, duplication, deletion, and status updates are supported.
 - Invoice and quote edits now write audit events into the customer activity timeline.
@@ -40,8 +45,10 @@ This document tracks the implemented structure of VittixInvoice so future work c
 - The Settings screen exposes backup/restore actions and UOM catalog management.
 - Invoice preview includes payment and refund entry actions.
 - Invoice preview also supports voiding a recorded payment.
-- Settings exposes document template selection for the active business.
+- Settings exposes document numbering, template management, template editing, UOM management, backup/restore, notification, and print preferences.
 - Settings exposes Google Drive backup connect/upload/restore actions for the active business.
+- Settings exposes Nextcloud backup upload/restore after WebDAV server, username, and password are configured.
+- Invoice and quote preview screens support per-document template overrides.
 
 ## Customer Workflows
 
@@ -55,7 +62,7 @@ This document tracks the implemented structure of VittixInvoice so future work c
   - payment count
   - collected amount
   - converted quote count
-  - last contact time derived from the newest quote update
+  - last contact time derived from explicit customer activity events
   - merged activity timeline for quotes, invoices, and payments
 
 ## Reporting And Dashboard
@@ -67,6 +74,7 @@ This document tracks the implemented structure of VittixInvoice so future work c
 - The Reminder Center queues unpaid invoices due within seven days or overdue, plus active quotes expiring within seven days or expired.
 - The Reminder Center supports long-press selection for bulk copy, share, and CSV export of reminder messages.
 - Reminder notifications can be enabled or disabled, and cadence offsets are configurable from settings.
+- Automatic Google Drive backup has a persisted settings flag, but the background Workmanager path is currently commented out because Google Sign-In needs foreground authentication.
 
 ## Providers
 
@@ -81,6 +89,10 @@ This document tracks the implemented structure of VittixInvoice so future work c
 - `productListProvider`: active-business product list
 - `uomListProvider`: active-business UOM list
 - `uomCatalogProvider`: full UOM catalog for management screens
+- `nextcloudConfigProvider`: persisted Nextcloud WebDAV settings
+- `googleDriveAccountProvider`: current Google account connection state
+- `reminderCenterProvider`: due invoice reminders and quote follow-ups
+- `autoBackupEnabledProvider`: persisted automatic backup preference flag
 
 ## DAO Helpers Added For Customer Views
 
@@ -96,6 +108,9 @@ These helpers keep the customer timeline screen simple and avoid pushing busines
 - `lib/features/customers/customer_list_screen.dart`
 - `lib/features/customers/customer_form_screen.dart`
 - `lib/features/settings/uom_management_screen.dart`
+- `lib/features/settings/document_numbering_screen.dart`
+- `lib/features/settings/template_manager_screen.dart`
+- `lib/features/settings/template_editor_screen.dart`
 - `lib/features/customers/customer_detail_screen.dart`
 - `lib/features/invoices/list/invoice_list_screen.dart`
 - `lib/features/invoices/detail/invoice_preview_screen.dart`
@@ -112,4 +127,6 @@ These helpers keep the customer timeline screen simple and avoid pushing busines
 
 - Re-run `flutter analyze` and `flutter test` after data model or provider changes.
 - Rebuild generated files after Drift schema changes or annotated provider changes.
-- If timeline detail needs to become more accurate later, add explicit contact/event fields rather than inferring from `updatedAt`.
+- Keep `lib/database/app_database.dart` migrations in lockstep with generated Drift files when adding columns or tables.
+- Add focused provider/DAO tests when changing billing math, numbering, payments, backups, reminders, or template persistence.
+- Cloud backup credentials and background backup behavior need extra care; the current automatic backup toggle does not perform background Drive uploads.

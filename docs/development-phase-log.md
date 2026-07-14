@@ -189,6 +189,38 @@ This log records the implemented milestones so future development can build on t
 - Added shareable Drive link upload for invoice and quote PDFs.
 - Reused the same PDF generation pipeline for local share, Drive share, and cloud backup flows.
 
+## Phase 27: Custom Document Numbering
+
+- Added business-level invoice and quote numbering format fields.
+- Added a Document Numbering settings screen with token previews.
+- Supported `{FY}`, calendar year/month tokens, and variable-width sequence tokens.
+- Routed invoice, quote, duplicate, and quote-conversion numbering through the configured formats.
+
+## Phase 28: Editable PDF Templates
+
+- Added database-backed template configuration records for invoice and quote scopes.
+- Added a template manager with preview thumbnails, clone, edit, delete, and default-selection actions.
+- Added a template editor for layout family, colors, labels, columns, visibility toggles, watermark, footer, and UPI QR display.
+- Added per-document template override selection on invoice and quote preview screens.
+
+## Phase 29: Nextcloud Backup And Restore
+
+- Added Nextcloud WebDAV configuration persistence.
+- Added backup upload and latest-backup restore through Nextcloud from Settings.
+- Created the `VittixInvoiceBackups` WebDAV folder when missing.
+- Reused the full database JSON backup and restore pipeline used by local and Google Drive backup flows.
+
+## Phase 30: Payment And Print Configuration Polish
+
+- Added business-level UPI ID storage.
+- Added optional UPI QR rendering in configured PDF templates.
+- Added print-bank-details and low-stock warning preferences.
+- Added an auto-backup preference flag, while background Drive backup execution remains disabled because Google Sign-In requires foreground authentication.
+
 ## Next Likely Phases
 
-1. No new phase is committed yet.
+1. Recurring/subscription invoices.
+2. Stock operations ledger and low-stock alert surfacing.
+3. Backup hardening: encrypted credentials, manual backup history, and a foreground-safe automatic backup flow.
+4. E-invoice/e-way bill preparation and GST return export support.
+5. Broader report/export coverage and regression tests for cloud backup/template flows.

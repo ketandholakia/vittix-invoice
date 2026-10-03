@@ -343,6 +343,13 @@ A review-driven pass over the whole app. Schema moved v19  v29.
 - Added a diagnostics ring buffer (200 records) behind `reportNonFatal` with a Settings → Export diagnostics share action, and replaced the six remaining silent `catch (_) {}` sites (four bulk-delete loops, the pre-restore safety snapshot, the Nextcloud secure-storage write queue) with reported failures.
 - Verified: `flutter analyze --fatal-infos` clean; 154/154 tests pass.
 
+## Phase 43: Platform Policy And CI (Android-Only)
+
+- Decision recorded: **Android is the only supported platform** (minSdk 24, targetSdk 36, `com.vittix.invoice`). The README now states this and lists the known gaps of the unmaintained iOS/macOS/Linux/web scaffolding (no iOS Google Sign-In scheme, no macOS keychain entitlement, no Linux local-auth/notification plugins), with a do-not-file note for non-Android platform issues.
+- Fixed CI blind spot: the workflow only triggered on `main`, but the working branch is `master` — CI never ran on regular pushes. Triggers now include `master`.
+- Added a per-push **Android compile gate** job (`flutter build apk --debug`, artifact uploaded): dart-level checks cannot catch Gradle/manifest breakage, and for an Android-only product every push should prove the shipping target still compiles. The tag-triggered release job (signed AAB + APK, optional keystore secrets) is unchanged.
+- Verified the post-P41/P42 release build: `flutter build apk --release` succeeds (76.7 MB, R8 on) and `apksigner` confirms the release certificate `CN=Vittix Invoice` — the new pointycastle app-lock code path and migration rewrite do not disturb signing or shrinking. The `cupertino_icons` tree-shake notice in build output is framework noise (zero `CupertinoIcons` references in `lib/`).
+
 ## Next Likely Phases
 
 1. Platform completion for chosen ship targets (iOS Google Sign-In config, macOS keychain entitlement, Linux plugin registrants) and integration tests in CI.

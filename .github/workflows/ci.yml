@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -33,6 +33,38 @@ jobs:
 
       - name: Tests
         run: flutter test
+
+  android-build:
+    name: Android compile gate
+    # Android is the only shipping platform, so every push must prove the
+    # Gradle/manifest side still builds — dart-level checks alone cannot
+    # catch those breakages.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vittix-invoice-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
 
   release:
     name: Release app bundle

@@ -215,7 +215,7 @@ P48 (hi-IN)                                    (any time; decision-gated)
 
 ## Decision points (owner: you)
 
-1. **Ship targets** — recommend Android first (+ Windows desktop if wanted); iOS only once Drive sign-in is configured. Blocks P43 scope.
-2. **Crash reporting** — recommend `sentry_flutter` at the existing `reportNonFatal` seam; alternative is local diagnostics export (no backend). Blocks P42 task 3.
+1. **Ship targets** — DECIDED 2026-10-04: **Android only**. P43 completed for that scope (README policy, master CI trigger fix, per-push Android compile gate, release APK verify). iOS/macOS/Linux/web items below are closed as will-not-fix.
+2. **Crash reporting** — decided by default: local diagnostics ring (implemented in P42); `sentry_flutter` can still be attached at the `reportNonFatal` seam without touching call sites if a backend is ever wanted.
 3. **hi-IN at launch or after** — recommend after launch unless the segment demands it. Blocks P48 scheduling.
-4. **Retroactive commit chunking** — recommend one checkpoint commit now, clean history forward.
+4. **Retroactive commit chunking** — DECIDED 2026-10-04: one checkpoint commit (`89191fe`), tagged `checkpoint-phase-40`; clean history forward.

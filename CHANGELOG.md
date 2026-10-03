@@ -7,6 +7,12 @@ All notable changes to Vittix Invoice are documented here. The format follows
 ## [Unreleased] — checkpoint of Phases 32–40 (2026-10-04)
 
 ### Fixed — October 2026 hardening pass (Phases 41-42)
+- Platform policy: Android is the only supported platform, declared in the
+  README; non-Android scaffolding is unmaintained.
+- CI now triggers on `master` (it previously only watched `main` and never
+  ran on regular pushes) and proves the Android build on every push with a
+  debug-APK compile gate; the signed release APK was re-verified after the
+  hardening changes.
 - GSTR-1 export no longer truncates at the 500 newest invoices; it reads the
   full date range from the database.
 - Pre-export GST validation lists offending documents (invalid GSTIN, B2B

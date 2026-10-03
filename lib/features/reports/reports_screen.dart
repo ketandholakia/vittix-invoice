@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/utils/formatting.dart';
 import '../../core/utils/gstr1_export.dart';
+import '../../core/utils/gstr1_validation.dart';
 import '../../core/utils/invoice_balance.dart';
 import '../../core/utils/stock_status.dart';
 import '../../core/utils/invoice_status.dart';
@@ -171,18 +173,43 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
-  Future<void> _exportGstr1(List<Invoice> invoices) async {
+  Future<void> _exportGstr1() async {
     setState(() => _isExportingGstr1 = true);
     try {
       final businessId = ref.read(activeBusinessIdProvider);
-      final customers = businessId == null
-          ? const <Customer>[]
-          : await ref
-                .read(customerDaoProvider)
-                .getCustomersForBusiness(businessId);
-      final items = await ref
-          .read(invoiceDaoProvider)
-          .getItemsForInvoices(invoices.map((invoice) => invoice.id).toList());
+      if (businessId == null) return;
+      final invoiceDao = ref.read(invoiceDaoProvider);
+
+      // Read the full book from the DAO, never the watched list providers —
+      // those cap at invoiceListPageSize (500) for UI performance and a
+      // capped compliance export would silently drop documents.
+      final range = _selectedRange;
+      final invoices = range == null
+          ? await invoiceDao.getInvoicesForBusiness(businessId)
+          : await invoiceDao.getInvoicesForBusinessBetween(
+              businessId,
+              range.start,
+              range.end,
+            );
+      final customers = await ref
+          .read(customerDaoProvider)
+          .getCustomersForBusiness(businessId);
+      final items = await invoiceDao.getItemsForInvoices(
+        invoices.map((invoice) => invoice.id).toList(),
+      );
+
+      final issues = validateInvoicesForGstr1(
+        customers: customers,
+        invoices: invoices,
+        items: items,
+      );
+      if (issues.isNotEmpty && mounted) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => _Gstr1ValidationDialog(issues: issues),
+        );
+        if (proceed != true) return;
+      }
 
       final rows = buildGstr1Rows(
         customers: customers,
@@ -904,7 +931,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isExportingGstr1
                           ? null
-                          : () => _exportGstr1(invoices),
+                          : _exportGstr1,
                       icon: const Icon(Icons.receipt_long),
                       label: Text(
                         _isExportingGstr1
@@ -1378,4 +1405,67 @@ class _QuoteQueueRow {
     required this.lastContact,
     required this.ageDays,
   });
+}
+
+/// Lists pre-export GST field problems and lets the user fix them (tap a row
+/// to open the invoice), export anyway, or cancel.
+class _Gstr1ValidationDialog extends StatelessWidget {
+  const _Gstr1ValidationDialog({required this.issues});
+
+  final List<Gstr1Issue> issues;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Check GST details before export'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${issues.length} problem${issues.length == 1 ? '' : 's'} found '
+              'in the selected period. These documents may be summarised '
+              'wrong in the GSTR-1 export.',
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: issues.length,
+                itemBuilder: (context, index) {
+                  final issue = issues[index];
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${issue.invoiceNumber} — ${issue.field}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    subtitle: Text(issue.message),
+                    trailing: const Icon(Icons.open_in_new, size: 16),
+                    onTap: () {
+                      Navigator.of(context).pop(false);
+                      context.push('/invoice-preview/${issue.invoiceId}');
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Export anyway'),
+        ),
+      ],
+    );
+  }
 }

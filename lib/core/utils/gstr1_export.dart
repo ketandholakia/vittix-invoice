@@ -2,8 +2,8 @@ import '../../database/app_database.dart';
 import 'invoice_status.dart';
 
 /// Builds a GSTR-1 style, sectioned summary an accountant can work from:
-/// B2B invoice rows, a B2CS (unregistered) consolidation, CDNR credit/debit
-/// note rows, and an HSN-wise summary.
+/// B2B invoice rows, a B2CS (unregistered) consolidation, an EXP/SEZ section
+/// for export supplies, CDNR credit/debit note rows, and an HSN-wise summary.
 ///
 /// Returns rows ready for CSV sharing. Draft and cancelled documents are
 /// excluded, and credit notes reduce the HSN totals.
@@ -30,6 +30,9 @@ List<List<String>> buildGstr1Rows({
     return (gstin == null || gstin.isEmpty) ? null : gstin;
   }
 
+  bool isForeignSupply(Invoice invoice) =>
+      invoice.supplyType == 'EXPORT' || invoice.supplyType == 'SEZ';
+
   final rows = <List<String>>[];
 
   // --- B2B: registered recipients ------------------------------------------
@@ -48,6 +51,7 @@ List<List<String>> buildGstr1Rows({
   ]);
   for (final invoice in counted) {
     if (isAdjustmentNote(invoice.invoiceType)) continue;
+    if (isForeignSupply(invoice)) continue;
     final gstin = gstinOf(invoice);
     if (gstin == null) continue;
     rows.add([
@@ -79,6 +83,7 @@ List<List<String>> buildGstr1Rows({
   final b2cs = <String, List<double>>{};
   for (final invoice in counted) {
     if (isAdjustmentNote(invoice.invoiceType)) continue;
+    if (isForeignSupply(invoice)) continue;
     if (gstinOf(invoice) != null) continue;
     final tax =
         invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
@@ -103,6 +108,41 @@ List<List<String>> buildGstr1Rows({
       money(entry.value[2]),
       money(entry.value[3]),
       money(entry.value[4]),
+    ]);
+  }
+
+  // --- EXP/SEZ: export supplies ---------------------------------------------
+  // Type encodes the GSTR-1 payment category: WPAY (with payment of tax) or
+  // WOPAY (under LUT, zero-rated). Port/shipping-bill columns are left blank
+  // because the app does not capture them.
+  rows.add(const []);
+  rows.add(['Section', 'EXP/SEZ']);
+  rows.add([
+    'Type',
+    'GSTIN',
+    'Invoice No',
+    'Date',
+    'Port Code',
+    'Shipping Bill',
+    'Taxable',
+    'IGST',
+    'Cess',
+  ]);
+  for (final invoice in counted) {
+    if (isAdjustmentNote(invoice.invoiceType)) continue;
+    if (!isForeignSupply(invoice)) continue;
+    final category = invoice.supplyType == 'SEZ' ? 'SEZ' : 'EXP';
+    final payment = invoice.exportWithLut ? 'WOPAY' : 'WPAY';
+    rows.add([
+      '$category-$payment',
+      gstinOf(invoice) ?? '',
+      invoice.invoiceNumber,
+      date(invoice.invoiceDate),
+      '',
+      '',
+      money(invoice.taxableAmount),
+      money(invoice.igstAmount),
+      money(invoice.cessAmount),
     ]);
   }
 
@@ -152,7 +192,7 @@ List<List<String>> buildGstr1Rows({
   // --- HSN-wise summary ----------------------------------------------------
   rows.add(const []);
   rows.add(['Section', 'HSN']);
-  rows.add(['HSN/SAC', 'Taxable', 'CGST', 'SGST', 'IGST', 'Cess']);
+  rows.add(['HSN/SAC', 'UQC', 'Taxable', 'CGST', 'SGST', 'IGST', 'Cess']);
   final hsn = <String, List<double>>{};
   for (final invoice in counted) {
     final sign = invoice.invoiceType == 'CREDIT_NOTE' ? -1 : 1;
@@ -160,7 +200,8 @@ List<List<String>> buildGstr1Rows({
       final code = item.hsnSac.trim().isEmpty
           ? 'UNSPECIFIED'
           : item.hsnSac.trim();
-      final bucket = hsn.putIfAbsent(code, () => [0, 0, 0, 0, 0]);
+      final key = '$code|${uqcForUnit(item.unit)}';
+      final bucket = hsn.putIfAbsent(key, () => [0, 0, 0, 0, 0]);
       bucket[0] += sign * item.taxableAmount;
       bucket[1] += sign * item.cgstAmount;
       bucket[2] += sign * item.sgstAmount;
@@ -168,11 +209,12 @@ List<List<String>> buildGstr1Rows({
       bucket[4] += sign * item.cessAmount;
     }
   }
-  final hsnCodes = hsn.keys.toList()..sort();
-  for (final code in hsnCodes) {
-    final bucket = hsn[code]!;
+  final hsnKeys = hsn.keys.toList()..sort();
+  for (final key in hsnKeys) {
+    final bucket = hsn[key]!;
     rows.add([
-      code,
+      key.split('|')[0],
+      key.split('|')[1],
       money(bucket[0]),
       money(bucket[1]),
       money(bucket[2]),
@@ -182,4 +224,24 @@ List<List<String>> buildGstr1Rows({
   }
 
   return rows;
+}
+
+/// The UQC (quantity unit code) set accepted by the GSTR-1 HSN summary.
+const _uqcCodes = {
+  'BAG', 'BAL', 'BDL', 'BKL', 'BOU', 'BOX', 'BTL', 'BUN', 'CAN', 'CBM',
+  'CCM', 'CMS', 'CTN', 'DOZ', 'DRM', 'GGK', 'GMS', 'GRS', 'GYD', 'KGS',
+  'KLR', 'KME', 'LTR', 'MLT', 'MTR', 'MTS', 'NOS', 'PAC', 'PCS', 'PRS',
+  'QTL', 'ROL', 'SET', 'SQF', 'SQM', 'TBS', 'TGM', 'THD', 'TON', 'TUB',
+  'UGS', 'UNT', 'YDS',
+};
+
+/// The app's UOM catalogue uses a few codes that differ from the UQC set.
+const _uomToUqc = {'KG': 'KGS', 'GRM': 'GMS', 'CM': 'CMS', 'ML': 'MLT'};
+
+/// Maps a document line's unit to the UQC the GSTR-1 HSN summary expects.
+/// Unknown or missing units report as OTH rather than blocking the export.
+String uqcForUnit(String unit) {
+  final code = unit.trim().toUpperCase();
+  if (code.isEmpty) return 'OTH';
+  return _uomToUqc[code] ?? (_uqcCodes.contains(code) ? code : 'OTH');
 }

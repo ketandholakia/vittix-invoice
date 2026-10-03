@@ -19,6 +19,24 @@ class InvoiceDao extends DatabaseAccessor<AppDatabase> with _$InvoiceDaoMixin {
             ..orderBy([(t) => OrderingTerm.desc(t.invoiceDate)]))
           .get();
 
+  /// Every invoice for the business dated within [from]..[to] inclusive,
+  /// uncapped. Compliance exports and reports must read the full book — the
+  /// watched list providers cap at `invoiceListPageSize` for UI performance,
+  /// and a capped GSTR-1 export would silently drop documents.
+  Future<List<Invoice>> getInvoicesForBusinessBetween(
+    int businessId,
+    DateTime from,
+    DateTime to,
+  ) =>
+      (select(invoices)
+            ..where(
+              (t) =>
+                  t.businessId.equals(businessId) &
+                  t.invoiceDate.isBetweenValues(from, to),
+            )
+            ..orderBy([(t) => OrderingTerm.asc(t.invoiceDate)]))
+          .get();
+
   Stream<List<Invoice>> watchInvoicesForBusiness(int businessId, {int? limit}) {
     final query = select(invoices)
       ..where((t) => t.businessId.equals(businessId))

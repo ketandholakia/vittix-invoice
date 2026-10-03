@@ -19,11 +19,14 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   String? _error;
   bool _checking = false;
   bool _biometricsAvailable = false;
+  Duration _lockoutRemaining = Duration.zero;
+  Timer? _lockoutTick;
 
   @override
   void initState() {
     super.initState();
     unawaited(_checkBiometrics());
+    _refreshLockout();
   }
 
   Future<void> _checkBiometrics() async {
@@ -32,6 +35,27 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         .biometricsAvailable();
     if (!mounted) return;
     setState(() => _biometricsAvailable = available);
+  }
+
+  void _refreshLockout() {
+    final remaining = ref.read(appLockedProvider.notifier).lockoutRemaining;
+    if (remaining > Duration.zero) {
+      setState(() => _lockoutRemaining = remaining);
+      _startLockoutTick();
+    }
+  }
+
+  void _startLockoutTick() {
+    _lockoutTick?.cancel();
+    _lockoutTick = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = ref.read(appLockedProvider.notifier).lockoutRemaining;
+      setState(() => _lockoutRemaining = remaining);
+      if (remaining <= Duration.zero) timer.cancel();
+    });
   }
 
   Future<void> _unlockWithBiometrics() async {
@@ -44,11 +68,14 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   @override
   void dispose() {
+    _lockoutTick?.cancel();
     _pinController.dispose();
     super.dispose();
   }
 
   Future<void> _unlock() async {
+    if (_lockoutRemaining > Duration.zero) return;
+
     final pin = _pinController.text.trim();
     if (pin.length < 4) {
       setState(() => _error = 'Enter at least 4 digits');
@@ -62,16 +89,29 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
     final unlocked = await ref.read(appLockedProvider.notifier).unlock(pin);
     if (!mounted) return;
+    final remaining = ref.read(appLockedProvider.notifier).lockoutRemaining;
     setState(() {
       _checking = false;
-      _error = unlocked ? null : 'Incorrect PIN';
-      if (!unlocked) _pinController.clear();
+      if (unlocked) {
+        _error = null;
+      } else if (remaining > Duration.zero) {
+        _lockoutRemaining = remaining;
+        _error = 'Too many wrong attempts. Try again in '
+            '${remaining.inSeconds + 1} seconds.';
+        _startLockoutTick();
+        _pinController.clear();
+      } else {
+        _error = 'Incorrect PIN';
+        _pinController.clear();
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     if (!ref.watch(appLockedProvider)) return const SizedBox.shrink();
+
+    final lockedOut = _lockoutRemaining > Duration.zero;
 
     return Material(
       color: Theme.of(context).colorScheme.surface,
@@ -95,6 +135,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     controller: _pinController,
                     autofocus: true,
                     obscureText: true,
+                    enabled: !lockedOut,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -109,9 +150,15 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: _checking ? null : _unlock,
+                    onPressed: (_checking || lockedOut) ? null : _unlock,
                     icon: const Icon(Icons.lock_open),
-                    label: Text(_checking ? 'Checking...' : 'Unlock'),
+                    label: Text(
+                      lockedOut
+                          ? 'Locked (${_lockoutRemaining.inSeconds + 1}s)'
+                          : _checking
+                          ? 'Checking...'
+                          : 'Unlock',
+                    ),
                   ),
                   if (_biometricsAvailable) ...[
                     const SizedBox(height: 12),

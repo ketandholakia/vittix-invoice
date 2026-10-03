@@ -17,8 +17,8 @@ Do not re-plan the following as missing work: receivables aging, empty states, r
 
 ### Phase 34: GST Compliance Exports (remainder)
 
-- Add validation for required GST fields (GSTIN, HSN/SAC, place of supply) before a GSTR-1 export, so an invalid document is caught rather than silently summarised.
-- Add e-invoice/e-way bill preparation fields only after the required payload shape is finalized. (The GSTR-1 style B2B/B2CS/CDNR/HSN summary export is done - see Phase 39.)
+- ~~Add validation for required GST fields (GSTIN, HSN/SAC, place of supply) before a GSTR-1 export~~ — done in Phase 41.
+- Add e-invoice/e-way bill preparation fields only after the required payload shape is finalized. (The GSTR-1 style B2B/B2CS/CDNR/EXP-SEZ/HSN summary export with UQC is done — see Phases 39 and 41.)
 
 ### Phase 35: Reporting And Data Quality Expansion
 

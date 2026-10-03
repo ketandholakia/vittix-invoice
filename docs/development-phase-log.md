@@ -327,10 +327,26 @@ A review-driven pass over the whole app. Schema moved v19  v29.
 - Verified: `flutter analyze` clean; 137/137 tests pass (`LowStock` group covers the threshold rule, the out-of-stock fallback, and the service exemption).
 - Deliberately not automated: a widget test for the Reports screen. Its charts animate continuously, so `pumpAndSettle` never settles and the screen has no widget-test coverage elsewhere; the section is exercised through the pure helper instead.
 
+## Phase 41: Compliance-Correct GSTR-1 Export
+
+- The GSTR-1 summary export reads the full book through a new uncapped `InvoiceDao.getInvoicesForBusinessBetween` (plus the uncapped all-time query) instead of the 500-row-capped `invoiceListProvider`, which silently truncated exports for larger businesses. Dashboard and reminder center intentionally keep the windowed stream.
+- Added pre-export validation (`lib/core/utils/gstr1_validation.dart`): GSTIN format + checksum, B2B invoices whose customer has no GSTIN, impossible places of supply (state codes), lines with a missing or too-short HSN/SAC, and negative taxable amounts. The Reports screen lists every issue in a dialog with tap-to-open invoice navigation, "Export anyway", and cancel.
+- Added an EXP/SEZ section (EXP/SEZ-WPAY/WOPAY derived from the LUT flag); export supplies no longer leak into the domestic B2B/B2CS sections. The HSN summary now carries a UQC column, mapping app UOM codes to the official UQC set (KG→KGS, GRM→GMS, CM→CMS, ML→MLT; unknown → OTH).
+- Tests: 501-invoice range export completeness (bucket total proves no truncation), UQC mapping, EXP/SEZ routing, and seven validation rules (147 total at close).
+
+## Phase 42: Data-Safety Hardening
+
+- Rewrote the Drift `onUpgrade` ladder in strict ascending version order. The previous descending order crashed any database upgrading across step boundaries (v6 databases died in the v22 stock backfill reading the v7 `stock_quantity` column; v20 databases died in the v28 tax-split repair writing the v21 `round_off_amount` column; pre-v17 databases died in the v19 sequence backfill reading the v17 series-format columns).
+- Added `_addColumnIfMissing` and routed every `addColumn` through it: `Migrator.createTable` builds tables from the *current* Dart schema, so tables created mid-migration already contain later-added columns and a plain `addColumn` fails with "duplicate column name" (uoms at v10/v11, invoice_payments at v5/v12/v23). The v19 and v22 backfills now select explicit columns instead of full rows for the same reason.
+- Added `test/migration_test.dart`: hand-built v6 and v20 database fixtures (raw SQL at historical shapes, `PRAGMA user_version` set) upgrade to v30 and assert the stock-ledger opening backfill, sequence-counter backfill, tax-split repair, and every added column land correctly.
+- Hardened the app lock: the PIN is now stretched with PBKDF2-HMAC-SHA256 (100k iterations, random per-install salt — the same parameters as backup encryption) with constant-time comparison; legacy single-SHA-256 digests are verified once and transparently upgraded on the next successful unlock. Wrong attempts now trigger a persisted lockout (5 attempts → 30 s, doubling per extra failure up to 15 min) that survives app restarts; the lock screen shows a live countdown and disables PIN entry while locked out.
+- Added a diagnostics ring buffer (200 records) behind `reportNonFatal` with a Settings → Export diagnostics share action, and replaced the six remaining silent `catch (_) {}` sites (four bulk-delete loops, the pre-restore safety snapshot, the Nextcloud secure-storage write queue) with reported failures.
+- Verified: `flutter analyze --fatal-infos` clean; 154/154 tests pass.
+
 ## Next Likely Phases
 
-1. GST field validation before export, and backup history listing.
+1. Platform completion for chosen ship targets (iOS Google Sign-In config, macOS keychain entitlement, Linux plugin registrants) and integration tests in CI.
 2. Bill of Supply as a first-class document type; per-business GST toggle; composition-scheme handling.
-3. Invoice list/dashboard performance beyond the current 500-row window.
-4. E-invoice/e-way bill preparation once the payload shape is settled.
-5. Margin/profit reporting now that `products.purchasePrice` provides a per-product cost basis.
+3. Margin/profit reporting now that `products.purchasePrice` provides a per-product cost basis.
+4. Invoice list/dashboard performance beyond the current 500-row window.
+5. E-invoice/e-way bill preparation once the payload shape is settled.

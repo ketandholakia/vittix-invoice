@@ -5,6 +5,7 @@ import '../../core/widgets/empty_state.dart';
 import '../../database/app_database.dart';
 import '../../providers/customer_provider.dart';
 import '../../services/share_service.dart';
+import '../../core/utils/app_diagnostics.dart';
 
 class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
@@ -97,7 +98,12 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
       try {
         await ref.read(customerProvider).deleteCustomer(customer.id);
         deleted += 1;
-      } catch (_) {
+      } catch (error, stackTrace) {
+        reportNonFatal(
+          error,
+          stackTrace,
+          context: 'bulk delete customer ${customer.id}',
+        );
         failed += 1;
       }
     }

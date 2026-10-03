@@ -16,6 +16,7 @@ import '../../../database/tables/template_configs.dart';
 import '../../../models/invoice_template_config.dart';
 import '../../../services/pdf_service.dart';
 import '../../../services/share_service.dart';
+import '../../../core/utils/app_diagnostics.dart';
 
 class QuoteListScreen extends ConsumerStatefulWidget {
   const QuoteListScreen({super.key});
@@ -118,7 +119,12 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
       try {
         await ref.read(quoteProvider).deleteQuote(quote.id);
         deleted += 1;
-      } catch (_) {
+      } catch (error, stackTrace) {
+        reportNonFatal(
+          error,
+          stackTrace,
+          context: 'bulk delete quote ${quote.id}',
+        );
         failed += 1;
       }
     }

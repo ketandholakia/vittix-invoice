@@ -17,6 +17,7 @@ import '../../../providers/invoice_provider.dart';
 import '../../../providers/shared_preferences_provider.dart';
 import '../../../services/pdf_service.dart';
 import '../../../services/share_service.dart';
+import '../../../core/utils/app_diagnostics.dart';
 
 class InvoiceListScreen extends ConsumerStatefulWidget {
   const InvoiceListScreen({super.key});
@@ -133,7 +134,12 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       try {
         await ref.read(invoiceProvider).deleteInvoice(invoice.id);
         deleted += 1;
-      } catch (_) {
+      } catch (error, stackTrace) {
+        reportNonFatal(
+          error,
+          stackTrace,
+          context: 'bulk delete invoice ${invoice.id}',
+        );
         failed += 1;
       }
     }

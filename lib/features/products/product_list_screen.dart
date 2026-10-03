@@ -9,6 +9,7 @@ import '../../providers/business_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/shared_preferences_provider.dart';
 import '../../services/share_service.dart';
+import '../../core/utils/app_diagnostics.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen({super.key});
@@ -149,7 +150,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       try {
         await ref.read(productProvider).deleteProduct(product.id);
         deleted += 1;
-      } catch (_) {
+      } catch (error, stackTrace) {
+        reportNonFatal(
+          error,
+          stackTrace,
+          context: 'bulk delete product ${product.id}',
+        );
         failed += 1;
       }
     }

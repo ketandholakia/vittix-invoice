@@ -84,93 +84,14 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        if (from < 30) {
-          await m.addColumn(products, products.reorderLevel);
-        }
-        if (from < 29) {
-          await m.createTable(recurringInvoices);
-        }
-        if (from < 28) {
-          await _repairItemTaxSplits();
-        }
-        if (from < 27) {
-          await m.addColumn(invoices, invoices.tdsSection);
-          await m.addColumn(invoices, invoices.tdsRate);
-          await m.addColumn(invoices, invoices.tdsAmount);
-          await m.addColumn(invoices, invoices.tcsSection);
-          await m.addColumn(invoices, invoices.tcsRate);
-          await m.addColumn(invoices, invoices.tcsAmount);
-          await m.addColumn(quotes, quotes.tdsSection);
-          await m.addColumn(quotes, quotes.tdsRate);
-          await m.addColumn(quotes, quotes.tdsAmount);
-          await m.addColumn(quotes, quotes.tcsSection);
-          await m.addColumn(quotes, quotes.tcsRate);
-          await m.addColumn(quotes, quotes.tcsAmount);
-        }
-        if (from < 26) {
-          await m.addColumn(invoices, invoices.exportWithLut);
-          await m.addColumn(quotes, quotes.exportWithLut);
-        }
-        if (from < 25) {
-          await m.addColumn(invoices, invoices.reverseCharge);
-          await m.addColumn(invoices, invoices.shipToName);
-          await m.addColumn(invoices, invoices.shipToAddress);
-          await m.addColumn(invoices, invoices.shipToCity);
-          await m.addColumn(quotes, quotes.reverseCharge);
-          await m.addColumn(quotes, quotes.shipToName);
-          await m.addColumn(quotes, quotes.shipToAddress);
-          await m.addColumn(quotes, quotes.shipToCity);
-        }
-        if (from < 24) {
-          await m.addColumn(invoices, invoices.referenceInvoiceId);
-          await m.addColumn(
-            businesses,
-            businesses.creditNoteSeriesFormat,
-          );
-          await m.addColumn(businesses, businesses.debitNoteSeriesFormat);
-        }
-        if (from < 23) {
-          await m.addColumn(invoicePayments, invoicePayments.mode);
-          await m.addColumn(invoicePayments, invoicePayments.reference);
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS "idx_invoices_invoice_date" '
-            'ON "invoices" ("invoice_date")',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS "idx_invoices_status" '
-            'ON "invoices" ("status")',
-          );
-        }
-        if (from < 22) {
-          await m.createTable(stockMovements);
-          // Backfill an opening movement for stock that predates the ledger so
-          // the balance can always be rebuilt from movements.
-          final existingProducts = await select(products).get();
-          final backfillNow = DateTime.now();
-          for (final product in existingProducts) {
-            if (product.stockQuantity != 0) {
-              await into(stockMovements).insert(
-                StockMovementsCompanion.insert(
-                  productId: product.id,
-                  quantityDelta: product.stockQuantity,
-                  reason: 'OPENING',
-                  createdAt: backfillNow,
-                ),
-              );
-            }
-          }
-        }
-        if (from < 21) {
-          await m.addColumn(invoices, invoices.roundOffAmount);
-          await m.addColumn(quotes, quotes.roundOffAmount);
-        }
-        if (from < 20) {
-          await m.addColumn(hsnCodeRates, hsnCodeRates.minUnitPrice);
-          await m.addColumn(hsnCodeRates, hsnCodeRates.maxUnitPrice);
-        }
+        // Steps MUST run in ascending version order: several steps read or
+        // write columns introduced by an earlier step (v22 backfill reads
+        // products.stockQuantity from v7, v28 repair writes roundOffAmount
+        // from v21, v19 backfill reads the series formats from v17). Running
+        // descending crashed any database upgrading across those boundaries.
         if (from < 3) {
-          await m.addColumn(businesses, businesses.brandColor);
-          await m.addColumn(invoices, invoices.amountPaid);
+          await _addColumnIfMissing(m, businesses, businesses.brandColor);
+          await _addColumnIfMissing(m, invoices, invoices.amountPaid);
         }
         if (from < 4) {
           await customStatement(
@@ -189,12 +110,12 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(customerActivityEvents);
         }
         if (from < 7) {
-          await m.addColumn(products, products.stockQuantity);
+          await _addColumnIfMissing(m, products, products.stockQuantity);
         }
         if (from < 8) {
-          await m.addColumn(businesses, businesses.currencyCode);
-          await m.addColumn(invoices, invoices.currencyCode);
-          await m.addColumn(quotes, quotes.currencyCode);
+          await _addColumnIfMissing(m, businesses, businesses.currencyCode);
+          await _addColumnIfMissing(m, invoices, invoices.currencyCode);
+          await _addColumnIfMissing(m, quotes, quotes.currencyCode);
         }
         if (from < 9) {
           await m.createTable(hsnCodeRates);
@@ -203,22 +124,22 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(uoms);
         }
         if (from < 11) {
-          await m.addColumn(uoms, uoms.family);
-          await m.addColumn(uoms, uoms.baseCode);
-          await m.addColumn(uoms, uoms.conversionFactor);
+          await _addColumnIfMissing(m, uoms, uoms.family);
+          await _addColumnIfMissing(m, uoms, uoms.baseCode);
+          await _addColumnIfMissing(m, uoms, uoms.conversionFactor);
         }
         if (from < 12) {
-          await m.addColumn(invoicePayments, invoicePayments.kind);
+          await _addColumnIfMissing(m, invoicePayments, invoicePayments.kind);
         }
         if (from < 13) {
-          await m.addColumn(businesses, businesses.invoiceTemplate);
-          await m.addColumn(businesses, businesses.quoteTemplate);
+          await _addColumnIfMissing(m, businesses, businesses.invoiceTemplate);
+          await _addColumnIfMissing(m, businesses, businesses.quoteTemplate);
         }
         if (from < 14) {
           await m.createTable(templateConfigs);
         }
         if (from < 15) {
-          await m.addColumn(businesses, businesses.upiId);
+          await _addColumnIfMissing(m, businesses, businesses.upiId);
         }
         if (from < 16) {
           await customStatement(
@@ -304,11 +225,119 @@ class AppDatabase extends _$AppDatabase {
           );
           await _backfillDocumentSequenceCounters();
         }
+        if (from < 20) {
+          await _addColumnIfMissing(m, hsnCodeRates, hsnCodeRates.minUnitPrice);
+          await _addColumnIfMissing(m, hsnCodeRates, hsnCodeRates.maxUnitPrice);
+        }
+        if (from < 21) {
+          await _addColumnIfMissing(m, invoices, invoices.roundOffAmount);
+          await _addColumnIfMissing(m, quotes, quotes.roundOffAmount);
+        }
+        if (from < 22) {
+          await m.createTable(stockMovements);
+          // Backfill an opening movement for stock that predates the ledger so
+          // the balance can always be rebuilt from movements. Explicit columns,
+          // never a full-row select: products columns added by later schema
+          // versions do not exist yet at this point in the migration.
+          final existingProducts = await customSelect(
+            'SELECT id, stock_quantity FROM products',
+            readsFrom: {products},
+          ).get();
+          final backfillNow = DateTime.now();
+          for (final product in existingProducts) {
+            final stock = product.read<double>('stock_quantity');
+            if (stock != 0) {
+              await into(stockMovements).insert(
+                StockMovementsCompanion.insert(
+                  productId: product.read<int>('id'),
+                  quantityDelta: stock,
+                  reason: 'OPENING',
+                  createdAt: backfillNow,
+                ),
+              );
+            }
+          }
+        }
+        if (from < 23) {
+          await _addColumnIfMissing(m, invoicePayments, invoicePayments.mode);
+          await _addColumnIfMissing(m, invoicePayments, invoicePayments.reference);
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS "idx_invoices_invoice_date" '
+            'ON "invoices" ("invoice_date")',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS "idx_invoices_status" '
+            'ON "invoices" ("status")',
+          );
+        }
+        if (from < 24) {
+          await _addColumnIfMissing(m, invoices, invoices.referenceInvoiceId);
+          await _addColumnIfMissing(m, businesses, businesses.creditNoteSeriesFormat);
+          await _addColumnIfMissing(m, businesses, businesses.debitNoteSeriesFormat);
+        }
+        if (from < 25) {
+          await _addColumnIfMissing(m, invoices, invoices.reverseCharge);
+          await _addColumnIfMissing(m, invoices, invoices.shipToName);
+          await _addColumnIfMissing(m, invoices, invoices.shipToAddress);
+          await _addColumnIfMissing(m, invoices, invoices.shipToCity);
+          await _addColumnIfMissing(m, quotes, quotes.reverseCharge);
+          await _addColumnIfMissing(m, quotes, quotes.shipToName);
+          await _addColumnIfMissing(m, quotes, quotes.shipToAddress);
+          await _addColumnIfMissing(m, quotes, quotes.shipToCity);
+        }
+        if (from < 26) {
+          await _addColumnIfMissing(m, invoices, invoices.exportWithLut);
+          await _addColumnIfMissing(m, quotes, quotes.exportWithLut);
+        }
+        if (from < 27) {
+          await _addColumnIfMissing(m, invoices, invoices.tdsSection);
+          await _addColumnIfMissing(m, invoices, invoices.tdsRate);
+          await _addColumnIfMissing(m, invoices, invoices.tdsAmount);
+          await _addColumnIfMissing(m, invoices, invoices.tcsSection);
+          await _addColumnIfMissing(m, invoices, invoices.tcsRate);
+          await _addColumnIfMissing(m, invoices, invoices.tcsAmount);
+          await _addColumnIfMissing(m, quotes, quotes.tdsSection);
+          await _addColumnIfMissing(m, quotes, quotes.tdsRate);
+          await _addColumnIfMissing(m, quotes, quotes.tdsAmount);
+          await _addColumnIfMissing(m, quotes, quotes.tcsSection);
+          await _addColumnIfMissing(m, quotes, quotes.tcsRate);
+          await _addColumnIfMissing(m, quotes, quotes.tcsAmount);
+        }
+        if (from < 28) {
+          await _repairItemTaxSplits();
+        }
+        if (from < 29) {
+          await m.createTable(recurringInvoices);
+        }
+        if (from < 30) {
+          await _addColumnIfMissing(m, products, products.reorderLevel);
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
       },
     );
+  }
+
+  /// Adds [column] only when the table does not already have it.
+  ///
+  /// `Migrator.createTable` builds the table from the CURRENT Dart schema,
+  /// so a table created mid-migration (e.g. uoms at v10, invoice_payments at
+  /// v5) already contains columns that later steps historically added — a
+  /// plain `m.addColumn` then dies with "duplicate column name". Every
+  /// addColumn in the ladder goes through this guard.
+  Future<void> _addColumnIfMissing(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+    GeneratedColumn column,
+  ) async {
+    final columns = await customSelect(
+      "SELECT name FROM pragma_table_info('${table.actualTableName}')",
+    ).get();
+    final exists = columns.any((row) => row.read<String>('name') == column.$name);
+    if (!exists) {
+      await m.addColumn(table, column);
+    }
   }
 
   /// Computes the legacy per-business / per-FY / per-format max sequences
@@ -384,43 +413,58 @@ class AppDatabase extends _$AppDatabase {
 
   /// continues seamlessly for databases upgraded to schema v19.
   Future<void> _backfillDocumentSequenceCounters() async {
-    final businessRows = await select(businesses).get();
+    // Explicit columns, never full-row selects: businesses/invoices/quotes
+    // gain columns in later schema versions (v24's note series formats,
+    // v25-27's compliance fields), and a database still mid-upgrade would
+    // fail full-row mapping against the current Dart schema.
+    final businessRows = await customSelect(
+      'SELECT id, invoice_series_format, quote_series_format FROM businesses',
+      readsFrom: {businesses},
+    ).get();
     for (final business in businessRows) {
+      final businessId = business.read<int>('id');
       final invoiceFormat = InvoiceNumberGenerator.normalizeFormat(
-        business.invoiceSeriesFormat,
+        business.read<String>('invoice_series_format'),
         fallback: InvoiceNumberGenerator.defaultInvoiceFormat,
       );
       await _backfillDocType(
-        businessId: business.id,
+        businessId: businessId,
         docType: DocumentSequenceAllocator.invoiceDocType,
         format: invoiceFormat,
-        documents: (await (select(invoices)
-                  ..where((t) => t.businessId.equals(business.id)))
-              .get())
-            .map((row) => (
-                  invoiceNumber: row.invoiceNumber,
-                  invoiceDate: row.invoiceDate,
-                ))
-            .toList(),
+        documents: await _readDocumentNumbers(
+          'SELECT invoice_number, invoice_date FROM invoices '
+          'WHERE business_id = ?',
+          [Variable.withInt(businessId)],
+        ),
       );
       final quoteFormat = InvoiceNumberGenerator.normalizeFormat(
-        business.quoteSeriesFormat,
+        business.read<String>('quote_series_format'),
         fallback: InvoiceNumberGenerator.defaultQuoteFormat,
       );
       await _backfillDocType(
-        businessId: business.id,
+        businessId: businessId,
         docType: DocumentSequenceAllocator.quoteDocType,
         format: quoteFormat,
-        documents: (await (select(quotes)
-                  ..where((t) => t.businessId.equals(business.id)))
-              .get())
-            .map((row) => (
-                  invoiceNumber: row.invoiceNumber,
-                  invoiceDate: row.invoiceDate,
-                ))
-            .toList(),
+        documents: await _readDocumentNumbers(
+          'SELECT invoice_number, invoice_date FROM quotes '
+          'WHERE business_id = ?',
+          [Variable.withInt(businessId)],
+        ),
       );
     }
+  }
+
+  Future<List<({String invoiceNumber, DateTime invoiceDate})>>
+      _readDocumentNumbers(String sql, List<Variable> variables) async {
+    final rows = await customSelect(sql, variables: variables).get();
+    return rows
+        .map(
+          (row) => (
+            invoiceNumber: row.read<String>('invoice_number'),
+            invoiceDate: row.read<DateTime>('invoice_date'),
+          ),
+        )
+        .toList();
   }
 
   Future<void> _backfillDocType({

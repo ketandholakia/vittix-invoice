@@ -16,6 +16,8 @@ import '../../providers/nextcloud_provider.dart';
 import '../../services/nextcloud_service.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/utils/app_diagnostics.dart';
+import '../../services/share_service.dart';
 
 /// Destructive-restore confirmation. Restoring replaces every table, so the
 /// user is warned and told a safety copy of the current data is taken first.
@@ -52,7 +54,12 @@ Future<bool> _confirmRestore(
 Future<String?> _safeSnapshot(AppDatabase database) async {
   try {
     return await DatabaseBackupService.createRestoreSafetySnapshot(database);
-  } catch (_) {
+  } catch (error, stackTrace) {
+    reportNonFatal(
+      error,
+      stackTrace,
+      context: 'pre-restore safety snapshot',
+    );
     return null;
   }
 }
@@ -1084,6 +1091,26 @@ class SettingsScreen extends ConsumerWidget {
               onPressed: () => context.push('/uoms'),
               icon: const Icon(Icons.straighten),
               label: const Text('Manage Units'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 32),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'Diagnostics',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: OutlinedButton.icon(
+              onPressed: () => ShareService.shareText(
+                exportDiagnostics(),
+                subject: 'Vittix Invoice diagnostics',
+              ),
+              icon: const Icon(Icons.bug_report_outlined),
+              label: const Text('Export diagnostics'),
             ),
           ),
           const SizedBox(height: 8),

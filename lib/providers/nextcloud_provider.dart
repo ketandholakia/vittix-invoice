@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/storage/secure_key_value_store.dart';
 import 'shared_preferences_provider.dart';
+import '../core/utils/app_diagnostics.dart';
 
 // Re-exported so existing imports of this file keep resolving the shared
 // secure-storage abstraction.
@@ -114,9 +115,14 @@ class NextcloudConfigNotifier extends StateNotifier<NextcloudConfig> {
     _pendingWrites = _pendingWrites.then((_) async {
       try {
         await write();
-      } catch (_) {
+      } catch (error, stackTrace) {
         // Secure storage failures should not crash the UI; the config load
         // on next startup will re-read whichever keys persisted.
+        reportNonFatal(
+          error,
+          stackTrace,
+          context: 'nextcloud secure storage write',
+        );
       }
     });
   }

@@ -3,19 +3,24 @@ import '../database/app_database.dart';
 import 'database_provider.dart';
 import 'shared_preferences_provider.dart';
 
-final businessListProvider = FutureProvider<List<Business>>((ref) async {
-  final dao = ref.watch(businessDaoProvider);
-  return dao.getAllBusinesses();
-});
+final businessListProvider = StreamProvider.autoDispose<List<Business>>(
+  (ref) => ref.watch(businessDaoProvider).watchAllBusinesses(),
+);
 
-final activeBusinessProvider = FutureProvider<Business?>((ref) async {
+final activeBusinessProvider = StreamProvider.autoDispose<Business?>((ref) {
   final activeBusinessId = ref.watch(activeBusinessIdProvider);
   if (activeBusinessId == null) {
-    return null;
+    return Stream.value(null);
   }
 
-  return ref.watch(businessDaoProvider).getBusinessById(activeBusinessId);
+  return ref.watch(businessDaoProvider).watchBusinessById(activeBusinessId);
 });
+
+final businessDetailProvider =
+    StreamProvider.autoDispose.family<Business?, int>(
+      (ref, businessId) =>
+          ref.watch(businessDaoProvider).watchBusinessById(businessId),
+    );
 
 final businessProvider = Provider<BusinessNotifier>((ref) {
   return BusinessNotifier(ref);
@@ -28,21 +33,16 @@ class BusinessNotifier {
 
   Future<int> addBusiness(BusinessesCompanion business) async {
     final dao = _ref.read(businessDaoProvider);
-    final id = await dao.insertBusiness(business);
-    _ref.invalidate(businessListProvider);
-    return id;
+    return dao.insertBusiness(business);
   }
 
   Future<bool> updateBusiness(Business business) async {
     final dao = _ref.read(businessDaoProvider);
-    final success = await dao.updateBusiness(business);
-    _ref.invalidate(businessListProvider);
-    return success;
+    return dao.updateBusiness(business);
   }
 
   Future<void> deleteBusiness(int id) async {
     final dao = _ref.read(businessDaoProvider);
     await dao.deleteBusiness(id);
-    _ref.invalidate(businessListProvider);
   }
 }

@@ -36,16 +36,18 @@ class AmountInWords {
   ];
 
   static String convert(double amount) {
-    if (amount == 0) return 'Zero Rupees Only';
+    if (amount <= 0) return 'Zero Rupees Only';
 
-    final int rupees = amount.floor();
-    final int paise = ((amount - rupees) * 100).round();
+    final totalPaise = (amount * 100).round();
+    final rupees = totalPaise ~/ 100;
+    final paise = totalPaise % 100;
 
-    String result = '${_convertNumber(rupees)} Rupees';
-    if (paise > 0) {
-      result += ' and ${_convertNumber(paise)} Paise';
-    }
-    return '$result Only';
+    final rupeeWord = rupees == 0
+        ? 'Zero Rupees'
+        : '${_convertNumber(rupees)} ${rupees == 1 ? 'Rupee' : 'Rupees'}';
+
+    if (paise == 0) return '$rupeeWord Only';
+    return '$rupeeWord and ${_convertNumber(paise)} Paise Only';
   }
 
   static String _convertNumber(int number) {

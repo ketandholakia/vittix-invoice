@@ -30,6 +30,9 @@ coverage/
 # Android
 android/.gradle/
 android/local.properties
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
 android/**/captures/
 /android/app/debug
 /android/app/profile
@@ -59,3 +62,16 @@ macos/Runner.xcodeproj/project.xcworkspace/xcuserdata/
 .svn/
 .swiftpm/
 migrate_working_dir/
+
+# Personal assistant workspace (not part of the app)
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+MEMORY.md
+BOOTSTRAP.md
+.openclaw/
+.agents/
+memory/

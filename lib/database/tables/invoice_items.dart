@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'invoices.dart';
 import 'products.dart';
 
+@TableIndex(name: 'idx_invoice_items_invoice_id', columns: {#invoiceId})
+@TableIndex(name: 'idx_invoice_items_product_id', columns: {#productId})
 @DataClassName('InvoiceItem')
 class InvoiceItems extends Table {
   IntColumn get id => integer().autoIncrement()();

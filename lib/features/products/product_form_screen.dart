@@ -28,7 +28,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   late TextEditingController _hsnSacController;
   late TextEditingController _salePriceController;
   late TextEditingController _gstRateController;
+  late TextEditingController _cessRateController;
   late TextEditingController _stockQuantityController;
+  late TextEditingController _reorderLevelController;
 
   bool _isService = false;
   String _unit = 'PCS';
@@ -49,8 +51,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _gstRateController = TextEditingController(
       text: widget.existingProduct?.gstRate.toString() ?? '',
     );
+    _cessRateController = TextEditingController(
+      text: widget.existingProduct?.cessRate.toString() ?? '0',
+    );
     _stockQuantityController = TextEditingController(
       text: widget.existingProduct?.stockQuantity.toString() ?? '0',
+    );
+    _reorderLevelController = TextEditingController(
+      text: widget.existingProduct?.reorderLevel.toString() ?? '0',
     );
     _isService = widget.existingProduct?.isService ?? false;
     _unit = widget.existingProduct?.unit ?? 'PCS';
@@ -62,7 +70,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _hsnSacController.dispose();
     _salePriceController.dispose();
     _gstRateController.dispose();
+    _cessRateController.dispose();
     _stockQuantityController.dispose();
+    _reorderLevelController.dispose();
     super.dispose();
   }
 
@@ -114,7 +124,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final parsedGstRate = isGstEnabled
         ? double.tryParse(_gstRateController.text.trim()) ?? 0.0
         : 0.0;
+    final parsedCessRate = isGstEnabled
+        ? double.tryParse(_cessRateController.text.trim()) ?? 0.0
+        : 0.0;
+    final parsedReorderLevel =
+        double.tryParse(_reorderLevelController.text.trim()) ?? 0.0;
 
+    final desiredStock = double.parse(_stockQuantityController.text.trim());
+
+    // Stock lives in the movement ledger: the product row is written without a
+    // direct quantity and the change is recorded as a movement, so the cached
+    // balance and the ledger can never disagree.
     final companion = ProductsCompanion(
       businessId: drift.Value(activeBusinessId),
       name: drift.Value(_nameController.text.trim()),
@@ -122,9 +142,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       unit: drift.Value(_unit),
       salePrice: drift.Value(double.parse(_salePriceController.text.trim())),
       gstRate: drift.Value(parsedGstRate),
-      stockQuantity: drift.Value(
-        double.parse(_stockQuantityController.text.trim()),
-      ),
+      cessRate: drift.Value(parsedCessRate),
+      reorderLevel: drift.Value(parsedReorderLevel),
       isService: drift.Value(_isService),
       createdAt: drift.Value(DateTime.now()),
     );
@@ -133,18 +152,30 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
     try {
       if (widget.existingProduct == null) {
-        await notifier.addProduct(companion);
+        final productId = await notifier.addProduct(companion);
+        await notifier.recordStockMovement(
+          productId: productId,
+          quantityDelta: desiredStock,
+          reason: 'OPENING',
+        );
       } else {
+        final existing = widget.existingProduct!;
         await notifier.updateProduct(
-          widget.existingProduct!.copyWith(
+          existing.copyWith(
             name: _nameController.text.trim(),
             hsnSac: isGstEnabled ? _hsnSacController.text.trim() : '',
             unit: _unit,
             salePrice: double.parse(_salePriceController.text.trim()),
             gstRate: parsedGstRate,
-            stockQuantity: double.parse(_stockQuantityController.text.trim()),
+            cessRate: parsedCessRate,
+            reorderLevel: parsedReorderLevel,
             isService: _isService,
           ),
+        );
+        await notifier.recordStockMovement(
+          productId: existing.id,
+          quantityDelta: desiredStock - existing.stockQuantity,
+          reason: 'ADJUSTMENT',
         );
       }
 
@@ -278,6 +309,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              TextFormField(
+                controller: _reorderLevelController,
+                decoration: const InputDecoration(
+                  labelText: 'Reorder Level',
+                  border: OutlineInputBorder(),
+                  helperText: 'Warn when stock reaches this level (0 = off)',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) return null;
+                  final parsed = double.tryParse(val);
+                  if (parsed == null || parsed < 0) return 'Invalid level';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -325,6 +374,27 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   ],
                 ],
               ),
+              if (isGstEnabled) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _cessRateController,
+                  decoration: const InputDecoration(
+                    labelText: 'Cess %',
+                    border: OutlineInputBorder(),
+                    suffixText: '%',
+                    helperText: 'Compensation cess, usually 0',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) return null;
+                    final parsed = double.tryParse(val);
+                    if (parsed == null || parsed < 0) return 'Invalid cess';
+                    return null;
+                  },
+                ),
+              ],
               const SizedBox(height: 32),
               FilledButton(
                 onPressed: _isLoading ? null : _saveProduct,

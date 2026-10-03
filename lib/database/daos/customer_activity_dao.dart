@@ -18,4 +18,10 @@ class CustomerActivityDao extends DatabaseAccessor<AppDatabase>
             ..where((t) => t.customerId.equals(customerId))
             ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
           .get();
+
+  Stream<List<CustomerActivityEvent>> watchEventsForCustomer(int customerId) =>
+      (select(customerActivityEvents)
+            ..where((t) => t.customerId.equals(customerId))
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+          .watch();
 }

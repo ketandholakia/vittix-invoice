@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/formatting.dart';
 import '../../core/utils/invoice_balance.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../database/app_database.dart';
@@ -363,7 +366,7 @@ class _InvoiceReminderTile extends ConsumerWidget {
               ),
         title: Text('${customer.name} - ${invoice.invoiceNumber}'),
         subtitle: Text(
-          '$label | Balance Rs. ${item.balanceDue.toStringAsFixed(2)}',
+          '$label | Balance ${formatMoneyForBusiness(item.balanceDue, item.business.currencyCode)}',
         ),
         onTap: () {
           if (isSelecting) {
@@ -397,7 +400,7 @@ class _InvoiceReminderTile extends ConsumerWidget {
                 return;
               case 'open':
                 if (!context.mounted) return;
-                context.push('/invoice-preview/${invoice.id}');
+                unawaited(context.push('/invoice-preview/${invoice.id}'));
                 return;
             }
           },
@@ -450,7 +453,7 @@ class _QuoteReminderTile extends ConsumerWidget {
                 color: item.isExpired ? Colors.red : null,
               ),
         title: Text('${customer.name} - ${quote.invoiceNumber}'),
-        subtitle: Text('$label | Rs. ${quote.totalAmount.toStringAsFixed(2)}'),
+        subtitle: Text('$label | ${formatMoneyForBusiness(quote.totalAmount, item.business.currencyCode)}'),
         onTap: () {
           if (isSelecting) {
             onToggleSelected();
@@ -483,7 +486,7 @@ class _QuoteReminderTile extends ConsumerWidget {
                 return;
               case 'open':
                 if (!context.mounted) return;
-                context.push('/quote-preview/${quote.id}');
+                unawaited(context.push('/quote-preview/${quote.id}'));
                 return;
             }
           },
@@ -506,7 +509,6 @@ String _buildInvoiceReminder({
   final balance = invoiceBalanceDue(invoice);
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  final dueDate = invoice.dueDate?.toLocal().toString().split(' ')[0];
   final isOverdue =
       invoice.dueDate != null &&
       DateTime(
@@ -523,8 +525,8 @@ String _buildInvoiceReminder({
             ? 'You can reply to ${customer.email}.'
             : '');
   return '$opening for invoice ${invoice.invoiceNumber} with pending balance '
-      'Rs. ${balance.toStringAsFixed(2)}.'
-      '${dueDate != null ? ' The due date is $dueDate.' : ''}'
+      '${formatMoneyForBusiness(balance, business.currencyCode)}.'
+      '${invoice.dueDate != null ? ' The due date is ${formatDate(invoice.dueDate!)}.' : ''}'
       '${isOverdue ? ' This invoice is now overdue.' : ''}'
       '${contact.isNotEmpty ? ' $contact' : ''}'
       ' Please let us know once payment is completed.';
@@ -537,7 +539,6 @@ String _buildQuoteFollowUp({
 }) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  final validUntil = quote.dueDate?.toLocal().toString().split(' ')[0];
   final dueDateValue = quote.dueDate == null
       ? null
       : DateTime(quote.dueDate!.year, quote.dueDate!.month, quote.dueDate!.day);
@@ -556,8 +557,8 @@ String _buildQuoteFollowUp({
       : (customer.email?.isNotEmpty == true
             ? 'You can reply to ${customer.email}.'
             : '');
-  return '$opening ${quote.invoiceNumber} for Rs. ${quote.totalAmount.toStringAsFixed(2)}.'
-      '${validUntil != null ? ' The quote is valid until $validUntil.' : ''}'
+  return '$opening ${quote.invoiceNumber} for ${formatMoneyForBusiness(quote.totalAmount, business.currencyCode)}.'
+      '${quote.dueDate != null ? ' The quote is valid until ${formatDate(quote.dueDate!)}.' : ''}'
       '${isExpired ? ' This quote has expired.' : ''}'
       '${isExpiringSoon ? ' This quote will expire soon.' : ''}'
       '${contact.isNotEmpty ? ' $contact' : ''}'

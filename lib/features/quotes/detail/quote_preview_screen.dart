@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
+import '../../../core/utils/formatting.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../database/app_database.dart';
 import '../../../database/tables/template_configs.dart';
@@ -32,6 +33,9 @@ class QuotePreviewScreen extends ConsumerWidget {
             builder: (context, snapshot) {
               final quote = snapshot.data;
               if (quote == null) {
+                return const SizedBox.shrink();
+              }
+              if (quote.status == 'CONVERTED') {
                 return const SizedBox.shrink();
               }
               return IconButton(
@@ -84,6 +88,9 @@ class QuotePreviewScreen extends ConsumerWidget {
             builder: (context, snapshot) {
               final quote = snapshot.data;
               if (quote == null) {
+                return const SizedBox.shrink();
+              }
+              if (quote.status == 'CONVERTED') {
                 return const SizedBox.shrink();
               }
               return IconButton(
@@ -191,9 +198,6 @@ class QuotePreviewScreen extends ConsumerWidget {
                     await ref
                         .read(quoteProvider)
                         .updateQuoteStatus(quote.id, value);
-                    if (context.mounted) {
-                      ref.invalidate(quoteDetailProvider(quote.id));
-                    }
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -263,7 +267,7 @@ class QuotePreviewScreen extends ConsumerWidget {
                       title: Text('Status: ${quote.status}'),
                       subtitle: Text(
                         quote.dueDate != null
-                            ? 'Valid until ${quote.dueDate!.toLocal().toString().split(' ')[0]}'
+                            ? 'Valid until ${formatDate(quote.dueDate!)}'
                             : 'No validity date set',
                       ),
                       trailing: PopupMenuButton<String>(
@@ -357,7 +361,6 @@ class QuotePreviewScreen extends ConsumerWidget {
   }) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final validUntil = quote.dueDate?.toLocal().toString().split(' ')[0];
     final dueDateValue = quote.dueDate == null
         ? null
         : DateTime(
@@ -381,7 +384,7 @@ class QuotePreviewScreen extends ConsumerWidget {
               ? 'You can reply to ${customer.email}.'
               : '');
     return '$opening ${quote.invoiceNumber} for ${formatMoney(quote.totalAmount, currencyCode: quote.currencyCode)}.'
-        '${validUntil != null ? ' The quote is valid until $validUntil.' : ''}'
+        '${quote.dueDate != null ? ' The quote is valid until ${formatDate(quote.dueDate!)}.' : ''}'
         '${isExpired ? ' This quote has expired.' : ''}'
         '${isExpiringSoon ? ' This quote will expire soon.' : ''}'
         '${contact.isNotEmpty ? ' $contact' : ''}'
@@ -499,9 +502,6 @@ class QuotePreviewScreen extends ConsumerWidget {
         await ref
             .read(quoteProvider)
             .updateQuoteTemplate(quote.id, newTemplateId);
-        if (context.mounted) {
-          ref.invalidate(quoteDetailProvider(quote.id));
-        }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(

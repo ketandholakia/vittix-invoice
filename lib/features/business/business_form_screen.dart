@@ -127,7 +127,7 @@ class _BusinessFormScreenState extends ConsumerState<BusinessFormScreen> {
   }
 
   void _pickColor() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(

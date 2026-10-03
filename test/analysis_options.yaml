@@ -1,0 +1,7 @@
+# Test directory gets the full project rule set plus discarded_futures so
+# fire-and-forget test helpers are caught at review time.
+include: ../analysis_options.yaml
+
+linter:
+  rules:
+    discarded_futures: true

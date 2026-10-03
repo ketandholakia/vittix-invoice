@@ -10,8 +10,14 @@ class BusinessDao extends DatabaseAccessor<AppDatabase>
   BusinessDao(super.db);
 
   Future<List<Business>> getAllBusinesses() => select(businesses).get();
+
+  Stream<List<Business>> watchAllBusinesses() => select(businesses).watch();
+
   Future<Business?> getBusinessById(int id) =>
       (select(businesses)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Stream<Business?> watchBusinessById(int id) =>
+      (select(businesses)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<int> insertBusiness(BusinessesCompanion business) =>
       into(businesses).insert(business);
   Future<bool> updateBusiness(Business business) =>

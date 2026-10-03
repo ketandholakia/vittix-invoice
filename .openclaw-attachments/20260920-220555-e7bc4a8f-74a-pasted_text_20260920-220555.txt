@@ -1,0 +1,111 @@
+The clone worked this time (the default branch is `master`). Let me size it up and read the core logic first.No Flutter toolchain here, so this will be a manual code review. I'll start with the money, tax and numbering core.The clone worked this time (the default branch is `master`). I read the core of the app closely: money and tax logic, invoice/quote services, schema and migrations, the invoice form, backup/restore, Drive/Nextcloud, and parts of the PDF, reports and dashboard code. I couldn't run `flutter analyze` or the tests because the sandbox has no Flutter SDK, so everything below comes from reading the code. I only skimmed the template editor, reminders, and the customer and product forms.
+
+The architecture is solid: Drift with transactions, unique invoice numbers per business, and sensible test coverage of the billing logic. The gaps are money correctness, invoice lifecycle rules, backup honesty, and India GST compliance.
+
+## Critical bugs
+
+1. **Money is `double` with no rounding.**
+   - `GstCalculator`, `item_entry_sheet._save` and `invoice_form._saveInvoice` all skip rounding.
+   - Totals can come out as `1180.0000000002`, and there is no round-off line.
+   - `_statusFromPayments` uses `amountPaid >= totalAmount`, so an invoice may never reach PAID.
+   - Fix: round tax per line to 2 decimals, or store integer paise, and add a `roundOff` column.
+2. **The tax split can be wrong.**
+   - Items are calculated with `isInterState` at the moment you add them.
+   - If you change the customer afterwards, `invoice.isIgst` flips but the items keep their old CGST/SGST.
+   - Fix: keep raw inputs (qty, rate, discount, GST rate) and recompute everything at save.
+3. **Cancelled and draft invoices are counted in totals.**
+   - Dashboard revenue and unpaid amounts (`dashboard_screen.dart` ~117–133) and report sales/tax totals (`reports_screen.dart` ~388–418) sum every invoice.
+   - `invoiceBalanceDue` on a cancelled invoice returns the full total, so it shows up as a receivable.
+4. **There is no invoice lifecycle.**
+   - `updateInvoiceWithItems` has no status guard, so PAID, SENT and CANCELLED invoices can be edited freely.
+   - Changing the total doesn't re-run the payment status.
+   - `deleteInvoice` allows deleting unpaid issued invoices, which leaves gaps in the number series. GST requires consecutive serial numbers, so issued invoices should be cancelled, not deleted.
+   - `recordPayment` on a DRAFT or CANCELLED invoice flips it to PAID.
+5. **Stock drifts.**
+   - `_applyStockChangeForInvoiceItem` clamps at 0, so selling 10 with 5 in stock and then deleting the invoice leaves 10.
+   - Drafts and duplicates deduct stock, but quote-to-invoice conversion doesn't.
+   - Fix: use a stock movements ledger instead of mutating one number.
+6. **Restore is lossy and dangerous.**
+   - `templateConfigs` isn't exported or cleared, but invoices and businesses reference template IDs.
+   - Logo files (`logoPath`) and app settings aren't backed up.
+   - There is no `schemaVersion` check.
+   - All three restore buttons (`settings_screen.dart` ~350, ~507, ~695) wipe the database on one tap, with no confirmation and no safety copy first.
+7. **"Auto Backup to Drive" does nothing.** Workmanager is commented out in `main.dart`, so the toggle only saves a flag while the UI promises background backups. Users will believe they're protected. Implement it (for example, back up on app start if the last backup is over 24h old) or hide the toggle.
+8. **Drive PDFs are made public.** `uploadShareablePdf` creates an `anyone` reader permission. The PDF contains GSTIN, address and possibly bank/UPI details. It needs an explicit warning at minimum, plus a way to revoke access.
+9. **Secrets and release config.**
+   - The Nextcloud password is stored in plain `SharedPreferences`, and Android `allowBackup` defaults to on, so it can end up in device backups. Use `flutter_secure_storage`.
+   - `http://` URLs are accepted with Basic auth.
+   - `http.Client()` is created per request and never closed.
+   - Release builds are signed with the debug key (`build.gradle.kts:33`), so this can't ship to Play.
+
+## Medium bugs
+
+- **Supply data is hard-coded.**
+  - `supplyType: 'B2B'` is set even for customers with no GSTIN.
+  - `placeOfSupply` is `customer.stateCode ?? 0`, and state 0 is invalid. It should fall back to the business state.
+  - The invoice type `'INVOICE'` used when GST is off isn't in your documented enum.
+  - The PDF prints the numeric state code, not "Gujarat (24)".
+- **GST is a global switch, not per business.**
+  - `isGstEnabledProvider` is one preference for all businesses.
+  - `BusinessType.compositionScheme` still charges tax; the PDF just adds a note.
+  - `convertToInvoice` hard-codes `TAX_INVOICE`.
+- **Cess is dead code.** `cessRate` is never passed into `GstCalculator`, and `Product.cessRate` is ignored.
+- **The GST rate is silently overwritten on save.**
+  - `_syncGstRateFromHsn` overrides what the user typed.
+  - Only 5 HSN codes are seeded, with 2017 rates such as 6203 at 12%.
+  - As far as I know, GST moved to 5%/18% slabs from 22 Sep 2025. Please verify against the current rate notifications, because stale seeded rates will produce wrong invoices.
+- **Discounts are half-modelled.** `subtotal` is set equal to `taxable` (marked "Simplified" in the code), `discountAmount` is always 0, and only percentage line discounts exist.
+- **Double-tap on Save can create two invoices.** `_isLoading` is set after an `await`, so the button stays enabled for a moment.
+- **Numbering has gaps.**
+  - Series formats aren't validated (16 characters max, limited character set).
+  - Changing the date across a financial year doesn't renumber.
+  - `nextSequenceForBusiness` loads every invoice number on each call.
+- **`AmountInWords` has edge cases.**
+  - Paise can round to 100.
+  - It always says "Rupees", including "One Rupees".
+  - It leaves a blank when the rupee part is zero.
+- **PDF fonts.**
+  - There are no bundled fonts (no assets in `pubspec.yaml`), so the default Helvetica probably can't draw ₹ or Gujarati/Hindi names.
+  - `PdfGoogleFonts` downloads fonts at render time, so it fails offline.
+  - Please test by generating a PDF with ₹ and a Gujarati customer name.
+- **`Rs.` is hard-coded** in the item sheet and dashboard, ignoring `currencyCode`.
+- **Stale-row writes.** `_refreshInvoicePaymentState` writes back a whole invoice row that was loaded before the transaction.
+- **Performance.** There are no indexes on `invoices(customer_id, invoice_date, status)`, and whole lists are loaded and folded in the UI.
+- **Smaller items.** `mobile_scanner` is unused, and the bootstrap errors are swallowed with no crash reporting.
+
+## Missing must-haves for an Indian GST invoicing app
+
+Your `MISSING_FEATURES.md` lists only recurring invoices, but the real gaps are compliance-related:
+
+1. **Credit and debit notes.** The schema comment mentions them, but no code creates one. They are the legal way to handle returns and corrections once editing is locked.
+2. **Bill of Supply** for composition, unregistered or exempt supplies.
+3. **Missing invoice fields:** reverse-charge flag, export/SEZ/LUT handling, ship-to address, HSN summary table, and TDS/TCS.
+4. **GSTR-1 style exports** (B2B, B2CS, CDNR, HSN summary), and later IRN/e-invoice and e-way bill data if the user's turnover requires them.
+5. **Payment details.** `recordPayment(id, amount)` always uses `DateTime.now()` and has no mode, reference or note, so you can't record backdated or UPI/bank payments. `upiId` is stored, but I found no UPI QR generation.
+6. **An app lock** (PIN or biometric). This is financial data and there is none.
+7. **Encrypted backups and retention.** Drive and Nextcloud backups accumulate forever, unencrypted.
+8. **Overdue status** computed from due date.
+9. **Recurring invoices**, which is already on your list.
+10. **Indian date format** (dd-MM-yyyy) on PDFs.
+
+## Tests to add
+
+The current tests cover pure logic and DAOs. Missing are tests for:
+
+- Rounding and totals.
+- Recomputing the tax split when the customer changes.
+- Lifecycle rules (edit, cancel, delete after issue).
+- Stock round-trips.
+- Restore including template configs.
+- A PDF smoke test with ₹ and Indic text.
+
+## Suggested fix order
+
+1. Money rounding (integer paise) plus recompute-on-save.
+2. Lifecycle rules, then filtering cancelled/draft out of totals.
+3. Backup and restore: templates, logos, version check, confirmation, and an honest auto-backup toggle.
+4. Release signing and secure storage.
+5. Credit notes and Bill of Supply.
+6. PDF fonts, GST exports, payment details, and app lock.
+
+Want me to start on items 1 and 2? Tell me which files to change first and I'll write the diffs.

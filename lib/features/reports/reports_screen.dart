@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/formatting.dart';
+import '../../core/utils/gstr1_export.dart';
 import '../../core/utils/invoice_balance.dart';
+import '../../core/utils/stock_status.dart';
+import '../../core/utils/invoice_status.dart';
 import '../../database/app_database.dart';
+import '../../providers/business_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/shared_preferences_provider.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/quote_provider.dart';
+import '../../providers/product_provider.dart';
 import '../../services/share_service.dart';
 import 'customer_statement_report.dart';
 
@@ -21,6 +27,7 @@ class ReportsScreen extends ConsumerStatefulWidget {
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   ReportRange _range = ReportRange.currentMonth;
   bool _isExportingInvoices = false;
+  bool _isExportingGstr1 = false;
   bool _isExportingQuotes = false;
   bool _isExportingCustomerSummary = false;
   bool _isExportingCustomerStatement = false;
@@ -80,12 +87,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   List<Invoice> _filterInvoices(List<Invoice> invoices) {
+    // Drafts are not issued and cancelled invoices are void, so neither may
+    // contribute to any report total.
+    final counted = invoices.where(
+      (invoice) => isInvoiceCountedInTotals(invoice.status),
+    );
     final selectedRange = _selectedRange;
     if (selectedRange == null) {
-      return invoices;
+      return counted.toList();
     }
 
-    return invoices
+    return counted
         .where(
           (invoice) =>
               !invoice.invoiceDate.isBefore(selectedRange.start) &&
@@ -155,6 +167,38 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     } finally {
       if (mounted) {
         setState(() => _isExportingInvoices = false);
+      }
+    }
+  }
+
+  Future<void> _exportGstr1(List<Invoice> invoices) async {
+    setState(() => _isExportingGstr1 = true);
+    try {
+      final businessId = ref.read(activeBusinessIdProvider);
+      final customers = businessId == null
+          ? const <Customer>[]
+          : await ref
+                .read(customerDaoProvider)
+                .getCustomersForBusiness(businessId);
+      final items = await ref
+          .read(invoiceDaoProvider)
+          .getItemsForInvoices(invoices.map((invoice) => invoice.id).toList());
+
+      final rows = buildGstr1Rows(
+        customers: customers,
+        invoices: invoices,
+        items: items,
+      );
+
+      await ShareService.shareCsv(
+        rows,
+        'gstr1_summary.csv',
+        subject: 'GSTR-1 Summary',
+        text: 'GSTR-1 style summary export',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isExportingGstr1 = false);
       }
     }
   }
@@ -409,6 +453,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final invoicesAsync = ref.watch(invoiceListProvider);
     final quotesAsync = ref.watch(quoteListProvider);
     final activeBusinessId = ref.watch(activeBusinessIdProvider);
+    final activeBusiness = ref.watch(activeBusinessProvider).valueOrNull;
+    String money(double amount) =>
+        formatMoneyForBusiness(amount, activeBusiness?.currencyCode ?? 'INR');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reports')),
@@ -418,37 +465,44 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           final invoices = _filterInvoices(allInvoices);
           final quotes = _filterQuotes(allQuotes);
 
+          // Credit notes reduce what was billed, so their component totals are
+          // subtracted; notes are also not receivables.
+          double signed(double amount, Invoice invoice) =>
+              signedInvoiceTotal(amount, invoice.invoiceType);
+
           final salesTotal = invoices.fold<double>(
             0,
-            (sum, invoice) => sum + invoice.totalAmount,
+            (sum, invoice) => sum + signed(invoice.totalAmount, invoice),
           );
           final taxableTotal = invoices.fold<double>(
             0,
-            (sum, invoice) => sum + invoice.taxableAmount,
+            (sum, invoice) => sum + signed(invoice.taxableAmount, invoice),
           );
           final collectedTotal = invoices.fold<double>(
             0,
             (sum, invoice) => sum + invoice.amountPaid,
           );
-          final pendingTotal = invoices.fold<double>(
-            0,
-            (sum, invoice) => sum + invoiceBalanceDue(invoice),
-          );
+          final pendingTotal = invoices
+              .where((invoice) => !isAdjustmentNote(invoice.invoiceType))
+              .fold<double>(
+                0,
+                (sum, invoice) => sum + invoiceBalanceDue(invoice),
+              );
           final cgstTotal = invoices.fold<double>(
             0,
-            (sum, invoice) => sum + invoice.cgstAmount,
+            (sum, invoice) => sum + signed(invoice.cgstAmount, invoice),
           );
           final sgstTotal = invoices.fold<double>(
             0,
-            (sum, invoice) => sum + invoice.sgstAmount,
+            (sum, invoice) => sum + signed(invoice.sgstAmount, invoice),
           );
           final igstTotal = invoices.fold<double>(
             0,
-            (sum, invoice) => sum + invoice.igstAmount,
+            (sum, invoice) => sum + signed(invoice.igstAmount, invoice),
           );
           final cessTotal = invoices.fold<double>(
             0,
-            (sum, invoice) => sum + invoice.cessAmount,
+            (sum, invoice) => sum + signed(invoice.cessAmount, invoice),
           );
 
           return FutureBuilder<_OperationalReportData>(
@@ -511,7 +565,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         label: Text(
                           _selectedRange == null
                               ? 'Pick Date Range'
-                              : '${_selectedRange!.start.toIso8601String().split('T')[0]} to ${_selectedRange!.end.toIso8601String().split('T')[0]}',
+                              : '${formatDate(_selectedRange!.start)} to ${formatDate(_selectedRange!.end)}',
                         ),
                       ),
                     ),
@@ -533,19 +587,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                   _ReportTile(
                     title: 'Sales Total',
-                    value: 'Rs. ${salesTotal.toStringAsFixed(2)}',
+                    value: money(salesTotal),
                   ),
                   _ReportTile(
                     title: 'Taxable Total',
-                    value: 'Rs. ${taxableTotal.toStringAsFixed(2)}',
+                    value: money(taxableTotal),
                   ),
                   _ReportTile(
                     title: 'Collected',
-                    value: 'Rs. ${collectedTotal.toStringAsFixed(2)}',
+                    value: money(collectedTotal),
                   ),
                   _ReportTile(
                     title: 'Pending',
-                    value: 'Rs. ${pendingTotal.toStringAsFixed(2)}',
+                    value: money(pendingTotal),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -558,26 +612,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   else ...[
                     _ReportTile(
                       title: 'Current',
-                      value: 'Rs. ${agingSummary.current.toStringAsFixed(2)}',
+                      value: money(agingSummary.current),
                     ),
                     _ReportTile(
                       title: '1-30 Days',
-                      value: 'Rs. ${agingSummary.days1To30.toStringAsFixed(2)}',
+                      value: money(agingSummary.days1To30),
                     ),
                     _ReportTile(
                       title: '31-60 Days',
-                      value:
-                          'Rs. ${agingSummary.days31To60.toStringAsFixed(2)}',
+                      value: money(agingSummary.days31To60),
                     ),
                     _ReportTile(
                       title: '61-90 Days',
-                      value:
-                          'Rs. ${agingSummary.days61To90.toStringAsFixed(2)}',
+                      value: money(agingSummary.days61To90),
                     ),
                     _ReportTile(
                       title: '90+ Days',
-                      value:
-                          'Rs. ${agingSummary.daysOver90.toStringAsFixed(2)}',
+                      value: money(agingSummary.daysOver90),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -588,9 +639,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ...operationalData.receivablesAgingRows.map(
                       (row) => _ReportTile(
                         title: '${row.customerName} (${row.invoiceCount})',
-                        value: 'Rs. ${row.totalDue.toStringAsFixed(2)}',
+                        value: money(row.totalDue),
                         subtitle:
-                            'Current ${row.current.toStringAsFixed(2)} | 1-30 ${row.days1To30.toStringAsFixed(2)} | 31-60 ${row.days31To60.toStringAsFixed(2)} | 61-90 ${row.days61To90.toStringAsFixed(2)} | 90+ ${row.daysOver90.toStringAsFixed(2)}',
+                            'Current ${money(row.current)} | 1-30 ${money(row.days1To30)} | 31-60 ${money(row.days31To60)} | 61-90 ${money(row.days61To90)} | 90+ ${money(row.daysOver90)}',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -619,19 +670,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   const SizedBox(height: 8),
                   _ReportTile(
                     title: 'CGST',
-                    value: 'Rs. ${cgstTotal.toStringAsFixed(2)}',
+                    value: money(cgstTotal),
                   ),
                   _ReportTile(
                     title: 'SGST',
-                    value: 'Rs. ${sgstTotal.toStringAsFixed(2)}',
+                    value: money(sgstTotal),
                   ),
                   _ReportTile(
                     title: 'IGST',
-                    value: 'Rs. ${igstTotal.toStringAsFixed(2)}',
+                    value: money(igstTotal),
                   ),
                   _ReportTile(
                     title: 'Cess',
-                    value: 'Rs. ${cessTotal.toStringAsFixed(2)}',
+                    value: money(cessTotal),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -645,9 +696,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ...operationalData.customerRows.map(
                       (row) => _ReportTile(
                         title: '${row.customerName} (${row.invoiceCount})',
-                        value: 'Rs. ${row.sales.toStringAsFixed(2)}',
+                        value: money(row.sales),
                         subtitle:
-                            'Collected Rs. ${row.collected.toStringAsFixed(2)} | Pending Rs. ${row.pending.toStringAsFixed(2)}',
+                            'Collected ${money(row.collected)} | Pending ${money(row.pending)}',
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -679,10 +730,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ...statementRows.take(12).map(
                       (row) => _ReportTile(
                         title: '${row.customerName} - ${row.entryType}',
-                        value:
-                            'Rs. ${row.runningBalance.toStringAsFixed(2)}',
+                        value: money(row.runningBalance),
                         subtitle:
-                            '${row.entryDate.toIso8601String().split('T')[0]} | ${row.documentNumber} | ${row.note}',
+                            '${formatDate(row.entryDate)} | ${row.documentNumber} | ${row.note}',
                       ),
                     ),
                     if (statementRows.length > 12)
@@ -718,9 +768,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ...operationalData.hsnRows.map(
                       (row) => _ReportTile(
                         title: '${row.hsnSac} (${row.itemCount})',
-                        value: 'Rs. ${row.taxable.toStringAsFixed(2)}',
+                        value: money(row.taxable),
                         subtitle:
-                            'CGST ${row.cgst.toStringAsFixed(2)} | SGST ${row.sgst.toStringAsFixed(2)} | IGST ${row.igst.toStringAsFixed(2)} | Cess ${row.cess.toStringAsFixed(2)}',
+                            'CGST ${money(row.cgst)} | SGST ${money(row.sgst)} | IGST ${money(row.igst)} | Cess ${money(row.cess)}',
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -808,6 +858,62 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  Text(
+                    'Low Stock',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  if (!ref.watch(lowStockWarningsEnabledProvider))
+                    const Text(
+                      'Low stock warnings are turned off (see Settings).',
+                    )
+                  else
+                    ref
+                        .watch(productListProvider)
+                        .maybeWhen(
+                          data: (products) {
+                            final low = products
+                                .where(isProductLowStock)
+                                .toList();
+                            if (low.isEmpty) {
+                              return const Text(
+                                'No products at or below their reorder level.',
+                              );
+                            }
+                            return Column(
+                              children: [
+                                for (final product in low.take(10))
+                                  _ReportTile(
+                                    title:
+                                        '${product.name} (${lowStockLabel(product)})',
+                                    value:
+                                        '${product.stockQuantity.toStringAsFixed(2)} / reorder ${product.reorderLevel.toStringAsFixed(2)}',
+                                  ),
+                                if (low.length > 10)
+                                  _ReportTile(
+                                    title: 'And ${low.length - 10} more',
+                                    value: '',
+                                  ),
+                              ],
+                            );
+                          },
+                          orElse: () => const SizedBox.shrink(),
+                        ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _isExportingGstr1
+                          ? null
+                          : () => _exportGstr1(invoices),
+                      icon: const Icon(Icons.receipt_long),
+                      label: Text(
+                        _isExportingGstr1
+                            ? 'Exporting...'
+                            : 'Export GSTR-1 Summary',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -878,18 +984,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final today = DateTime(now.year, now.month, now.day);
     for (final invoice in invoices) {
       final balanceDue = invoiceBalanceDue(invoice);
+      final isNote = isAdjustmentNote(invoice.invoiceType);
       final accumulator = customerAggregates.putIfAbsent(
         invoice.customerId,
         () => _CustomerAccumulator(
           customerName: customerNameById[invoice.customerId] ?? 'Unknown',
         ),
       );
-      accumulator.invoiceCount += 1;
-      accumulator.sales += invoice.totalAmount;
+      // Notes adjust an existing invoice rather than being one themselves, and
+      // a credit note reduces the customer's sales.
+      if (!isNote) accumulator.invoiceCount += 1;
+      accumulator.sales +=
+          signedInvoiceTotal(invoice.totalAmount, invoice.invoiceType);
       accumulator.collected += invoice.amountPaid;
-      accumulator.pending += balanceDue;
+      if (!isNote) accumulator.pending += balanceDue;
 
-      if (balanceDue > 0) {
+      if (!isNote && balanceDue > 0) {
         final agingAccumulator = receivablesAgingAggregates.putIfAbsent(
           invoice.customerId,
           () => _ReceivablesAgingAccumulator(

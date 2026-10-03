@@ -1,0 +1,10 @@
+Win32/
+Win64/
+*.dcu
+*.exe
+*.dll
+*.bpl
+*.dres
+*.identcache
+*.stat
+__history/

@@ -500,9 +500,9 @@ class _PreviewTab extends ConsumerWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               if (selectedTemplate!.isDefault)
-                Chip(
-                  avatar: const Icon(Icons.star, size: 16),
-                  label: const Text('Default'),
+                const Chip(
+                  avatar: Icon(Icons.star, size: 16),
+                  label: Text('Default'),
                 )
               else
                 FilledButton.icon(
@@ -788,12 +788,19 @@ Invoice _previewInvoice(int businessId) => Invoice(
   igstAmount: 0,
   cessAmount: 0,
   totalAmount: 354,
+  roundOffAmount: 0,
   amountPaid: 0,
   amountInWords: 'Rupees Three Hundred Fifty Four Only',
   notes: 'Preview sample',
   terms: 'Thank you for your business.',
   status: 'UNPAID',
   isIgst: false,
+  reverseCharge: false,
+  exportWithLut: false,
+  tdsRate: 0,
+  tdsAmount: 0,
+  tcsRate: 0,
+  tcsAmount: 0,
   createdAt: DateTime(2026, 6, 30),
   updatedAt: DateTime(2026, 6, 30),
 );
@@ -889,11 +896,18 @@ Quote _previewQuote(int businessId) => Quote(
   igstAmount: 0,
   cessAmount: 0,
   totalAmount: 354,
+  roundOffAmount: 0,
   amountInWords: 'Rupees Three Hundred Fifty Four Only',
   notes: 'Preview sample',
   terms: 'Quote valid for 7 days.',
   status: 'DRAFT',
   isIgst: false,
+  reverseCharge: false,
+  exportWithLut: false,
+  tdsRate: 0,
+  tdsAmount: 0,
+  tcsRate: 0,
+  tcsAmount: 0,
   createdAt: DateTime(2026, 6, 30),
   updatedAt: DateTime(2026, 6, 30),
 );
@@ -1012,6 +1026,8 @@ Future<Uint8List> _buildTemplateThumbnail({
       quoteTemplate: config.layoutFamily,
       invoiceSeriesFormat: 'INV-{FY}-{SEQ4}',
       quoteSeriesFormat: 'QT-{FY}-{SEQ4}',
+      creditNoteSeriesFormat: 'CN-{FY}-{SEQ4}',
+      debitNoteSeriesFormat: 'DN-{FY}-{SEQ4}',
       defaultInvoiceTemplateId: null,
       defaultQuoteTemplateId: null,
       brandColor: _previewBrandColor(config.primaryColor),

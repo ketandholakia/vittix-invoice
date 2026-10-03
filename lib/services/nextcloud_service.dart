@@ -20,14 +20,50 @@ class NextcloudService {
   static final NextcloudService instance = NextcloudService._();
   static const _backupFolder = 'VittixInvoiceBackups';
 
+  /// Single client reused for every request. Creating a client per request
+  /// leaked a connection pool each time.
+  final http.Client _client = http.Client();
+
   String _buildAuthHeader(NextcloudConfig config) {
     final credentials = '${config.username}:${config.password}';
     final base64Credentials = base64Encode(utf8.encode(credentials));
     return 'Basic $base64Credentials';
   }
 
-  String _buildBaseUrl(NextcloudConfig config) {
-    var url = config.serverUrl;
+  /// Returns an actionable error message for an invalid or insecure server
+  /// URL, or `null` when the URL may be used. Plain `http://` is always
+  /// rejected; schemeless input is allowed and normalized to `https://` by
+  /// [buildBaseUrl].
+  static String? validateServerUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) {
+      return 'Enter a Nextcloud server URL.';
+    }
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null ||
+        (uri.scheme.isNotEmpty && uri.scheme != 'https' && uri.scheme != 'http')) {
+      return 'Enter a valid Nextcloud server URL.';
+    }
+    if (uri.scheme == 'http') {
+      return 'HTTP is not allowed for security reasons. '
+          'Use an https:// server URL.';
+    }
+    return null;
+  }
+
+  /// Builds the WebDAV base URL, enforcing HTTPS for credentials in transit.
+  static String buildBaseUrl(NextcloudConfig config) {
+    var url = config.serverUrl.trim();
+    if (url.isEmpty) {
+      throw StateError('Enter a Nextcloud server URL.');
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+    }
+    final error = validateServerUrl(url);
+    if (error != null) {
+      throw StateError(error);
+    }
     if (!url.endsWith('/')) {
       url += '/';
     }
@@ -39,10 +75,10 @@ class NextcloudService {
   }
 
   Future<void> _ensureBackupDirectory(NextcloudConfig config) async {
-    final baseUrl = _buildBaseUrl(config);
+    final baseUrl = buildBaseUrl(config);
     final folderUrl = Uri.parse('$baseUrl$_backupFolder');
     
-    final response = await http.Client().send(
+    final response = await _client.send(
       http.Request('PROPFIND', folderUrl)
         ..headers['Authorization'] = _buildAuthHeader(config)
         ..headers['Depth'] = '0',
@@ -50,7 +86,7 @@ class NextcloudService {
 
     if (response.statusCode == 404) {
       // Create folder
-      final createResponse = await http.Client().send(
+      final createResponse = await _client.send(
         http.Request('MKCOL', folderUrl)
           ..headers['Authorization'] = _buildAuthHeader(config),
       );
@@ -64,20 +100,24 @@ class NextcloudService {
 
   Future<NextcloudUploadResult> uploadBackup(
     AppDatabase db,
-    NextcloudConfig config,
-  ) async {
+    NextcloudConfig config, {
+    String? passphrase,
+  }) async {
     if (!config.isValid) throw StateError('Invalid Nextcloud configuration');
 
     await _ensureBackupDirectory(config);
 
-    final backupJson = await DatabaseBackupService.buildBackupJson(db);
+    final backupJson = await DatabaseBackupService.buildBackupJson(
+      db,
+      passphrase: passphrase,
+    );
     final fileName =
         'vittix_invoice_backup_${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
     
-    final baseUrl = _buildBaseUrl(config);
+    final baseUrl = buildBaseUrl(config);
     final fileUrl = Uri.parse('$baseUrl$_backupFolder/$fileName');
 
-    final response = await http.Client().send(
+    final response = await _client.send(
       http.Request('PUT', fileUrl)
         ..headers['Authorization'] = _buildAuthHeader(config)
         ..headers['Content-Type'] = 'application/json'
@@ -93,13 +133,14 @@ class NextcloudService {
 
   Future<int?> restoreLatestBackup(
     AppDatabase db,
-    NextcloudConfig config,
-  ) async {
+    NextcloudConfig config, {
+    String? passphrase,
+  }) async {
     if (!config.isValid) throw StateError('Invalid Nextcloud configuration');
 
     await _ensureBackupDirectory(config);
 
-    final baseUrl = _buildBaseUrl(config);
+    final baseUrl = buildBaseUrl(config);
     final folderUrl = Uri.parse('$baseUrl$_backupFolder/');
 
     final propfindBody = '''<?xml version="1.0" encoding="utf-8" ?>
@@ -109,7 +150,7 @@ class NextcloudService {
   </d:prop>
 </d:propfind>''';
 
-    final response = await http.Client().send(
+    final response = await _client.send(
       http.Request('PROPFIND', folderUrl)
         ..headers['Authorization'] = _buildAuthHeader(config)
         ..headers['Depth'] = '1'
@@ -129,7 +170,7 @@ class NextcloudService {
     }
 
     final fileUrl = Uri.parse('$baseUrl$_backupFolder/$latestFileName');
-    final getResponse = await http.get(
+    final getResponse = await _client.get(
       fileUrl,
       headers: {'Authorization': _buildAuthHeader(config)},
     );
@@ -139,7 +180,11 @@ class NextcloudService {
     }
 
     final jsonString = utf8.decode(getResponse.bodyBytes);
-    return DatabaseBackupService.restoreFromJson(db, jsonString);
+    return DatabaseBackupService.restoreFromJson(
+      db,
+      jsonString,
+      passphrase: passphrase,
+    );
   }
 
   String? _parseLatestFileFromPropfind(String xmlString, String basePath) {

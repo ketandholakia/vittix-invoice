@@ -1,4 +1,14 @@
 class GstStates {
+  /// Human label for a state code, e.g. "Gujarat (24)".
+  ///
+  /// Falls back to a readable placeholder for unknown codes rather than
+  /// printing a bare number on a tax document.
+  static String labelFor(int? code) {
+    if (code == null) return '';
+    final name = states[code];
+    return name == null ? 'State $code' : '$name ($code)';
+  }
+
   static const Map<int, String> states = {
     1: 'Jammu and Kashmir',
     2: 'Himachal Pradesh',

@@ -29,3 +29,5 @@ final hsnDaoProvider = Provider((ref) => ref.watch(databaseProvider).hsnDao);
 final uomDaoProvider = Provider((ref) => ref.watch(databaseProvider).uomDao);
 final templateConfigDaoProvider =
     Provider((ref) => ref.watch(databaseProvider).templateConfigDao);
+final recurringInvoiceDaoProvider =
+    Provider((ref) => ref.watch(databaseProvider).recurringInvoiceDao);

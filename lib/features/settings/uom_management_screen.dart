@@ -150,7 +150,7 @@ class _UomManagementScreenState extends ConsumerState<UomManagementScreen> {
                   const Text('No units configured.'),
                   const SizedBox(height: 12),
                   FilledButton.icon(
-                    onPressed: () => _editUom(),
+                    onPressed: _editUom,
                     icon: const Icon(Icons.add),
                     label: const Text('Add UOM'),
                   ),
@@ -185,7 +185,7 @@ class _UomManagementScreenState extends ConsumerState<UomManagementScreen> {
         error: (err, stack) => Center(child: Text('Error loading UOMs: $err')),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _editUom(),
+        onPressed: _editUom,
         child: const Icon(Icons.add),
       ),
     );

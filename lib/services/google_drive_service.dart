@@ -13,10 +13,15 @@ class DriveUploadResult {
   final String fileName;
   final String? webViewLink;
 
+  /// Id of the public "anyone with the link" permission, when one was created.
+  /// Kept so the share can be revoked later.
+  final String? publicPermissionId;
+
   const DriveUploadResult({
     required this.fileId,
     required this.fileName,
     this.webViewLink,
+    this.publicPermissionId,
   });
 }
 
@@ -56,8 +61,14 @@ class GoogleDriveService {
     await GoogleSignIn.instance.signOut();
   }
 
-  Future<DriveUploadResult> uploadBackup(AppDatabase db) async {
-    final backupJson = await DatabaseBackupService.buildBackupJson(db);
+  Future<DriveUploadResult> uploadBackup(
+    AppDatabase db, {
+    String? passphrase,
+  }) async {
+    final backupJson = await DatabaseBackupService.buildBackupJson(
+      db,
+      passphrase: passphrase,
+    );
     final fileName =
         'vittix_invoice_backup_${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
     return _uploadText(
@@ -69,7 +80,10 @@ class GoogleDriveService {
     );
   }
 
-  Future<int?> restoreLatestBackup(AppDatabase db) async {
+  Future<int?> restoreLatestBackup(
+    AppDatabase db, {
+    String? passphrase,
+  }) async {
     final api = await _driveApi();
     final listing = await api.files.list(
       spaces: 'appDataFolder',
@@ -89,7 +103,11 @@ class GoogleDriveService {
       downloadOptions: drive.DownloadOptions.fullMedia,
     ) as drive.Media;
     final jsonString = await utf8.decoder.bind(media.stream).join();
-    return DatabaseBackupService.restoreFromJson(db, jsonString);
+    return DatabaseBackupService.restoreFromJson(
+      db,
+      jsonString,
+      passphrase: passphrase,
+    );
   }
 
   Future<DriveUploadResult> uploadShareablePdf(
@@ -157,21 +175,37 @@ class GoogleDriveService {
       throw StateError('Drive upload did not return a file id');
     }
 
+    String? publicPermissionId;
+
     if (shareable) {
-      await api.permissions.create(
+      final permission = await api.permissions.create(
         drive.Permission(
           type: 'anyone',
           role: 'reader',
         ),
         uploaded.id!,
       );
+      publicPermissionId = permission.id;
     }
 
     return DriveUploadResult(
       fileId: uploaded.id!,
       fileName: uploaded.name ?? fileName,
       webViewLink: _shareableLink(uploaded.id!),
+      publicPermissionId: publicPermissionId,
     );
+  }
+
+  /// Removes public ("anyone with the link") access from a shared file.
+  ///
+  /// Call this once the recipient no longer needs the link — the PDF contains
+  /// GSTIN, address and possibly bank/UPI details.
+  Future<void> revokePublicAccess({
+    required String fileId,
+    String? permissionId,
+  }) async {
+    final api = await _driveApi();
+    await api.permissions.delete(fileId, permissionId ?? 'anyoneWithLink');
   }
 
   Future<drive.DriveApi> _driveApi() async {

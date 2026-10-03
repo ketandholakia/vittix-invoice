@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/utils/invoice_balance.dart';
+import '../../../core/utils/formatting.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../database/app_database.dart';
 import '../../../database/tables/template_configs.dart';
@@ -91,7 +95,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
         .where((invoice) => _selectedInvoiceIds.contains(invoice.id))
         .toList();
     final deletable = selected
-        .where((invoice) => invoice.amountPaid <= 0 && invoice.status != 'PAID')
+        .where((invoice) => invoice.status == 'DRAFT')
         .toList();
     if (deletable.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -205,7 +209,6 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     final balance = invoiceBalanceDue(invoice);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dueDate = invoice.dueDate?.toLocal().toString().split(' ')[0];
     final isOverdue =
         invoice.dueDate != null &&
         DateTime(
@@ -223,7 +226,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
               : '');
     return '$opening for invoice ${invoice.invoiceNumber} with pending balance '
         '${formatMoney(balance, currencyCode: invoice.currencyCode)}.'
-        '${dueDate != null ? ' The due date is $dueDate.' : ''}'
+        '${invoice.dueDate != null ? ' The due date is ${formatDate(invoice.dueDate!)}.' : ''}'
         '${isOverdue ? ' This invoice is now overdue.' : ''}'
         '${contact.isNotEmpty ? ' $contact' : ''}'
         ' Please let us know once payment is completed.';
@@ -370,20 +373,19 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       ),
       body: invoicesAsync.when(
         data: (invoices) {
-          final filteredInvoices = invoices.where((invoice) {
-            final matchesQuery =
-                _query.isEmpty ||
-                invoice.invoiceNumber.toLowerCase().contains(_query) ||
-                invoice.status.toLowerCase().contains(_query);
-            final matchesStatus =
-                _statusFilter == 'ALL' || invoice.status == _statusFilter;
-            final isOverdue =
-                invoice.dueDate != null &&
-                invoiceBalanceDue(invoice) > 0 &&
-                invoice.dueDate!.isBefore(DateTime.now());
-            final matchesOverdue = !_showOverdueOnly || isOverdue;
-            return matchesQuery && matchesStatus && matchesOverdue;
-          }).toList();
+          final filteredAsync = ref.watch(
+            filteredInvoiceListProvider(
+              InvoiceListFilter(
+                query: _query,
+                statusFilter: _statusFilter,
+                overdueOnly: _showOverdueOnly,
+              ),
+            ),
+          );
+          final filteredInvoices = filteredAsync.valueOrNull;
+          if (filteredInvoices == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
           if (invoices.isEmpty) {
             return EmptyState(
@@ -492,8 +494,8 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                                 : const Icon(Icons.receipt),
                             title: Text(invoice.invoiceNumber),
                             subtitle: Text(
-                              'Date: ${invoice.invoiceDate.toLocal().toString().split(' ')[0]}'
-                              '${invoice.dueDate != null ? ' | Due: ${invoice.dueDate!.toLocal().toString().split(' ')[0]}' : ''}',
+                              'Date: ${formatDate(invoice.invoiceDate)}'
+                              '${invoice.dueDate != null ? ' | Due: ${formatDate(invoice.dueDate!)}' : ''}',
                             ),
                             onTap: () {
                               if (_isSelecting) {
@@ -518,14 +520,15 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                                       ),
                                     ),
                                     Text(
-                                      invoice.status,
+                                      isOverdue
+                                          ? 'OVERDUE'
+                                          : invoice.status,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: invoice.status == 'PAID'
-                                            ? Colors.green
-                                            : (isOverdue
-                                                  ? Colors.red
-                                                  : Colors.orange),
+                                        color: invoiceStatusColor(
+                                          invoice.status,
+                                          isOverdue: isOverdue,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -535,8 +538,10 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                                     switch (value) {
                                       case 'open':
                                         if (!context.mounted) return;
-                                        context.push(
-                                          '/invoice-preview/${invoice.id}',
+                                        unawaited(
+                                          context.push(
+                                            '/invoice-preview/${invoice.id}',
+                                          ),
                                         );
                                         return;
                                       case 'share':
@@ -562,8 +567,10 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                                             ),
                                           ),
                                         );
-                                        context.push(
-                                          '/invoice-preview/$duplicatedId',
+                                        unawaited(
+                                          context.push(
+                                            '/invoice-preview/$duplicatedId',
+                                          ),
                                         );
                                         return;
                                       case 'delete':
@@ -608,7 +615,28 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, stack) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Error loading invoices: $err',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () => ref.invalidate(invoiceListProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/create-invoice'),

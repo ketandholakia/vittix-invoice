@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/formatting.dart';
 import '../../providers/hsn_provider.dart';
 
 class HsnSearchSheet extends ConsumerStatefulWidget {
@@ -63,9 +64,13 @@ class _HsnSearchSheetState extends ConsumerState<HsnSearchSheet> {
                         leading: CircleAvatar(child: Text(item.type)),
                         title: Text(item.code),
                         subtitle: Text(
-                          item.effectiveFrom != null
-                              ? '${item.description} | From ${item.effectiveFrom!.toLocal().toString().split(' ')[0]}'
-                              : item.description,
+                          [
+                            item.description,
+                            if (item.effectiveFrom != null)
+                              'From ${formatDate(item.effectiveFrom!)}',
+                            if (item.priceBandLabel != null)
+                              item.priceBandLabel!,
+                          ].join(' | '),
                         ),
                         trailing: item.gstRate != null
                             ? Text('${item.gstRate!.toStringAsFixed(1)}%')

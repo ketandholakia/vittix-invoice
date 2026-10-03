@@ -1,12 +1,15 @@
 class InvoiceNumberGenerator {
   static const defaultInvoiceFormat = 'INV-{FY}-{SEQ4}';
   static const defaultQuoteFormat = 'QT-{FY}-{SEQ4}';
+  static const defaultCreditNoteFormat = 'CN-{FY}-{SEQ4}';
+  static const defaultDebitNoteFormat = 'DN-{FY}-{SEQ4}';
 
   static String financialYear(DateTime date) {
-    return date.month >= 4
-        ? '${date.year % 100}${(date.year + 1) % 100}'
-        : '${(date.year - 1) % 100}${date.year % 100}';
+    final startYear = date.month >= 4 ? date.year : date.year - 1;
+    return '${_twoDigit(startYear)}${_twoDigit(startYear + 1)}';
   }
+
+  static String _twoDigit(int year) => (year % 100).toString().padLeft(2, '0');
 
   static String normalizeFormat(String? format, {required String fallback}) {
     final trimmed = format?.trim();

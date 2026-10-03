@@ -4,39 +4,21 @@ This document tracks gaps and next development plans after reviewing the current
 
 ## Current Baseline
 
-The app already includes the core offline billing system: businesses, customers, products, invoices, quotes, payments, refunds, voiding, customer activity events, reminders, reports, UOM and HSN catalogs, stock deduction, configurable numbering, editable PDF templates, local JSON backup/restore, Google Drive backup/link sharing, and Nextcloud backup/restore.
+The app already includes the core offline billing system: businesses, customers, products, invoices, quotes, payments, refunds, voiding, customer activity events, reminders, reports, UOM and HSN catalogs, stock deduction, configurable numbering, editable PDF templates, local JSON backup/restore, Google Drive backup/link sharing, and Nextcloud backup/restore. It also now includes credit/debit notes, a stock movement ledger, recurring invoices, tax-at-source (TDS/TCS), reverse charge, ship-to, export/SEZ/LUT declarations, an HSN/SAC summary on invoices, a GSTR-1 style summary export, encrypted backups, and a PIN/biometric app lock.
 
-Do not re-plan the following as missing work: receivables aging, empty states, reminder center, bulk actions, notification cadence, invoice/quote edit audit events, product stock deduction, currency-aware amounts, UOM catalog, HSN rate versioning, full database backup/restore, refunds, overpayments, payment voiding, templates, Google Drive backup, Nextcloud backup, or document numbering.
+Do not re-plan the following as missing work: receivables aging, empty states, reminder center, bulk actions, notification cadence, invoice/quote edit audit events, product stock deduction, currency-aware amounts, UOM catalog, HSN rate versioning, full database backup/restore, refunds, overpayments, payment voiding, templates, Google Drive backup, Nextcloud backup, document numbering, credit/debit notes, the stock ledger, recurring invoices, GST compliance fields (reverse charge, ship-to, export/SEZ/LUT, TDS/TCS), the GSTR-1 summary export, backup encryption, the app lock, or low-stock reorder levels and their product-list/dashboard/reports surfacing.
 
 ## Recommended Next Phases
 
-### Phase 31: Recurring And Subscription Invoices
+### Phase 33: Backup Hardening And Automation (remainder)
 
-- Add recurring profile records with business, customer, schedule, next-run date, end condition, and source invoice template data.
-- Generate draft invoices from due recurring profiles with clear audit/activity events.
-- Add a settings/list screen for active, paused, and ended recurring profiles.
-- Add tests for monthly/yearly schedules, skipped runs, end dates, and generated invoice numbering.
+- Add backup history listing for local, Google Drive, and Nextcloud backups, with restore points.
+- Add integration-style tests around cloud backup/restore paths. (Encryption, secure credential storage, foreground auto-backup, snapshot pruning, and logos/settings coverage are done - see Phase 39.)
 
-### Phase 32: Inventory Operations And Low-Stock Alerts
+### Phase 34: GST Compliance Exports (remainder)
 
-- Add stock adjustment records for manual corrections, purchases, invoice deductions, invoice edits, invoice deletes, and reversals.
-- Surface low-stock warnings in product list, dashboard, and reports when `lowStockWarningsEnabledProvider` is enabled.
-- Add product-level reorder thresholds instead of relying only on current stock quantity.
-- Add tests for stock ledger balance, invoice edit rollback, and low-stock filtering.
-
-### Phase 33: Backup Hardening And Automation
-
-- Replace plain shared-preference storage for Nextcloud credentials with platform secure storage.
-- Add backup history listing for local, Google Drive, and Nextcloud backups.
-- Rework automatic backup as a foreground-safe scheduled reminder/action, or use an auth approach that works outside the foreground Google Sign-In flow.
-- Add integration-style tests around backup restore schema completeness, especially templates and document template IDs.
-
-### Phase 34: GST Compliance Exports
-
-- Add GSTR-1 style export data for B2B invoices, HSN summary, credit/debit style adjustments if supported later, and document numbering ranges.
-- Add e-invoice/e-way bill preparation fields only after the required payload shape is finalized.
-- Add validation for required GST fields before export.
-- Add CSV/JSON export tests with representative interstate and intrastate invoices.
+- Add validation for required GST fields (GSTIN, HSN/SAC, place of supply) before a GSTR-1 export, so an invalid document is caught rather than silently summarised.
+- Add e-invoice/e-way bill preparation fields only after the required payload shape is finalized. (The GSTR-1 style B2B/B2CS/CDNR/HSN summary export is done - see Phase 39.)
 
 ### Phase 35: Reporting And Data Quality Expansion
 
@@ -53,8 +35,9 @@ Do not re-plan the following as missing work: receivables aging, empty states, r
 
 ## Known Technical Risks
 
-- Background Google Drive backup is not currently active; the Workmanager path is commented out because Google Sign-In requires foreground authentication.
-- Nextcloud credentials are stored in `SharedPreferences`; this should move to secure storage before production use.
+- The seeded HSN catalogue is deliberately small and only covers codes whose current rate could be verified against the CBIC schedule; a full catalogue needs an authoritative rate import, not hand-entered guesses.
+- LUT zero-rating is applied at the document level (the lines are recomputed at 0% on save), not by the tax engine, so a LUT document cannot show a non-zero rate line.
+- Biometric unlock depends on native config (`FlutterFragmentActivity`, `USE_BIOMETRIC`, `NSFaceIDUsageDescription`) that has not been verified on a device build in this environment.
 - Template configs are JSON blobs, so future template changes need compatibility defaults and migration tests.
 - Generated Drift files are checked in; schema changes must update both source tables and generated output.
 - Cloud backup and restore paths are mostly UI/service driven and need more automated coverage.

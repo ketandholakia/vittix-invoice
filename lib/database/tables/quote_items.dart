@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'quotes.dart';
 import 'products.dart';
 
+@TableIndex(name: 'idx_quote_items_quote_id', columns: {#quoteId})
+@TableIndex(name: 'idx_quote_items_product_id', columns: {#productId})
 @DataClassName('QuoteItem')
 class QuoteItems extends Table {
   IntColumn get id => integer().autoIncrement()();

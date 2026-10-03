@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/formatting.dart';
 import '../../providers/hsn_provider.dart';
 import '../../providers/database_provider.dart';
 
@@ -151,7 +152,7 @@ class _HsnRateHistoryScreenState extends ConsumerState<HsnRateHistoryScreen> {
                         border: OutlineInputBorder(),
                       ),
                       child: Text(
-                        _effectiveFrom.toIso8601String().split('T')[0],
+                        formatDate(_effectiveFrom),
                       ),
                     ),
                   ),
@@ -186,7 +187,7 @@ class _HsnRateHistoryScreenState extends ConsumerState<HsnRateHistoryScreen> {
                               leading: const Icon(Icons.timeline),
                               title: Text('${version.gstRate ?? 0}%'),
                               subtitle: Text(
-                                'Effective ${version.effectiveFrom.toIso8601String().split('T')[0]}',
+                                'Effective ${formatDate(version.effectiveFrom)}',
                               ),
                             );
                           },

@@ -233,6 +233,30 @@ class $BusinessesTable extends Businesses
         requiredDuringInsert: false,
         defaultValue: const Constant('QT-{FY}-{SEQ4}'),
       );
+  static const VerificationMeta _creditNoteSeriesFormatMeta =
+      const VerificationMeta('creditNoteSeriesFormat');
+  @override
+  late final GeneratedColumn<String> creditNoteSeriesFormat =
+      GeneratedColumn<String>(
+        'credit_note_series_format',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('CN-{FY}-{SEQ4}'),
+      );
+  static const VerificationMeta _debitNoteSeriesFormatMeta =
+      const VerificationMeta('debitNoteSeriesFormat');
+  @override
+  late final GeneratedColumn<String> debitNoteSeriesFormat =
+      GeneratedColumn<String>(
+        'debit_note_series_format',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('DN-{FY}-{SEQ4}'),
+      );
   static const VerificationMeta _defaultInvoiceTemplateIdMeta =
       const VerificationMeta('defaultInvoiceTemplateId');
   @override
@@ -314,6 +338,8 @@ class $BusinessesTable extends Businesses
     quoteTemplate,
     invoiceSeriesFormat,
     quoteSeriesFormat,
+    creditNoteSeriesFormat,
+    debitNoteSeriesFormat,
     defaultInvoiceTemplateId,
     defaultQuoteTemplateId,
     brandColor,
@@ -477,6 +503,24 @@ class $BusinessesTable extends Businesses
         ),
       );
     }
+    if (data.containsKey('credit_note_series_format')) {
+      context.handle(
+        _creditNoteSeriesFormatMeta,
+        creditNoteSeriesFormat.isAcceptableOrUnknown(
+          data['credit_note_series_format']!,
+          _creditNoteSeriesFormatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('debit_note_series_format')) {
+      context.handle(
+        _debitNoteSeriesFormatMeta,
+        debitNoteSeriesFormat.isAcceptableOrUnknown(
+          data['debit_note_series_format']!,
+          _debitNoteSeriesFormatMeta,
+        ),
+      );
+    }
     if (data.containsKey('default_invoice_template_id')) {
       context.handle(
         _defaultInvoiceTemplateIdMeta,
@@ -610,6 +654,14 @@ class $BusinessesTable extends Businesses
         DriftSqlType.string,
         data['${effectivePrefix}quote_series_format'],
       )!,
+      creditNoteSeriesFormat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}credit_note_series_format'],
+      )!,
+      debitNoteSeriesFormat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debit_note_series_format'],
+      )!,
       defaultInvoiceTemplateId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}default_invoice_template_id'],
@@ -664,6 +716,8 @@ class Business extends DataClass implements Insertable<Business> {
   final String quoteTemplate;
   final String invoiceSeriesFormat;
   final String quoteSeriesFormat;
+  final String creditNoteSeriesFormat;
+  final String debitNoteSeriesFormat;
   final int? defaultInvoiceTemplateId;
   final int? defaultQuoteTemplateId;
   final int? brandColor;
@@ -691,6 +745,8 @@ class Business extends DataClass implements Insertable<Business> {
     required this.quoteTemplate,
     required this.invoiceSeriesFormat,
     required this.quoteSeriesFormat,
+    required this.creditNoteSeriesFormat,
+    required this.debitNoteSeriesFormat,
     this.defaultInvoiceTemplateId,
     this.defaultQuoteTemplateId,
     this.brandColor,
@@ -743,6 +799,8 @@ class Business extends DataClass implements Insertable<Business> {
     map['quote_template'] = Variable<String>(quoteTemplate);
     map['invoice_series_format'] = Variable<String>(invoiceSeriesFormat);
     map['quote_series_format'] = Variable<String>(quoteSeriesFormat);
+    map['credit_note_series_format'] = Variable<String>(creditNoteSeriesFormat);
+    map['debit_note_series_format'] = Variable<String>(debitNoteSeriesFormat);
     if (!nullToAbsent || defaultInvoiceTemplateId != null) {
       map['default_invoice_template_id'] = Variable<int>(
         defaultInvoiceTemplateId,
@@ -798,6 +856,8 @@ class Business extends DataClass implements Insertable<Business> {
       quoteTemplate: Value(quoteTemplate),
       invoiceSeriesFormat: Value(invoiceSeriesFormat),
       quoteSeriesFormat: Value(quoteSeriesFormat),
+      creditNoteSeriesFormat: Value(creditNoteSeriesFormat),
+      debitNoteSeriesFormat: Value(debitNoteSeriesFormat),
       defaultInvoiceTemplateId: defaultInvoiceTemplateId == null && nullToAbsent
           ? const Value.absent()
           : Value(defaultInvoiceTemplateId),
@@ -843,6 +903,12 @@ class Business extends DataClass implements Insertable<Business> {
         json['invoiceSeriesFormat'],
       ),
       quoteSeriesFormat: serializer.fromJson<String>(json['quoteSeriesFormat']),
+      creditNoteSeriesFormat: serializer.fromJson<String>(
+        json['creditNoteSeriesFormat'],
+      ),
+      debitNoteSeriesFormat: serializer.fromJson<String>(
+        json['debitNoteSeriesFormat'],
+      ),
       defaultInvoiceTemplateId: serializer.fromJson<int?>(
         json['defaultInvoiceTemplateId'],
       ),
@@ -881,6 +947,10 @@ class Business extends DataClass implements Insertable<Business> {
       'quoteTemplate': serializer.toJson<String>(quoteTemplate),
       'invoiceSeriesFormat': serializer.toJson<String>(invoiceSeriesFormat),
       'quoteSeriesFormat': serializer.toJson<String>(quoteSeriesFormat),
+      'creditNoteSeriesFormat': serializer.toJson<String>(
+        creditNoteSeriesFormat,
+      ),
+      'debitNoteSeriesFormat': serializer.toJson<String>(debitNoteSeriesFormat),
       'defaultInvoiceTemplateId': serializer.toJson<int?>(
         defaultInvoiceTemplateId,
       ),
@@ -913,6 +983,8 @@ class Business extends DataClass implements Insertable<Business> {
     String? quoteTemplate,
     String? invoiceSeriesFormat,
     String? quoteSeriesFormat,
+    String? creditNoteSeriesFormat,
+    String? debitNoteSeriesFormat,
     Value<int?> defaultInvoiceTemplateId = const Value.absent(),
     Value<int?> defaultQuoteTemplateId = const Value.absent(),
     Value<int?> brandColor = const Value.absent(),
@@ -940,6 +1012,9 @@ class Business extends DataClass implements Insertable<Business> {
     quoteTemplate: quoteTemplate ?? this.quoteTemplate,
     invoiceSeriesFormat: invoiceSeriesFormat ?? this.invoiceSeriesFormat,
     quoteSeriesFormat: quoteSeriesFormat ?? this.quoteSeriesFormat,
+    creditNoteSeriesFormat:
+        creditNoteSeriesFormat ?? this.creditNoteSeriesFormat,
+    debitNoteSeriesFormat: debitNoteSeriesFormat ?? this.debitNoteSeriesFormat,
     defaultInvoiceTemplateId: defaultInvoiceTemplateId.present
         ? defaultInvoiceTemplateId.value
         : this.defaultInvoiceTemplateId,
@@ -987,6 +1062,12 @@ class Business extends DataClass implements Insertable<Business> {
       quoteSeriesFormat: data.quoteSeriesFormat.present
           ? data.quoteSeriesFormat.value
           : this.quoteSeriesFormat,
+      creditNoteSeriesFormat: data.creditNoteSeriesFormat.present
+          ? data.creditNoteSeriesFormat.value
+          : this.creditNoteSeriesFormat,
+      debitNoteSeriesFormat: data.debitNoteSeriesFormat.present
+          ? data.debitNoteSeriesFormat.value
+          : this.debitNoteSeriesFormat,
       defaultInvoiceTemplateId: data.defaultInvoiceTemplateId.present
           ? data.defaultInvoiceTemplateId.value
           : this.defaultInvoiceTemplateId,
@@ -1025,6 +1106,8 @@ class Business extends DataClass implements Insertable<Business> {
           ..write('quoteTemplate: $quoteTemplate, ')
           ..write('invoiceSeriesFormat: $invoiceSeriesFormat, ')
           ..write('quoteSeriesFormat: $quoteSeriesFormat, ')
+          ..write('creditNoteSeriesFormat: $creditNoteSeriesFormat, ')
+          ..write('debitNoteSeriesFormat: $debitNoteSeriesFormat, ')
           ..write('defaultInvoiceTemplateId: $defaultInvoiceTemplateId, ')
           ..write('defaultQuoteTemplateId: $defaultQuoteTemplateId, ')
           ..write('brandColor: $brandColor, ')
@@ -1057,6 +1140,8 @@ class Business extends DataClass implements Insertable<Business> {
     quoteTemplate,
     invoiceSeriesFormat,
     quoteSeriesFormat,
+    creditNoteSeriesFormat,
+    debitNoteSeriesFormat,
     defaultInvoiceTemplateId,
     defaultQuoteTemplateId,
     brandColor,
@@ -1088,6 +1173,8 @@ class Business extends DataClass implements Insertable<Business> {
           other.quoteTemplate == this.quoteTemplate &&
           other.invoiceSeriesFormat == this.invoiceSeriesFormat &&
           other.quoteSeriesFormat == this.quoteSeriesFormat &&
+          other.creditNoteSeriesFormat == this.creditNoteSeriesFormat &&
+          other.debitNoteSeriesFormat == this.debitNoteSeriesFormat &&
           other.defaultInvoiceTemplateId == this.defaultInvoiceTemplateId &&
           other.defaultQuoteTemplateId == this.defaultQuoteTemplateId &&
           other.brandColor == this.brandColor &&
@@ -1117,6 +1204,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
   final Value<String> quoteTemplate;
   final Value<String> invoiceSeriesFormat;
   final Value<String> quoteSeriesFormat;
+  final Value<String> creditNoteSeriesFormat;
+  final Value<String> debitNoteSeriesFormat;
   final Value<int?> defaultInvoiceTemplateId;
   final Value<int?> defaultQuoteTemplateId;
   final Value<int?> brandColor;
@@ -1144,6 +1233,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.quoteTemplate = const Value.absent(),
     this.invoiceSeriesFormat = const Value.absent(),
     this.quoteSeriesFormat = const Value.absent(),
+    this.creditNoteSeriesFormat = const Value.absent(),
+    this.debitNoteSeriesFormat = const Value.absent(),
     this.defaultInvoiceTemplateId = const Value.absent(),
     this.defaultQuoteTemplateId = const Value.absent(),
     this.brandColor = const Value.absent(),
@@ -1172,6 +1263,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.quoteTemplate = const Value.absent(),
     this.invoiceSeriesFormat = const Value.absent(),
     this.quoteSeriesFormat = const Value.absent(),
+    this.creditNoteSeriesFormat = const Value.absent(),
+    this.debitNoteSeriesFormat = const Value.absent(),
     this.defaultInvoiceTemplateId = const Value.absent(),
     this.defaultQuoteTemplateId = const Value.absent(),
     this.brandColor = const Value.absent(),
@@ -1205,6 +1298,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Expression<String>? quoteTemplate,
     Expression<String>? invoiceSeriesFormat,
     Expression<String>? quoteSeriesFormat,
+    Expression<String>? creditNoteSeriesFormat,
+    Expression<String>? debitNoteSeriesFormat,
     Expression<int>? defaultInvoiceTemplateId,
     Expression<int>? defaultQuoteTemplateId,
     Expression<int>? brandColor,
@@ -1234,6 +1329,10 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       if (invoiceSeriesFormat != null)
         'invoice_series_format': invoiceSeriesFormat,
       if (quoteSeriesFormat != null) 'quote_series_format': quoteSeriesFormat,
+      if (creditNoteSeriesFormat != null)
+        'credit_note_series_format': creditNoteSeriesFormat,
+      if (debitNoteSeriesFormat != null)
+        'debit_note_series_format': debitNoteSeriesFormat,
       if (defaultInvoiceTemplateId != null)
         'default_invoice_template_id': defaultInvoiceTemplateId,
       if (defaultQuoteTemplateId != null)
@@ -1266,6 +1365,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Value<String>? quoteTemplate,
     Value<String>? invoiceSeriesFormat,
     Value<String>? quoteSeriesFormat,
+    Value<String>? creditNoteSeriesFormat,
+    Value<String>? debitNoteSeriesFormat,
     Value<int?>? defaultInvoiceTemplateId,
     Value<int?>? defaultQuoteTemplateId,
     Value<int?>? brandColor,
@@ -1294,6 +1395,10 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       quoteTemplate: quoteTemplate ?? this.quoteTemplate,
       invoiceSeriesFormat: invoiceSeriesFormat ?? this.invoiceSeriesFormat,
       quoteSeriesFormat: quoteSeriesFormat ?? this.quoteSeriesFormat,
+      creditNoteSeriesFormat:
+          creditNoteSeriesFormat ?? this.creditNoteSeriesFormat,
+      debitNoteSeriesFormat:
+          debitNoteSeriesFormat ?? this.debitNoteSeriesFormat,
       defaultInvoiceTemplateId:
           defaultInvoiceTemplateId ?? this.defaultInvoiceTemplateId,
       defaultQuoteTemplateId:
@@ -1374,6 +1479,16 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     if (quoteSeriesFormat.present) {
       map['quote_series_format'] = Variable<String>(quoteSeriesFormat.value);
     }
+    if (creditNoteSeriesFormat.present) {
+      map['credit_note_series_format'] = Variable<String>(
+        creditNoteSeriesFormat.value,
+      );
+    }
+    if (debitNoteSeriesFormat.present) {
+      map['debit_note_series_format'] = Variable<String>(
+        debitNoteSeriesFormat.value,
+      );
+    }
     if (defaultInvoiceTemplateId.present) {
       map['default_invoice_template_id'] = Variable<int>(
         defaultInvoiceTemplateId.value,
@@ -1420,6 +1535,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
           ..write('quoteTemplate: $quoteTemplate, ')
           ..write('invoiceSeriesFormat: $invoiceSeriesFormat, ')
           ..write('quoteSeriesFormat: $quoteSeriesFormat, ')
+          ..write('creditNoteSeriesFormat: $creditNoteSeriesFormat, ')
+          ..write('debitNoteSeriesFormat: $debitNoteSeriesFormat, ')
           ..write('defaultInvoiceTemplateId: $defaultInvoiceTemplateId, ')
           ..write('defaultQuoteTemplateId: $defaultQuoteTemplateId, ')
           ..write('brandColor: $brandColor, ')
@@ -2297,6 +2414,18 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _reorderLevelMeta = const VerificationMeta(
+    'reorderLevel',
+  );
+  @override
+  late final GeneratedColumn<double> reorderLevel = GeneratedColumn<double>(
+    'reorder_level',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _isServiceMeta = const VerificationMeta(
     'isService',
   );
@@ -2351,6 +2480,7 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     gstRate,
     cessRate,
     stockQuantity,
+    reorderLevel,
     isService,
     isActive,
     createdAt,
@@ -2451,6 +2581,15 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         ),
       );
     }
+    if (data.containsKey('reorder_level')) {
+      context.handle(
+        _reorderLevelMeta,
+        reorderLevel.isAcceptableOrUnknown(
+          data['reorder_level']!,
+          _reorderLevelMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_service')) {
       context.handle(
         _isServiceMeta,
@@ -2524,6 +2663,10 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         DriftSqlType.double,
         data['${effectivePrefix}stock_quantity'],
       )!,
+      reorderLevel: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}reorder_level'],
+      )!,
       isService: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_service'],
@@ -2557,6 +2700,10 @@ class Product extends DataClass implements Insertable<Product> {
   final double gstRate;
   final double cessRate;
   final double stockQuantity;
+
+  /// Stock level at or below which the product counts as low stock. Zero means
+  /// "no threshold configured" and falls back to out-of-stock detection.
+  final double reorderLevel;
   final bool isService;
   final bool isActive;
   final DateTime createdAt;
@@ -2572,6 +2719,7 @@ class Product extends DataClass implements Insertable<Product> {
     required this.gstRate,
     required this.cessRate,
     required this.stockQuantity,
+    required this.reorderLevel,
     required this.isService,
     required this.isActive,
     required this.createdAt,
@@ -2594,6 +2742,7 @@ class Product extends DataClass implements Insertable<Product> {
     map['gst_rate'] = Variable<double>(gstRate);
     map['cess_rate'] = Variable<double>(cessRate);
     map['stock_quantity'] = Variable<double>(stockQuantity);
+    map['reorder_level'] = Variable<double>(reorderLevel);
     map['is_service'] = Variable<bool>(isService);
     map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -2617,6 +2766,7 @@ class Product extends DataClass implements Insertable<Product> {
       gstRate: Value(gstRate),
       cessRate: Value(cessRate),
       stockQuantity: Value(stockQuantity),
+      reorderLevel: Value(reorderLevel),
       isService: Value(isService),
       isActive: Value(isActive),
       createdAt: Value(createdAt),
@@ -2640,6 +2790,7 @@ class Product extends DataClass implements Insertable<Product> {
       gstRate: serializer.fromJson<double>(json['gstRate']),
       cessRate: serializer.fromJson<double>(json['cessRate']),
       stockQuantity: serializer.fromJson<double>(json['stockQuantity']),
+      reorderLevel: serializer.fromJson<double>(json['reorderLevel']),
       isService: serializer.fromJson<bool>(json['isService']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -2660,6 +2811,7 @@ class Product extends DataClass implements Insertable<Product> {
       'gstRate': serializer.toJson<double>(gstRate),
       'cessRate': serializer.toJson<double>(cessRate),
       'stockQuantity': serializer.toJson<double>(stockQuantity),
+      'reorderLevel': serializer.toJson<double>(reorderLevel),
       'isService': serializer.toJson<bool>(isService),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -2678,6 +2830,7 @@ class Product extends DataClass implements Insertable<Product> {
     double? gstRate,
     double? cessRate,
     double? stockQuantity,
+    double? reorderLevel,
     bool? isService,
     bool? isActive,
     DateTime? createdAt,
@@ -2695,6 +2848,7 @@ class Product extends DataClass implements Insertable<Product> {
     gstRate: gstRate ?? this.gstRate,
     cessRate: cessRate ?? this.cessRate,
     stockQuantity: stockQuantity ?? this.stockQuantity,
+    reorderLevel: reorderLevel ?? this.reorderLevel,
     isService: isService ?? this.isService,
     isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
@@ -2720,6 +2874,9 @@ class Product extends DataClass implements Insertable<Product> {
       stockQuantity: data.stockQuantity.present
           ? data.stockQuantity.value
           : this.stockQuantity,
+      reorderLevel: data.reorderLevel.present
+          ? data.reorderLevel.value
+          : this.reorderLevel,
       isService: data.isService.present ? data.isService.value : this.isService,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -2740,6 +2897,7 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('gstRate: $gstRate, ')
           ..write('cessRate: $cessRate, ')
           ..write('stockQuantity: $stockQuantity, ')
+          ..write('reorderLevel: $reorderLevel, ')
           ..write('isService: $isService, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt')
@@ -2760,6 +2918,7 @@ class Product extends DataClass implements Insertable<Product> {
     gstRate,
     cessRate,
     stockQuantity,
+    reorderLevel,
     isService,
     isActive,
     createdAt,
@@ -2779,6 +2938,7 @@ class Product extends DataClass implements Insertable<Product> {
           other.gstRate == this.gstRate &&
           other.cessRate == this.cessRate &&
           other.stockQuantity == this.stockQuantity &&
+          other.reorderLevel == this.reorderLevel &&
           other.isService == this.isService &&
           other.isActive == this.isActive &&
           other.createdAt == this.createdAt);
@@ -2796,6 +2956,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<double> gstRate;
   final Value<double> cessRate;
   final Value<double> stockQuantity;
+  final Value<double> reorderLevel;
   final Value<bool> isService;
   final Value<bool> isActive;
   final Value<DateTime> createdAt;
@@ -2811,6 +2972,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.gstRate = const Value.absent(),
     this.cessRate = const Value.absent(),
     this.stockQuantity = const Value.absent(),
+    this.reorderLevel = const Value.absent(),
     this.isService = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2827,6 +2989,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     required double gstRate,
     this.cessRate = const Value.absent(),
     this.stockQuantity = const Value.absent(),
+    this.reorderLevel = const Value.absent(),
     this.isService = const Value.absent(),
     this.isActive = const Value.absent(),
     required DateTime createdAt,
@@ -2849,6 +3012,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<double>? gstRate,
     Expression<double>? cessRate,
     Expression<double>? stockQuantity,
+    Expression<double>? reorderLevel,
     Expression<bool>? isService,
     Expression<bool>? isActive,
     Expression<DateTime>? createdAt,
@@ -2865,6 +3029,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (gstRate != null) 'gst_rate': gstRate,
       if (cessRate != null) 'cess_rate': cessRate,
       if (stockQuantity != null) 'stock_quantity': stockQuantity,
+      if (reorderLevel != null) 'reorder_level': reorderLevel,
       if (isService != null) 'is_service': isService,
       if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
@@ -2883,6 +3048,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Value<double>? gstRate,
     Value<double>? cessRate,
     Value<double>? stockQuantity,
+    Value<double>? reorderLevel,
     Value<bool>? isService,
     Value<bool>? isActive,
     Value<DateTime>? createdAt,
@@ -2899,6 +3065,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       gstRate: gstRate ?? this.gstRate,
       cessRate: cessRate ?? this.cessRate,
       stockQuantity: stockQuantity ?? this.stockQuantity,
+      reorderLevel: reorderLevel ?? this.reorderLevel,
       isService: isService ?? this.isService,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
@@ -2941,6 +3108,9 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     if (stockQuantity.present) {
       map['stock_quantity'] = Variable<double>(stockQuantity.value);
     }
+    if (reorderLevel.present) {
+      map['reorder_level'] = Variable<double>(reorderLevel.value);
+    }
     if (isService.present) {
       map['is_service'] = Variable<bool>(isService.value);
     }
@@ -2967,6 +3137,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('gstRate: $gstRate, ')
           ..write('cessRate: $cessRate, ')
           ..write('stockQuantity: $stockQuantity, ')
+          ..write('reorderLevel: $reorderLevel, ')
           ..write('isService: $isService, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt')
@@ -3192,6 +3363,18 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _roundOffAmountMeta = const VerificationMeta(
+    'roundOffAmount',
+  );
+  @override
+  late final GeneratedColumn<double> roundOffAmount = GeneratedColumn<double>(
+    'round_off_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _amountPaidMeta = const VerificationMeta(
     'amountPaid',
   );
@@ -3267,6 +3450,149 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _referenceInvoiceIdMeta =
+      const VerificationMeta('referenceInvoiceId');
+  @override
+  late final GeneratedColumn<int> referenceInvoiceId = GeneratedColumn<int>(
+    'reference_invoice_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reverseChargeMeta = const VerificationMeta(
+    'reverseCharge',
+  );
+  @override
+  late final GeneratedColumn<bool> reverseCharge = GeneratedColumn<bool>(
+    'reverse_charge',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("reverse_charge" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _shipToNameMeta = const VerificationMeta(
+    'shipToName',
+  );
+  @override
+  late final GeneratedColumn<String> shipToName = GeneratedColumn<String>(
+    'ship_to_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _shipToAddressMeta = const VerificationMeta(
+    'shipToAddress',
+  );
+  @override
+  late final GeneratedColumn<String> shipToAddress = GeneratedColumn<String>(
+    'ship_to_address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _shipToCityMeta = const VerificationMeta(
+    'shipToCity',
+  );
+  @override
+  late final GeneratedColumn<String> shipToCity = GeneratedColumn<String>(
+    'ship_to_city',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exportWithLutMeta = const VerificationMeta(
+    'exportWithLut',
+  );
+  @override
+  late final GeneratedColumn<bool> exportWithLut = GeneratedColumn<bool>(
+    'export_with_lut',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("export_with_lut" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _tdsSectionMeta = const VerificationMeta(
+    'tdsSection',
+  );
+  @override
+  late final GeneratedColumn<String> tdsSection = GeneratedColumn<String>(
+    'tds_section',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tdsRateMeta = const VerificationMeta(
+    'tdsRate',
+  );
+  @override
+  late final GeneratedColumn<double> tdsRate = GeneratedColumn<double>(
+    'tds_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _tdsAmountMeta = const VerificationMeta(
+    'tdsAmount',
+  );
+  @override
+  late final GeneratedColumn<double> tdsAmount = GeneratedColumn<double>(
+    'tds_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _tcsSectionMeta = const VerificationMeta(
+    'tcsSection',
+  );
+  @override
+  late final GeneratedColumn<String> tcsSection = GeneratedColumn<String>(
+    'tcs_section',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tcsRateMeta = const VerificationMeta(
+    'tcsRate',
+  );
+  @override
+  late final GeneratedColumn<double> tcsRate = GeneratedColumn<double>(
+    'tcs_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _tcsAmountMeta = const VerificationMeta(
+    'tcsAmount',
+  );
+  @override
+  late final GeneratedColumn<double> tcsAmount = GeneratedColumn<double>(
+    'tcs_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3309,6 +3635,7 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     igstAmount,
     cessAmount,
     totalAmount,
+    roundOffAmount,
     amountPaid,
     amountInWords,
     notes,
@@ -3316,6 +3643,18 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     status,
     isIgst,
     templateId,
+    referenceInvoiceId,
+    reverseCharge,
+    shipToName,
+    shipToAddress,
+    shipToCity,
+    exportWithLut,
+    tdsSection,
+    tdsRate,
+    tdsAmount,
+    tcsSection,
+    tcsRate,
+    tcsAmount,
     createdAt,
     updatedAt,
   ];
@@ -3480,6 +3819,15 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     } else if (isInserting) {
       context.missing(_totalAmountMeta);
     }
+    if (data.containsKey('round_off_amount')) {
+      context.handle(
+        _roundOffAmountMeta,
+        roundOffAmount.isAcceptableOrUnknown(
+          data['round_off_amount']!,
+          _roundOffAmountMeta,
+        ),
+      );
+    }
     if (data.containsKey('amount_paid')) {
       context.handle(
         _amountPaidMeta,
@@ -3523,6 +3871,96 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
       context.handle(
         _templateIdMeta,
         templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
+      );
+    }
+    if (data.containsKey('reference_invoice_id')) {
+      context.handle(
+        _referenceInvoiceIdMeta,
+        referenceInvoiceId.isAcceptableOrUnknown(
+          data['reference_invoice_id']!,
+          _referenceInvoiceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reverse_charge')) {
+      context.handle(
+        _reverseChargeMeta,
+        reverseCharge.isAcceptableOrUnknown(
+          data['reverse_charge']!,
+          _reverseChargeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ship_to_name')) {
+      context.handle(
+        _shipToNameMeta,
+        shipToName.isAcceptableOrUnknown(
+          data['ship_to_name']!,
+          _shipToNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ship_to_address')) {
+      context.handle(
+        _shipToAddressMeta,
+        shipToAddress.isAcceptableOrUnknown(
+          data['ship_to_address']!,
+          _shipToAddressMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ship_to_city')) {
+      context.handle(
+        _shipToCityMeta,
+        shipToCity.isAcceptableOrUnknown(
+          data['ship_to_city']!,
+          _shipToCityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('export_with_lut')) {
+      context.handle(
+        _exportWithLutMeta,
+        exportWithLut.isAcceptableOrUnknown(
+          data['export_with_lut']!,
+          _exportWithLutMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tds_section')) {
+      context.handle(
+        _tdsSectionMeta,
+        tdsSection.isAcceptableOrUnknown(data['tds_section']!, _tdsSectionMeta),
+      );
+    }
+    if (data.containsKey('tds_rate')) {
+      context.handle(
+        _tdsRateMeta,
+        tdsRate.isAcceptableOrUnknown(data['tds_rate']!, _tdsRateMeta),
+      );
+    }
+    if (data.containsKey('tds_amount')) {
+      context.handle(
+        _tdsAmountMeta,
+        tdsAmount.isAcceptableOrUnknown(data['tds_amount']!, _tdsAmountMeta),
+      );
+    }
+    if (data.containsKey('tcs_section')) {
+      context.handle(
+        _tcsSectionMeta,
+        tcsSection.isAcceptableOrUnknown(data['tcs_section']!, _tcsSectionMeta),
+      );
+    }
+    if (data.containsKey('tcs_rate')) {
+      context.handle(
+        _tcsRateMeta,
+        tcsRate.isAcceptableOrUnknown(data['tcs_rate']!, _tcsRateMeta),
+      );
+    }
+    if (data.containsKey('tcs_amount')) {
+      context.handle(
+        _tcsAmountMeta,
+        tcsAmount.isAcceptableOrUnknown(data['tcs_amount']!, _tcsAmountMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -3626,6 +4064,10 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.double,
         data['${effectivePrefix}total_amount'],
       )!,
+      roundOffAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}round_off_amount'],
+      )!,
       amountPaid: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}amount_paid'],
@@ -3654,6 +4096,54 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
         DriftSqlType.int,
         data['${effectivePrefix}template_id'],
       ),
+      referenceInvoiceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reference_invoice_id'],
+      ),
+      reverseCharge: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}reverse_charge'],
+      )!,
+      shipToName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_name'],
+      ),
+      shipToAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_address'],
+      ),
+      shipToCity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_city'],
+      ),
+      exportWithLut: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}export_with_lut'],
+      )!,
+      tdsSection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tds_section'],
+      ),
+      tdsRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tds_rate'],
+      )!,
+      tdsAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tds_amount'],
+      )!,
+      tcsSection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tcs_section'],
+      ),
+      tcsRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tcs_rate'],
+      )!,
+      tcsAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tcs_amount'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3690,6 +4180,11 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final double igstAmount;
   final double cessAmount;
   final double totalAmount;
+
+  /// Adjustment applied to the grand total to reach a whole-rupee payable
+  /// amount (the classic Indian invoice "round off" line). Stored separately
+  /// so the printed total is a clean figure and the difference is auditable.
+  final double roundOffAmount;
   final double amountPaid;
   final String? amountInWords;
   final String? notes;
@@ -3697,6 +4192,29 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final String status;
   final bool isIgst;
   final int? templateId;
+
+  /// The invoice a credit/debit note adjusts. Null for plain invoices.
+  final int? referenceInvoiceId;
+
+  /// Reverse-charge supplies must be declared on the invoice.
+  final bool reverseCharge;
+
+  /// Optional ship-to (delivery) party when it differs from the customer.
+  final String? shipToName;
+  final String? shipToAddress;
+  final String? shipToCity;
+
+  /// Export/SEZ supplies declared under a Letter of Undertaking (no IGST).
+  final bool exportWithLut;
+
+  /// Optional TDS/TCS adjustment. TDS is deducted by the buyer; TCS is
+  /// collected on the invoice value. Both are computed on the taxable amount.
+  final String? tdsSection;
+  final double tdsRate;
+  final double tdsAmount;
+  final String? tcsSection;
+  final double tcsRate;
+  final double tcsAmount;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Invoice({
@@ -3718,6 +4236,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     required this.igstAmount,
     required this.cessAmount,
     required this.totalAmount,
+    required this.roundOffAmount,
     required this.amountPaid,
     this.amountInWords,
     this.notes,
@@ -3725,6 +4244,18 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     required this.status,
     required this.isIgst,
     this.templateId,
+    this.referenceInvoiceId,
+    required this.reverseCharge,
+    this.shipToName,
+    this.shipToAddress,
+    this.shipToCity,
+    required this.exportWithLut,
+    this.tdsSection,
+    required this.tdsRate,
+    required this.tdsAmount,
+    this.tcsSection,
+    required this.tcsRate,
+    required this.tcsAmount,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -3751,6 +4282,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     map['igst_amount'] = Variable<double>(igstAmount);
     map['cess_amount'] = Variable<double>(cessAmount);
     map['total_amount'] = Variable<double>(totalAmount);
+    map['round_off_amount'] = Variable<double>(roundOffAmount);
     map['amount_paid'] = Variable<double>(amountPaid);
     if (!nullToAbsent || amountInWords != null) {
       map['amount_in_words'] = Variable<String>(amountInWords);
@@ -3766,6 +4298,30 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     if (!nullToAbsent || templateId != null) {
       map['template_id'] = Variable<int>(templateId);
     }
+    if (!nullToAbsent || referenceInvoiceId != null) {
+      map['reference_invoice_id'] = Variable<int>(referenceInvoiceId);
+    }
+    map['reverse_charge'] = Variable<bool>(reverseCharge);
+    if (!nullToAbsent || shipToName != null) {
+      map['ship_to_name'] = Variable<String>(shipToName);
+    }
+    if (!nullToAbsent || shipToAddress != null) {
+      map['ship_to_address'] = Variable<String>(shipToAddress);
+    }
+    if (!nullToAbsent || shipToCity != null) {
+      map['ship_to_city'] = Variable<String>(shipToCity);
+    }
+    map['export_with_lut'] = Variable<bool>(exportWithLut);
+    if (!nullToAbsent || tdsSection != null) {
+      map['tds_section'] = Variable<String>(tdsSection);
+    }
+    map['tds_rate'] = Variable<double>(tdsRate);
+    map['tds_amount'] = Variable<double>(tdsAmount);
+    if (!nullToAbsent || tcsSection != null) {
+      map['tcs_section'] = Variable<String>(tcsSection);
+    }
+    map['tcs_rate'] = Variable<double>(tcsRate);
+    map['tcs_amount'] = Variable<double>(tcsAmount);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -3793,6 +4349,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       igstAmount: Value(igstAmount),
       cessAmount: Value(cessAmount),
       totalAmount: Value(totalAmount),
+      roundOffAmount: Value(roundOffAmount),
       amountPaid: Value(amountPaid),
       amountInWords: amountInWords == null && nullToAbsent
           ? const Value.absent()
@@ -3808,6 +4365,30 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       templateId: templateId == null && nullToAbsent
           ? const Value.absent()
           : Value(templateId),
+      referenceInvoiceId: referenceInvoiceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceInvoiceId),
+      reverseCharge: Value(reverseCharge),
+      shipToName: shipToName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToName),
+      shipToAddress: shipToAddress == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToAddress),
+      shipToCity: shipToCity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToCity),
+      exportWithLut: Value(exportWithLut),
+      tdsSection: tdsSection == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tdsSection),
+      tdsRate: Value(tdsRate),
+      tdsAmount: Value(tdsAmount),
+      tcsSection: tcsSection == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tcsSection),
+      tcsRate: Value(tcsRate),
+      tcsAmount: Value(tcsAmount),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3837,6 +4418,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       igstAmount: serializer.fromJson<double>(json['igstAmount']),
       cessAmount: serializer.fromJson<double>(json['cessAmount']),
       totalAmount: serializer.fromJson<double>(json['totalAmount']),
+      roundOffAmount: serializer.fromJson<double>(json['roundOffAmount']),
       amountPaid: serializer.fromJson<double>(json['amountPaid']),
       amountInWords: serializer.fromJson<String?>(json['amountInWords']),
       notes: serializer.fromJson<String?>(json['notes']),
@@ -3844,6 +4426,18 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       status: serializer.fromJson<String>(json['status']),
       isIgst: serializer.fromJson<bool>(json['isIgst']),
       templateId: serializer.fromJson<int?>(json['templateId']),
+      referenceInvoiceId: serializer.fromJson<int?>(json['referenceInvoiceId']),
+      reverseCharge: serializer.fromJson<bool>(json['reverseCharge']),
+      shipToName: serializer.fromJson<String?>(json['shipToName']),
+      shipToAddress: serializer.fromJson<String?>(json['shipToAddress']),
+      shipToCity: serializer.fromJson<String?>(json['shipToCity']),
+      exportWithLut: serializer.fromJson<bool>(json['exportWithLut']),
+      tdsSection: serializer.fromJson<String?>(json['tdsSection']),
+      tdsRate: serializer.fromJson<double>(json['tdsRate']),
+      tdsAmount: serializer.fromJson<double>(json['tdsAmount']),
+      tcsSection: serializer.fromJson<String?>(json['tcsSection']),
+      tcsRate: serializer.fromJson<double>(json['tcsRate']),
+      tcsAmount: serializer.fromJson<double>(json['tcsAmount']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -3870,6 +4464,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'igstAmount': serializer.toJson<double>(igstAmount),
       'cessAmount': serializer.toJson<double>(cessAmount),
       'totalAmount': serializer.toJson<double>(totalAmount),
+      'roundOffAmount': serializer.toJson<double>(roundOffAmount),
       'amountPaid': serializer.toJson<double>(amountPaid),
       'amountInWords': serializer.toJson<String?>(amountInWords),
       'notes': serializer.toJson<String?>(notes),
@@ -3877,6 +4472,18 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       'status': serializer.toJson<String>(status),
       'isIgst': serializer.toJson<bool>(isIgst),
       'templateId': serializer.toJson<int?>(templateId),
+      'referenceInvoiceId': serializer.toJson<int?>(referenceInvoiceId),
+      'reverseCharge': serializer.toJson<bool>(reverseCharge),
+      'shipToName': serializer.toJson<String?>(shipToName),
+      'shipToAddress': serializer.toJson<String?>(shipToAddress),
+      'shipToCity': serializer.toJson<String?>(shipToCity),
+      'exportWithLut': serializer.toJson<bool>(exportWithLut),
+      'tdsSection': serializer.toJson<String?>(tdsSection),
+      'tdsRate': serializer.toJson<double>(tdsRate),
+      'tdsAmount': serializer.toJson<double>(tdsAmount),
+      'tcsSection': serializer.toJson<String?>(tcsSection),
+      'tcsRate': serializer.toJson<double>(tcsRate),
+      'tcsAmount': serializer.toJson<double>(tcsAmount),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -3901,6 +4508,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     double? igstAmount,
     double? cessAmount,
     double? totalAmount,
+    double? roundOffAmount,
     double? amountPaid,
     Value<String?> amountInWords = const Value.absent(),
     Value<String?> notes = const Value.absent(),
@@ -3908,6 +4516,18 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     String? status,
     bool? isIgst,
     Value<int?> templateId = const Value.absent(),
+    Value<int?> referenceInvoiceId = const Value.absent(),
+    bool? reverseCharge,
+    Value<String?> shipToName = const Value.absent(),
+    Value<String?> shipToAddress = const Value.absent(),
+    Value<String?> shipToCity = const Value.absent(),
+    bool? exportWithLut,
+    Value<String?> tdsSection = const Value.absent(),
+    double? tdsRate,
+    double? tdsAmount,
+    Value<String?> tcsSection = const Value.absent(),
+    double? tcsRate,
+    double? tcsAmount,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Invoice(
@@ -3929,6 +4549,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     igstAmount: igstAmount ?? this.igstAmount,
     cessAmount: cessAmount ?? this.cessAmount,
     totalAmount: totalAmount ?? this.totalAmount,
+    roundOffAmount: roundOffAmount ?? this.roundOffAmount,
     amountPaid: amountPaid ?? this.amountPaid,
     amountInWords: amountInWords.present
         ? amountInWords.value
@@ -3938,6 +4559,22 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     status: status ?? this.status,
     isIgst: isIgst ?? this.isIgst,
     templateId: templateId.present ? templateId.value : this.templateId,
+    referenceInvoiceId: referenceInvoiceId.present
+        ? referenceInvoiceId.value
+        : this.referenceInvoiceId,
+    reverseCharge: reverseCharge ?? this.reverseCharge,
+    shipToName: shipToName.present ? shipToName.value : this.shipToName,
+    shipToAddress: shipToAddress.present
+        ? shipToAddress.value
+        : this.shipToAddress,
+    shipToCity: shipToCity.present ? shipToCity.value : this.shipToCity,
+    exportWithLut: exportWithLut ?? this.exportWithLut,
+    tdsSection: tdsSection.present ? tdsSection.value : this.tdsSection,
+    tdsRate: tdsRate ?? this.tdsRate,
+    tdsAmount: tdsAmount ?? this.tdsAmount,
+    tcsSection: tcsSection.present ? tcsSection.value : this.tcsSection,
+    tcsRate: tcsRate ?? this.tcsRate,
+    tcsAmount: tcsAmount ?? this.tcsAmount,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -3991,6 +4628,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       totalAmount: data.totalAmount.present
           ? data.totalAmount.value
           : this.totalAmount,
+      roundOffAmount: data.roundOffAmount.present
+          ? data.roundOffAmount.value
+          : this.roundOffAmount,
       amountPaid: data.amountPaid.present
           ? data.amountPaid.value
           : this.amountPaid,
@@ -4004,6 +4644,34 @@ class Invoice extends DataClass implements Insertable<Invoice> {
       templateId: data.templateId.present
           ? data.templateId.value
           : this.templateId,
+      referenceInvoiceId: data.referenceInvoiceId.present
+          ? data.referenceInvoiceId.value
+          : this.referenceInvoiceId,
+      reverseCharge: data.reverseCharge.present
+          ? data.reverseCharge.value
+          : this.reverseCharge,
+      shipToName: data.shipToName.present
+          ? data.shipToName.value
+          : this.shipToName,
+      shipToAddress: data.shipToAddress.present
+          ? data.shipToAddress.value
+          : this.shipToAddress,
+      shipToCity: data.shipToCity.present
+          ? data.shipToCity.value
+          : this.shipToCity,
+      exportWithLut: data.exportWithLut.present
+          ? data.exportWithLut.value
+          : this.exportWithLut,
+      tdsSection: data.tdsSection.present
+          ? data.tdsSection.value
+          : this.tdsSection,
+      tdsRate: data.tdsRate.present ? data.tdsRate.value : this.tdsRate,
+      tdsAmount: data.tdsAmount.present ? data.tdsAmount.value : this.tdsAmount,
+      tcsSection: data.tcsSection.present
+          ? data.tcsSection.value
+          : this.tcsSection,
+      tcsRate: data.tcsRate.present ? data.tcsRate.value : this.tcsRate,
+      tcsAmount: data.tcsAmount.present ? data.tcsAmount.value : this.tcsAmount,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4030,6 +4698,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('igstAmount: $igstAmount, ')
           ..write('cessAmount: $cessAmount, ')
           ..write('totalAmount: $totalAmount, ')
+          ..write('roundOffAmount: $roundOffAmount, ')
           ..write('amountPaid: $amountPaid, ')
           ..write('amountInWords: $amountInWords, ')
           ..write('notes: $notes, ')
@@ -4037,6 +4706,18 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           ..write('status: $status, ')
           ..write('isIgst: $isIgst, ')
           ..write('templateId: $templateId, ')
+          ..write('referenceInvoiceId: $referenceInvoiceId, ')
+          ..write('reverseCharge: $reverseCharge, ')
+          ..write('shipToName: $shipToName, ')
+          ..write('shipToAddress: $shipToAddress, ')
+          ..write('shipToCity: $shipToCity, ')
+          ..write('exportWithLut: $exportWithLut, ')
+          ..write('tdsSection: $tdsSection, ')
+          ..write('tdsRate: $tdsRate, ')
+          ..write('tdsAmount: $tdsAmount, ')
+          ..write('tcsSection: $tcsSection, ')
+          ..write('tcsRate: $tcsRate, ')
+          ..write('tcsAmount: $tcsAmount, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4063,6 +4744,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     igstAmount,
     cessAmount,
     totalAmount,
+    roundOffAmount,
     amountPaid,
     amountInWords,
     notes,
@@ -4070,6 +4752,18 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     status,
     isIgst,
     templateId,
+    referenceInvoiceId,
+    reverseCharge,
+    shipToName,
+    shipToAddress,
+    shipToCity,
+    exportWithLut,
+    tdsSection,
+    tdsRate,
+    tdsAmount,
+    tcsSection,
+    tcsRate,
+    tcsAmount,
     createdAt,
     updatedAt,
   ]);
@@ -4095,6 +4789,7 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.igstAmount == this.igstAmount &&
           other.cessAmount == this.cessAmount &&
           other.totalAmount == this.totalAmount &&
+          other.roundOffAmount == this.roundOffAmount &&
           other.amountPaid == this.amountPaid &&
           other.amountInWords == this.amountInWords &&
           other.notes == this.notes &&
@@ -4102,6 +4797,18 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           other.status == this.status &&
           other.isIgst == this.isIgst &&
           other.templateId == this.templateId &&
+          other.referenceInvoiceId == this.referenceInvoiceId &&
+          other.reverseCharge == this.reverseCharge &&
+          other.shipToName == this.shipToName &&
+          other.shipToAddress == this.shipToAddress &&
+          other.shipToCity == this.shipToCity &&
+          other.exportWithLut == this.exportWithLut &&
+          other.tdsSection == this.tdsSection &&
+          other.tdsRate == this.tdsRate &&
+          other.tdsAmount == this.tdsAmount &&
+          other.tcsSection == this.tcsSection &&
+          other.tcsRate == this.tcsRate &&
+          other.tcsAmount == this.tcsAmount &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4125,6 +4832,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<double> igstAmount;
   final Value<double> cessAmount;
   final Value<double> totalAmount;
+  final Value<double> roundOffAmount;
   final Value<double> amountPaid;
   final Value<String?> amountInWords;
   final Value<String?> notes;
@@ -4132,6 +4840,18 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<String> status;
   final Value<bool> isIgst;
   final Value<int?> templateId;
+  final Value<int?> referenceInvoiceId;
+  final Value<bool> reverseCharge;
+  final Value<String?> shipToName;
+  final Value<String?> shipToAddress;
+  final Value<String?> shipToCity;
+  final Value<bool> exportWithLut;
+  final Value<String?> tdsSection;
+  final Value<double> tdsRate;
+  final Value<double> tdsAmount;
+  final Value<String?> tcsSection;
+  final Value<double> tcsRate;
+  final Value<double> tcsAmount;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const InvoicesCompanion({
@@ -4153,6 +4873,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.igstAmount = const Value.absent(),
     this.cessAmount = const Value.absent(),
     this.totalAmount = const Value.absent(),
+    this.roundOffAmount = const Value.absent(),
     this.amountPaid = const Value.absent(),
     this.amountInWords = const Value.absent(),
     this.notes = const Value.absent(),
@@ -4160,6 +4881,18 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.status = const Value.absent(),
     this.isIgst = const Value.absent(),
     this.templateId = const Value.absent(),
+    this.referenceInvoiceId = const Value.absent(),
+    this.reverseCharge = const Value.absent(),
+    this.shipToName = const Value.absent(),
+    this.shipToAddress = const Value.absent(),
+    this.shipToCity = const Value.absent(),
+    this.exportWithLut = const Value.absent(),
+    this.tdsSection = const Value.absent(),
+    this.tdsRate = const Value.absent(),
+    this.tdsAmount = const Value.absent(),
+    this.tcsSection = const Value.absent(),
+    this.tcsRate = const Value.absent(),
+    this.tcsAmount = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -4182,6 +4915,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.igstAmount = const Value.absent(),
     this.cessAmount = const Value.absent(),
     required double totalAmount,
+    this.roundOffAmount = const Value.absent(),
     this.amountPaid = const Value.absent(),
     this.amountInWords = const Value.absent(),
     this.notes = const Value.absent(),
@@ -4189,6 +4923,18 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     this.status = const Value.absent(),
     this.isIgst = const Value.absent(),
     this.templateId = const Value.absent(),
+    this.referenceInvoiceId = const Value.absent(),
+    this.reverseCharge = const Value.absent(),
+    this.shipToName = const Value.absent(),
+    this.shipToAddress = const Value.absent(),
+    this.shipToCity = const Value.absent(),
+    this.exportWithLut = const Value.absent(),
+    this.tdsSection = const Value.absent(),
+    this.tdsRate = const Value.absent(),
+    this.tdsAmount = const Value.absent(),
+    this.tcsSection = const Value.absent(),
+    this.tcsRate = const Value.absent(),
+    this.tcsAmount = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : businessId = Value(businessId),
@@ -4222,6 +4968,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<double>? igstAmount,
     Expression<double>? cessAmount,
     Expression<double>? totalAmount,
+    Expression<double>? roundOffAmount,
     Expression<double>? amountPaid,
     Expression<String>? amountInWords,
     Expression<String>? notes,
@@ -4229,6 +4976,18 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Expression<String>? status,
     Expression<bool>? isIgst,
     Expression<int>? templateId,
+    Expression<int>? referenceInvoiceId,
+    Expression<bool>? reverseCharge,
+    Expression<String>? shipToName,
+    Expression<String>? shipToAddress,
+    Expression<String>? shipToCity,
+    Expression<bool>? exportWithLut,
+    Expression<String>? tdsSection,
+    Expression<double>? tdsRate,
+    Expression<double>? tdsAmount,
+    Expression<String>? tcsSection,
+    Expression<double>? tcsRate,
+    Expression<double>? tcsAmount,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -4251,6 +5010,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (igstAmount != null) 'igst_amount': igstAmount,
       if (cessAmount != null) 'cess_amount': cessAmount,
       if (totalAmount != null) 'total_amount': totalAmount,
+      if (roundOffAmount != null) 'round_off_amount': roundOffAmount,
       if (amountPaid != null) 'amount_paid': amountPaid,
       if (amountInWords != null) 'amount_in_words': amountInWords,
       if (notes != null) 'notes': notes,
@@ -4258,6 +5018,19 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       if (status != null) 'status': status,
       if (isIgst != null) 'is_igst': isIgst,
       if (templateId != null) 'template_id': templateId,
+      if (referenceInvoiceId != null)
+        'reference_invoice_id': referenceInvoiceId,
+      if (reverseCharge != null) 'reverse_charge': reverseCharge,
+      if (shipToName != null) 'ship_to_name': shipToName,
+      if (shipToAddress != null) 'ship_to_address': shipToAddress,
+      if (shipToCity != null) 'ship_to_city': shipToCity,
+      if (exportWithLut != null) 'export_with_lut': exportWithLut,
+      if (tdsSection != null) 'tds_section': tdsSection,
+      if (tdsRate != null) 'tds_rate': tdsRate,
+      if (tdsAmount != null) 'tds_amount': tdsAmount,
+      if (tcsSection != null) 'tcs_section': tcsSection,
+      if (tcsRate != null) 'tcs_rate': tcsRate,
+      if (tcsAmount != null) 'tcs_amount': tcsAmount,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -4282,6 +5055,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<double>? igstAmount,
     Value<double>? cessAmount,
     Value<double>? totalAmount,
+    Value<double>? roundOffAmount,
     Value<double>? amountPaid,
     Value<String?>? amountInWords,
     Value<String?>? notes,
@@ -4289,6 +5063,18 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     Value<String>? status,
     Value<bool>? isIgst,
     Value<int?>? templateId,
+    Value<int?>? referenceInvoiceId,
+    Value<bool>? reverseCharge,
+    Value<String?>? shipToName,
+    Value<String?>? shipToAddress,
+    Value<String?>? shipToCity,
+    Value<bool>? exportWithLut,
+    Value<String?>? tdsSection,
+    Value<double>? tdsRate,
+    Value<double>? tdsAmount,
+    Value<String?>? tcsSection,
+    Value<double>? tcsRate,
+    Value<double>? tcsAmount,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -4311,6 +5097,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       igstAmount: igstAmount ?? this.igstAmount,
       cessAmount: cessAmount ?? this.cessAmount,
       totalAmount: totalAmount ?? this.totalAmount,
+      roundOffAmount: roundOffAmount ?? this.roundOffAmount,
       amountPaid: amountPaid ?? this.amountPaid,
       amountInWords: amountInWords ?? this.amountInWords,
       notes: notes ?? this.notes,
@@ -4318,6 +5105,18 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       status: status ?? this.status,
       isIgst: isIgst ?? this.isIgst,
       templateId: templateId ?? this.templateId,
+      referenceInvoiceId: referenceInvoiceId ?? this.referenceInvoiceId,
+      reverseCharge: reverseCharge ?? this.reverseCharge,
+      shipToName: shipToName ?? this.shipToName,
+      shipToAddress: shipToAddress ?? this.shipToAddress,
+      shipToCity: shipToCity ?? this.shipToCity,
+      exportWithLut: exportWithLut ?? this.exportWithLut,
+      tdsSection: tdsSection ?? this.tdsSection,
+      tdsRate: tdsRate ?? this.tdsRate,
+      tdsAmount: tdsAmount ?? this.tdsAmount,
+      tcsSection: tcsSection ?? this.tcsSection,
+      tcsRate: tcsRate ?? this.tcsRate,
+      tcsAmount: tcsAmount ?? this.tcsAmount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -4380,6 +5179,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     if (totalAmount.present) {
       map['total_amount'] = Variable<double>(totalAmount.value);
     }
+    if (roundOffAmount.present) {
+      map['round_off_amount'] = Variable<double>(roundOffAmount.value);
+    }
     if (amountPaid.present) {
       map['amount_paid'] = Variable<double>(amountPaid.value);
     }
@@ -4400,6 +5202,42 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     }
     if (templateId.present) {
       map['template_id'] = Variable<int>(templateId.value);
+    }
+    if (referenceInvoiceId.present) {
+      map['reference_invoice_id'] = Variable<int>(referenceInvoiceId.value);
+    }
+    if (reverseCharge.present) {
+      map['reverse_charge'] = Variable<bool>(reverseCharge.value);
+    }
+    if (shipToName.present) {
+      map['ship_to_name'] = Variable<String>(shipToName.value);
+    }
+    if (shipToAddress.present) {
+      map['ship_to_address'] = Variable<String>(shipToAddress.value);
+    }
+    if (shipToCity.present) {
+      map['ship_to_city'] = Variable<String>(shipToCity.value);
+    }
+    if (exportWithLut.present) {
+      map['export_with_lut'] = Variable<bool>(exportWithLut.value);
+    }
+    if (tdsSection.present) {
+      map['tds_section'] = Variable<String>(tdsSection.value);
+    }
+    if (tdsRate.present) {
+      map['tds_rate'] = Variable<double>(tdsRate.value);
+    }
+    if (tdsAmount.present) {
+      map['tds_amount'] = Variable<double>(tdsAmount.value);
+    }
+    if (tcsSection.present) {
+      map['tcs_section'] = Variable<String>(tcsSection.value);
+    }
+    if (tcsRate.present) {
+      map['tcs_rate'] = Variable<double>(tcsRate.value);
+    }
+    if (tcsAmount.present) {
+      map['tcs_amount'] = Variable<double>(tcsAmount.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -4431,6 +5269,7 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('igstAmount: $igstAmount, ')
           ..write('cessAmount: $cessAmount, ')
           ..write('totalAmount: $totalAmount, ')
+          ..write('roundOffAmount: $roundOffAmount, ')
           ..write('amountPaid: $amountPaid, ')
           ..write('amountInWords: $amountInWords, ')
           ..write('notes: $notes, ')
@@ -4438,6 +5277,18 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
           ..write('status: $status, ')
           ..write('isIgst: $isIgst, ')
           ..write('templateId: $templateId, ')
+          ..write('referenceInvoiceId: $referenceInvoiceId, ')
+          ..write('reverseCharge: $reverseCharge, ')
+          ..write('shipToName: $shipToName, ')
+          ..write('shipToAddress: $shipToAddress, ')
+          ..write('shipToCity: $shipToCity, ')
+          ..write('exportWithLut: $exportWithLut, ')
+          ..write('tdsSection: $tdsSection, ')
+          ..write('tdsRate: $tdsRate, ')
+          ..write('tdsAmount: $tdsAmount, ')
+          ..write('tcsSection: $tcsSection, ')
+          ..write('tcsRate: $tcsRate, ')
+          ..write('tcsAmount: $tcsAmount, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5634,6 +6485,26 @@ class $InvoicePaymentsTable extends InvoicePayments
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _referenceMeta = const VerificationMeta(
+    'reference',
+  );
+  @override
+  late final GeneratedColumn<String> reference = GeneratedColumn<String>(
+    'reference',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
@@ -5661,6 +6532,8 @@ class $InvoicePaymentsTable extends InvoicePayments
     amount,
     kind,
     paidAt,
+    mode,
+    reference,
     note,
     createdAt,
   ];
@@ -5709,6 +6582,18 @@ class $InvoicePaymentsTable extends InvoicePayments
     } else if (isInserting) {
       context.missing(_paidAtMeta);
     }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    }
+    if (data.containsKey('reference')) {
+      context.handle(
+        _referenceMeta,
+        reference.isAcceptableOrUnknown(data['reference']!, _referenceMeta),
+      );
+    }
     if (data.containsKey('note')) {
       context.handle(
         _noteMeta,
@@ -5752,6 +6637,14 @@ class $InvoicePaymentsTable extends InvoicePayments
         DriftSqlType.dateTime,
         data['${effectivePrefix}paid_at'],
       )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      ),
+      reference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference'],
+      ),
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}note'],
@@ -5775,6 +6668,13 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
   final double amount;
   final String kind;
   final DateTime paidAt;
+
+  /// How the money moved (CASH, UPI, BANK, CARD, OTHER). Optional so existing
+  /// and manually entered payments stay valid.
+  final String? mode;
+
+  /// UPI/bank reference or transaction id the payment can be traced by.
+  final String? reference;
   final String? note;
   final DateTime createdAt;
   const InvoicePayment({
@@ -5783,6 +6683,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
     required this.amount,
     required this.kind,
     required this.paidAt,
+    this.mode,
+    this.reference,
     this.note,
     required this.createdAt,
   });
@@ -5794,6 +6696,12 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
     map['amount'] = Variable<double>(amount);
     map['kind'] = Variable<String>(kind);
     map['paid_at'] = Variable<DateTime>(paidAt);
+    if (!nullToAbsent || mode != null) {
+      map['mode'] = Variable<String>(mode);
+    }
+    if (!nullToAbsent || reference != null) {
+      map['reference'] = Variable<String>(reference);
+    }
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
@@ -5808,6 +6716,10 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
       amount: Value(amount),
       kind: Value(kind),
       paidAt: Value(paidAt),
+      mode: mode == null && nullToAbsent ? const Value.absent() : Value(mode),
+      reference: reference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reference),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
     );
@@ -5824,6 +6736,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
       amount: serializer.fromJson<double>(json['amount']),
       kind: serializer.fromJson<String>(json['kind']),
       paidAt: serializer.fromJson<DateTime>(json['paidAt']),
+      mode: serializer.fromJson<String?>(json['mode']),
+      reference: serializer.fromJson<String?>(json['reference']),
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -5837,6 +6751,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
       'amount': serializer.toJson<double>(amount),
       'kind': serializer.toJson<String>(kind),
       'paidAt': serializer.toJson<DateTime>(paidAt),
+      'mode': serializer.toJson<String?>(mode),
+      'reference': serializer.toJson<String?>(reference),
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -5848,6 +6764,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
     double? amount,
     String? kind,
     DateTime? paidAt,
+    Value<String?> mode = const Value.absent(),
+    Value<String?> reference = const Value.absent(),
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
   }) => InvoicePayment(
@@ -5856,6 +6774,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
     amount: amount ?? this.amount,
     kind: kind ?? this.kind,
     paidAt: paidAt ?? this.paidAt,
+    mode: mode.present ? mode.value : this.mode,
+    reference: reference.present ? reference.value : this.reference,
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -5866,6 +6786,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
       amount: data.amount.present ? data.amount.value : this.amount,
       kind: data.kind.present ? data.kind.value : this.kind,
       paidAt: data.paidAt.present ? data.paidAt.value : this.paidAt,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      reference: data.reference.present ? data.reference.value : this.reference,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -5879,6 +6801,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
           ..write('amount: $amount, ')
           ..write('kind: $kind, ')
           ..write('paidAt: $paidAt, ')
+          ..write('mode: $mode, ')
+          ..write('reference: $reference, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -5886,8 +6810,17 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, invoiceId, amount, kind, paidAt, note, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    invoiceId,
+    amount,
+    kind,
+    paidAt,
+    mode,
+    reference,
+    note,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5897,6 +6830,8 @@ class InvoicePayment extends DataClass implements Insertable<InvoicePayment> {
           other.amount == this.amount &&
           other.kind == this.kind &&
           other.paidAt == this.paidAt &&
+          other.mode == this.mode &&
+          other.reference == this.reference &&
           other.note == this.note &&
           other.createdAt == this.createdAt);
 }
@@ -5907,6 +6842,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
   final Value<double> amount;
   final Value<String> kind;
   final Value<DateTime> paidAt;
+  final Value<String?> mode;
+  final Value<String?> reference;
   final Value<String?> note;
   final Value<DateTime> createdAt;
   const InvoicePaymentsCompanion({
@@ -5915,6 +6852,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
     this.amount = const Value.absent(),
     this.kind = const Value.absent(),
     this.paidAt = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.reference = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -5924,6 +6863,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
     required double amount,
     this.kind = const Value.absent(),
     required DateTime paidAt,
+    this.mode = const Value.absent(),
+    this.reference = const Value.absent(),
     this.note = const Value.absent(),
     required DateTime createdAt,
   }) : invoiceId = Value(invoiceId),
@@ -5936,6 +6877,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
     Expression<double>? amount,
     Expression<String>? kind,
     Expression<DateTime>? paidAt,
+    Expression<String>? mode,
+    Expression<String>? reference,
     Expression<String>? note,
     Expression<DateTime>? createdAt,
   }) {
@@ -5945,6 +6888,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
       if (amount != null) 'amount': amount,
       if (kind != null) 'kind': kind,
       if (paidAt != null) 'paid_at': paidAt,
+      if (mode != null) 'mode': mode,
+      if (reference != null) 'reference': reference,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -5956,6 +6901,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
     Value<double>? amount,
     Value<String>? kind,
     Value<DateTime>? paidAt,
+    Value<String?>? mode,
+    Value<String?>? reference,
     Value<String?>? note,
     Value<DateTime>? createdAt,
   }) {
@@ -5965,6 +6912,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
       amount: amount ?? this.amount,
       kind: kind ?? this.kind,
       paidAt: paidAt ?? this.paidAt,
+      mode: mode ?? this.mode,
+      reference: reference ?? this.reference,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -5988,6 +6937,12 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
     if (paidAt.present) {
       map['paid_at'] = Variable<DateTime>(paidAt.value);
     }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (reference.present) {
+      map['reference'] = Variable<String>(reference.value);
+    }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
@@ -6005,6 +6960,8 @@ class InvoicePaymentsCompanion extends UpdateCompanion<InvoicePayment> {
           ..write('amount: $amount, ')
           ..write('kind: $kind, ')
           ..write('paidAt: $paidAt, ')
+          ..write('mode: $mode, ')
+          ..write('reference: $reference, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -6792,6 +7749,18 @@ class $QuotesTable extends Quotes with TableInfo<$QuotesTable, Quote> {
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _roundOffAmountMeta = const VerificationMeta(
+    'roundOffAmount',
+  );
+  @override
+  late final GeneratedColumn<double> roundOffAmount = GeneratedColumn<double>(
+    'round_off_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _amountInWordsMeta = const VerificationMeta(
     'amountInWords',
   );
@@ -6855,6 +7824,139 @@ class $QuotesTable extends Quotes with TableInfo<$QuotesTable, Quote> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reverseChargeMeta = const VerificationMeta(
+    'reverseCharge',
+  );
+  @override
+  late final GeneratedColumn<bool> reverseCharge = GeneratedColumn<bool>(
+    'reverse_charge',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("reverse_charge" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _shipToNameMeta = const VerificationMeta(
+    'shipToName',
+  );
+  @override
+  late final GeneratedColumn<String> shipToName = GeneratedColumn<String>(
+    'ship_to_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _shipToAddressMeta = const VerificationMeta(
+    'shipToAddress',
+  );
+  @override
+  late final GeneratedColumn<String> shipToAddress = GeneratedColumn<String>(
+    'ship_to_address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _shipToCityMeta = const VerificationMeta(
+    'shipToCity',
+  );
+  @override
+  late final GeneratedColumn<String> shipToCity = GeneratedColumn<String>(
+    'ship_to_city',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exportWithLutMeta = const VerificationMeta(
+    'exportWithLut',
+  );
+  @override
+  late final GeneratedColumn<bool> exportWithLut = GeneratedColumn<bool>(
+    'export_with_lut',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("export_with_lut" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _tdsSectionMeta = const VerificationMeta(
+    'tdsSection',
+  );
+  @override
+  late final GeneratedColumn<String> tdsSection = GeneratedColumn<String>(
+    'tds_section',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tdsRateMeta = const VerificationMeta(
+    'tdsRate',
+  );
+  @override
+  late final GeneratedColumn<double> tdsRate = GeneratedColumn<double>(
+    'tds_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _tdsAmountMeta = const VerificationMeta(
+    'tdsAmount',
+  );
+  @override
+  late final GeneratedColumn<double> tdsAmount = GeneratedColumn<double>(
+    'tds_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _tcsSectionMeta = const VerificationMeta(
+    'tcsSection',
+  );
+  @override
+  late final GeneratedColumn<String> tcsSection = GeneratedColumn<String>(
+    'tcs_section',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tcsRateMeta = const VerificationMeta(
+    'tcsRate',
+  );
+  @override
+  late final GeneratedColumn<double> tcsRate = GeneratedColumn<double>(
+    'tcs_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _tcsAmountMeta = const VerificationMeta(
+    'tcsAmount',
+  );
+  @override
+  late final GeneratedColumn<double> tcsAmount = GeneratedColumn<double>(
+    'tcs_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -6897,12 +7999,24 @@ class $QuotesTable extends Quotes with TableInfo<$QuotesTable, Quote> {
     igstAmount,
     cessAmount,
     totalAmount,
+    roundOffAmount,
     amountInWords,
     notes,
     terms,
     status,
     isIgst,
     templateId,
+    reverseCharge,
+    shipToName,
+    shipToAddress,
+    shipToCity,
+    exportWithLut,
+    tdsSection,
+    tdsRate,
+    tdsAmount,
+    tcsSection,
+    tcsRate,
+    tcsAmount,
     createdAt,
     updatedAt,
   ];
@@ -7067,6 +8181,15 @@ class $QuotesTable extends Quotes with TableInfo<$QuotesTable, Quote> {
     } else if (isInserting) {
       context.missing(_totalAmountMeta);
     }
+    if (data.containsKey('round_off_amount')) {
+      context.handle(
+        _roundOffAmountMeta,
+        roundOffAmount.isAcceptableOrUnknown(
+          data['round_off_amount']!,
+          _roundOffAmountMeta,
+        ),
+      );
+    }
     if (data.containsKey('amount_in_words')) {
       context.handle(
         _amountInWordsMeta,
@@ -7104,6 +8227,87 @@ class $QuotesTable extends Quotes with TableInfo<$QuotesTable, Quote> {
       context.handle(
         _templateIdMeta,
         templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
+      );
+    }
+    if (data.containsKey('reverse_charge')) {
+      context.handle(
+        _reverseChargeMeta,
+        reverseCharge.isAcceptableOrUnknown(
+          data['reverse_charge']!,
+          _reverseChargeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ship_to_name')) {
+      context.handle(
+        _shipToNameMeta,
+        shipToName.isAcceptableOrUnknown(
+          data['ship_to_name']!,
+          _shipToNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ship_to_address')) {
+      context.handle(
+        _shipToAddressMeta,
+        shipToAddress.isAcceptableOrUnknown(
+          data['ship_to_address']!,
+          _shipToAddressMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ship_to_city')) {
+      context.handle(
+        _shipToCityMeta,
+        shipToCity.isAcceptableOrUnknown(
+          data['ship_to_city']!,
+          _shipToCityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('export_with_lut')) {
+      context.handle(
+        _exportWithLutMeta,
+        exportWithLut.isAcceptableOrUnknown(
+          data['export_with_lut']!,
+          _exportWithLutMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tds_section')) {
+      context.handle(
+        _tdsSectionMeta,
+        tdsSection.isAcceptableOrUnknown(data['tds_section']!, _tdsSectionMeta),
+      );
+    }
+    if (data.containsKey('tds_rate')) {
+      context.handle(
+        _tdsRateMeta,
+        tdsRate.isAcceptableOrUnknown(data['tds_rate']!, _tdsRateMeta),
+      );
+    }
+    if (data.containsKey('tds_amount')) {
+      context.handle(
+        _tdsAmountMeta,
+        tdsAmount.isAcceptableOrUnknown(data['tds_amount']!, _tdsAmountMeta),
+      );
+    }
+    if (data.containsKey('tcs_section')) {
+      context.handle(
+        _tcsSectionMeta,
+        tcsSection.isAcceptableOrUnknown(data['tcs_section']!, _tcsSectionMeta),
+      );
+    }
+    if (data.containsKey('tcs_rate')) {
+      context.handle(
+        _tcsRateMeta,
+        tcsRate.isAcceptableOrUnknown(data['tcs_rate']!, _tcsRateMeta),
+      );
+    }
+    if (data.containsKey('tcs_amount')) {
+      context.handle(
+        _tcsAmountMeta,
+        tcsAmount.isAcceptableOrUnknown(data['tcs_amount']!, _tcsAmountMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -7207,6 +8411,10 @@ class $QuotesTable extends Quotes with TableInfo<$QuotesTable, Quote> {
         DriftSqlType.double,
         data['${effectivePrefix}total_amount'],
       )!,
+      roundOffAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}round_off_amount'],
+      )!,
       amountInWords: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}amount_in_words'],
@@ -7231,6 +8439,50 @@ class $QuotesTable extends Quotes with TableInfo<$QuotesTable, Quote> {
         DriftSqlType.int,
         data['${effectivePrefix}template_id'],
       ),
+      reverseCharge: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}reverse_charge'],
+      )!,
+      shipToName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_name'],
+      ),
+      shipToAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_address'],
+      ),
+      shipToCity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ship_to_city'],
+      ),
+      exportWithLut: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}export_with_lut'],
+      )!,
+      tdsSection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tds_section'],
+      ),
+      tdsRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tds_rate'],
+      )!,
+      tdsAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tds_amount'],
+      )!,
+      tcsSection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tcs_section'],
+      ),
+      tcsRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tcs_rate'],
+      )!,
+      tcsAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tcs_amount'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -7267,12 +8519,32 @@ class Quote extends DataClass implements Insertable<Quote> {
   final double igstAmount;
   final double cessAmount;
   final double totalAmount;
+
+  /// Whole-rupee round-off adjustment (see `Invoices.roundOffAmount`).
+  final double roundOffAmount;
   final String? amountInWords;
   final String? notes;
   final String? terms;
   final String status;
   final bool isIgst;
   final int? templateId;
+
+  /// Reverse-charge declaration and optional ship-to party (see `Invoices`).
+  final bool reverseCharge;
+  final String? shipToName;
+  final String? shipToAddress;
+  final String? shipToCity;
+
+  /// Export/SEZ supplies declared under a Letter of Undertaking (see `Invoices`).
+  final bool exportWithLut;
+
+  /// Optional TDS/TCS adjustment (see `Invoices`).
+  final String? tdsSection;
+  final double tdsRate;
+  final double tdsAmount;
+  final String? tcsSection;
+  final double tcsRate;
+  final double tcsAmount;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Quote({
@@ -7294,12 +8566,24 @@ class Quote extends DataClass implements Insertable<Quote> {
     required this.igstAmount,
     required this.cessAmount,
     required this.totalAmount,
+    required this.roundOffAmount,
     this.amountInWords,
     this.notes,
     this.terms,
     required this.status,
     required this.isIgst,
     this.templateId,
+    required this.reverseCharge,
+    this.shipToName,
+    this.shipToAddress,
+    this.shipToCity,
+    required this.exportWithLut,
+    this.tdsSection,
+    required this.tdsRate,
+    required this.tdsAmount,
+    this.tcsSection,
+    required this.tcsRate,
+    required this.tcsAmount,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -7326,6 +8610,7 @@ class Quote extends DataClass implements Insertable<Quote> {
     map['igst_amount'] = Variable<double>(igstAmount);
     map['cess_amount'] = Variable<double>(cessAmount);
     map['total_amount'] = Variable<double>(totalAmount);
+    map['round_off_amount'] = Variable<double>(roundOffAmount);
     if (!nullToAbsent || amountInWords != null) {
       map['amount_in_words'] = Variable<String>(amountInWords);
     }
@@ -7340,6 +8625,27 @@ class Quote extends DataClass implements Insertable<Quote> {
     if (!nullToAbsent || templateId != null) {
       map['template_id'] = Variable<int>(templateId);
     }
+    map['reverse_charge'] = Variable<bool>(reverseCharge);
+    if (!nullToAbsent || shipToName != null) {
+      map['ship_to_name'] = Variable<String>(shipToName);
+    }
+    if (!nullToAbsent || shipToAddress != null) {
+      map['ship_to_address'] = Variable<String>(shipToAddress);
+    }
+    if (!nullToAbsent || shipToCity != null) {
+      map['ship_to_city'] = Variable<String>(shipToCity);
+    }
+    map['export_with_lut'] = Variable<bool>(exportWithLut);
+    if (!nullToAbsent || tdsSection != null) {
+      map['tds_section'] = Variable<String>(tdsSection);
+    }
+    map['tds_rate'] = Variable<double>(tdsRate);
+    map['tds_amount'] = Variable<double>(tdsAmount);
+    if (!nullToAbsent || tcsSection != null) {
+      map['tcs_section'] = Variable<String>(tcsSection);
+    }
+    map['tcs_rate'] = Variable<double>(tcsRate);
+    map['tcs_amount'] = Variable<double>(tcsAmount);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -7367,6 +8673,7 @@ class Quote extends DataClass implements Insertable<Quote> {
       igstAmount: Value(igstAmount),
       cessAmount: Value(cessAmount),
       totalAmount: Value(totalAmount),
+      roundOffAmount: Value(roundOffAmount),
       amountInWords: amountInWords == null && nullToAbsent
           ? const Value.absent()
           : Value(amountInWords),
@@ -7381,6 +8688,27 @@ class Quote extends DataClass implements Insertable<Quote> {
       templateId: templateId == null && nullToAbsent
           ? const Value.absent()
           : Value(templateId),
+      reverseCharge: Value(reverseCharge),
+      shipToName: shipToName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToName),
+      shipToAddress: shipToAddress == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToAddress),
+      shipToCity: shipToCity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shipToCity),
+      exportWithLut: Value(exportWithLut),
+      tdsSection: tdsSection == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tdsSection),
+      tdsRate: Value(tdsRate),
+      tdsAmount: Value(tdsAmount),
+      tcsSection: tcsSection == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tcsSection),
+      tcsRate: Value(tcsRate),
+      tcsAmount: Value(tcsAmount),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -7410,12 +8738,24 @@ class Quote extends DataClass implements Insertable<Quote> {
       igstAmount: serializer.fromJson<double>(json['igstAmount']),
       cessAmount: serializer.fromJson<double>(json['cessAmount']),
       totalAmount: serializer.fromJson<double>(json['totalAmount']),
+      roundOffAmount: serializer.fromJson<double>(json['roundOffAmount']),
       amountInWords: serializer.fromJson<String?>(json['amountInWords']),
       notes: serializer.fromJson<String?>(json['notes']),
       terms: serializer.fromJson<String?>(json['terms']),
       status: serializer.fromJson<String>(json['status']),
       isIgst: serializer.fromJson<bool>(json['isIgst']),
       templateId: serializer.fromJson<int?>(json['templateId']),
+      reverseCharge: serializer.fromJson<bool>(json['reverseCharge']),
+      shipToName: serializer.fromJson<String?>(json['shipToName']),
+      shipToAddress: serializer.fromJson<String?>(json['shipToAddress']),
+      shipToCity: serializer.fromJson<String?>(json['shipToCity']),
+      exportWithLut: serializer.fromJson<bool>(json['exportWithLut']),
+      tdsSection: serializer.fromJson<String?>(json['tdsSection']),
+      tdsRate: serializer.fromJson<double>(json['tdsRate']),
+      tdsAmount: serializer.fromJson<double>(json['tdsAmount']),
+      tcsSection: serializer.fromJson<String?>(json['tcsSection']),
+      tcsRate: serializer.fromJson<double>(json['tcsRate']),
+      tcsAmount: serializer.fromJson<double>(json['tcsAmount']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -7442,12 +8782,24 @@ class Quote extends DataClass implements Insertable<Quote> {
       'igstAmount': serializer.toJson<double>(igstAmount),
       'cessAmount': serializer.toJson<double>(cessAmount),
       'totalAmount': serializer.toJson<double>(totalAmount),
+      'roundOffAmount': serializer.toJson<double>(roundOffAmount),
       'amountInWords': serializer.toJson<String?>(amountInWords),
       'notes': serializer.toJson<String?>(notes),
       'terms': serializer.toJson<String?>(terms),
       'status': serializer.toJson<String>(status),
       'isIgst': serializer.toJson<bool>(isIgst),
       'templateId': serializer.toJson<int?>(templateId),
+      'reverseCharge': serializer.toJson<bool>(reverseCharge),
+      'shipToName': serializer.toJson<String?>(shipToName),
+      'shipToAddress': serializer.toJson<String?>(shipToAddress),
+      'shipToCity': serializer.toJson<String?>(shipToCity),
+      'exportWithLut': serializer.toJson<bool>(exportWithLut),
+      'tdsSection': serializer.toJson<String?>(tdsSection),
+      'tdsRate': serializer.toJson<double>(tdsRate),
+      'tdsAmount': serializer.toJson<double>(tdsAmount),
+      'tcsSection': serializer.toJson<String?>(tcsSection),
+      'tcsRate': serializer.toJson<double>(tcsRate),
+      'tcsAmount': serializer.toJson<double>(tcsAmount),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -7472,12 +8824,24 @@ class Quote extends DataClass implements Insertable<Quote> {
     double? igstAmount,
     double? cessAmount,
     double? totalAmount,
+    double? roundOffAmount,
     Value<String?> amountInWords = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     Value<String?> terms = const Value.absent(),
     String? status,
     bool? isIgst,
     Value<int?> templateId = const Value.absent(),
+    bool? reverseCharge,
+    Value<String?> shipToName = const Value.absent(),
+    Value<String?> shipToAddress = const Value.absent(),
+    Value<String?> shipToCity = const Value.absent(),
+    bool? exportWithLut,
+    Value<String?> tdsSection = const Value.absent(),
+    double? tdsRate,
+    double? tdsAmount,
+    Value<String?> tcsSection = const Value.absent(),
+    double? tcsRate,
+    double? tcsAmount,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Quote(
@@ -7499,6 +8863,7 @@ class Quote extends DataClass implements Insertable<Quote> {
     igstAmount: igstAmount ?? this.igstAmount,
     cessAmount: cessAmount ?? this.cessAmount,
     totalAmount: totalAmount ?? this.totalAmount,
+    roundOffAmount: roundOffAmount ?? this.roundOffAmount,
     amountInWords: amountInWords.present
         ? amountInWords.value
         : this.amountInWords,
@@ -7507,6 +8872,19 @@ class Quote extends DataClass implements Insertable<Quote> {
     status: status ?? this.status,
     isIgst: isIgst ?? this.isIgst,
     templateId: templateId.present ? templateId.value : this.templateId,
+    reverseCharge: reverseCharge ?? this.reverseCharge,
+    shipToName: shipToName.present ? shipToName.value : this.shipToName,
+    shipToAddress: shipToAddress.present
+        ? shipToAddress.value
+        : this.shipToAddress,
+    shipToCity: shipToCity.present ? shipToCity.value : this.shipToCity,
+    exportWithLut: exportWithLut ?? this.exportWithLut,
+    tdsSection: tdsSection.present ? tdsSection.value : this.tdsSection,
+    tdsRate: tdsRate ?? this.tdsRate,
+    tdsAmount: tdsAmount ?? this.tdsAmount,
+    tcsSection: tcsSection.present ? tcsSection.value : this.tcsSection,
+    tcsRate: tcsRate ?? this.tcsRate,
+    tcsAmount: tcsAmount ?? this.tcsAmount,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -7560,6 +8938,9 @@ class Quote extends DataClass implements Insertable<Quote> {
       totalAmount: data.totalAmount.present
           ? data.totalAmount.value
           : this.totalAmount,
+      roundOffAmount: data.roundOffAmount.present
+          ? data.roundOffAmount.value
+          : this.roundOffAmount,
       amountInWords: data.amountInWords.present
           ? data.amountInWords.value
           : this.amountInWords,
@@ -7570,6 +8951,31 @@ class Quote extends DataClass implements Insertable<Quote> {
       templateId: data.templateId.present
           ? data.templateId.value
           : this.templateId,
+      reverseCharge: data.reverseCharge.present
+          ? data.reverseCharge.value
+          : this.reverseCharge,
+      shipToName: data.shipToName.present
+          ? data.shipToName.value
+          : this.shipToName,
+      shipToAddress: data.shipToAddress.present
+          ? data.shipToAddress.value
+          : this.shipToAddress,
+      shipToCity: data.shipToCity.present
+          ? data.shipToCity.value
+          : this.shipToCity,
+      exportWithLut: data.exportWithLut.present
+          ? data.exportWithLut.value
+          : this.exportWithLut,
+      tdsSection: data.tdsSection.present
+          ? data.tdsSection.value
+          : this.tdsSection,
+      tdsRate: data.tdsRate.present ? data.tdsRate.value : this.tdsRate,
+      tdsAmount: data.tdsAmount.present ? data.tdsAmount.value : this.tdsAmount,
+      tcsSection: data.tcsSection.present
+          ? data.tcsSection.value
+          : this.tcsSection,
+      tcsRate: data.tcsRate.present ? data.tcsRate.value : this.tcsRate,
+      tcsAmount: data.tcsAmount.present ? data.tcsAmount.value : this.tcsAmount,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -7596,12 +9002,24 @@ class Quote extends DataClass implements Insertable<Quote> {
           ..write('igstAmount: $igstAmount, ')
           ..write('cessAmount: $cessAmount, ')
           ..write('totalAmount: $totalAmount, ')
+          ..write('roundOffAmount: $roundOffAmount, ')
           ..write('amountInWords: $amountInWords, ')
           ..write('notes: $notes, ')
           ..write('terms: $terms, ')
           ..write('status: $status, ')
           ..write('isIgst: $isIgst, ')
           ..write('templateId: $templateId, ')
+          ..write('reverseCharge: $reverseCharge, ')
+          ..write('shipToName: $shipToName, ')
+          ..write('shipToAddress: $shipToAddress, ')
+          ..write('shipToCity: $shipToCity, ')
+          ..write('exportWithLut: $exportWithLut, ')
+          ..write('tdsSection: $tdsSection, ')
+          ..write('tdsRate: $tdsRate, ')
+          ..write('tdsAmount: $tdsAmount, ')
+          ..write('tcsSection: $tcsSection, ')
+          ..write('tcsRate: $tcsRate, ')
+          ..write('tcsAmount: $tcsAmount, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -7628,12 +9046,24 @@ class Quote extends DataClass implements Insertable<Quote> {
     igstAmount,
     cessAmount,
     totalAmount,
+    roundOffAmount,
     amountInWords,
     notes,
     terms,
     status,
     isIgst,
     templateId,
+    reverseCharge,
+    shipToName,
+    shipToAddress,
+    shipToCity,
+    exportWithLut,
+    tdsSection,
+    tdsRate,
+    tdsAmount,
+    tcsSection,
+    tcsRate,
+    tcsAmount,
     createdAt,
     updatedAt,
   ]);
@@ -7659,12 +9089,24 @@ class Quote extends DataClass implements Insertable<Quote> {
           other.igstAmount == this.igstAmount &&
           other.cessAmount == this.cessAmount &&
           other.totalAmount == this.totalAmount &&
+          other.roundOffAmount == this.roundOffAmount &&
           other.amountInWords == this.amountInWords &&
           other.notes == this.notes &&
           other.terms == this.terms &&
           other.status == this.status &&
           other.isIgst == this.isIgst &&
           other.templateId == this.templateId &&
+          other.reverseCharge == this.reverseCharge &&
+          other.shipToName == this.shipToName &&
+          other.shipToAddress == this.shipToAddress &&
+          other.shipToCity == this.shipToCity &&
+          other.exportWithLut == this.exportWithLut &&
+          other.tdsSection == this.tdsSection &&
+          other.tdsRate == this.tdsRate &&
+          other.tdsAmount == this.tdsAmount &&
+          other.tcsSection == this.tcsSection &&
+          other.tcsRate == this.tcsRate &&
+          other.tcsAmount == this.tcsAmount &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -7688,12 +9130,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
   final Value<double> igstAmount;
   final Value<double> cessAmount;
   final Value<double> totalAmount;
+  final Value<double> roundOffAmount;
   final Value<String?> amountInWords;
   final Value<String?> notes;
   final Value<String?> terms;
   final Value<String> status;
   final Value<bool> isIgst;
   final Value<int?> templateId;
+  final Value<bool> reverseCharge;
+  final Value<String?> shipToName;
+  final Value<String?> shipToAddress;
+  final Value<String?> shipToCity;
+  final Value<bool> exportWithLut;
+  final Value<String?> tdsSection;
+  final Value<double> tdsRate;
+  final Value<double> tdsAmount;
+  final Value<String?> tcsSection;
+  final Value<double> tcsRate;
+  final Value<double> tcsAmount;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const QuotesCompanion({
@@ -7715,12 +9169,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
     this.igstAmount = const Value.absent(),
     this.cessAmount = const Value.absent(),
     this.totalAmount = const Value.absent(),
+    this.roundOffAmount = const Value.absent(),
     this.amountInWords = const Value.absent(),
     this.notes = const Value.absent(),
     this.terms = const Value.absent(),
     this.status = const Value.absent(),
     this.isIgst = const Value.absent(),
     this.templateId = const Value.absent(),
+    this.reverseCharge = const Value.absent(),
+    this.shipToName = const Value.absent(),
+    this.shipToAddress = const Value.absent(),
+    this.shipToCity = const Value.absent(),
+    this.exportWithLut = const Value.absent(),
+    this.tdsSection = const Value.absent(),
+    this.tdsRate = const Value.absent(),
+    this.tdsAmount = const Value.absent(),
+    this.tcsSection = const Value.absent(),
+    this.tcsRate = const Value.absent(),
+    this.tcsAmount = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -7743,12 +9209,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
     this.igstAmount = const Value.absent(),
     this.cessAmount = const Value.absent(),
     required double totalAmount,
+    this.roundOffAmount = const Value.absent(),
     this.amountInWords = const Value.absent(),
     this.notes = const Value.absent(),
     this.terms = const Value.absent(),
     this.status = const Value.absent(),
     this.isIgst = const Value.absent(),
     this.templateId = const Value.absent(),
+    this.reverseCharge = const Value.absent(),
+    this.shipToName = const Value.absent(),
+    this.shipToAddress = const Value.absent(),
+    this.shipToCity = const Value.absent(),
+    this.exportWithLut = const Value.absent(),
+    this.tdsSection = const Value.absent(),
+    this.tdsRate = const Value.absent(),
+    this.tdsAmount = const Value.absent(),
+    this.tcsSection = const Value.absent(),
+    this.tcsRate = const Value.absent(),
+    this.tcsAmount = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : businessId = Value(businessId),
@@ -7782,12 +9260,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
     Expression<double>? igstAmount,
     Expression<double>? cessAmount,
     Expression<double>? totalAmount,
+    Expression<double>? roundOffAmount,
     Expression<String>? amountInWords,
     Expression<String>? notes,
     Expression<String>? terms,
     Expression<String>? status,
     Expression<bool>? isIgst,
     Expression<int>? templateId,
+    Expression<bool>? reverseCharge,
+    Expression<String>? shipToName,
+    Expression<String>? shipToAddress,
+    Expression<String>? shipToCity,
+    Expression<bool>? exportWithLut,
+    Expression<String>? tdsSection,
+    Expression<double>? tdsRate,
+    Expression<double>? tdsAmount,
+    Expression<String>? tcsSection,
+    Expression<double>? tcsRate,
+    Expression<double>? tcsAmount,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -7810,12 +9300,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
       if (igstAmount != null) 'igst_amount': igstAmount,
       if (cessAmount != null) 'cess_amount': cessAmount,
       if (totalAmount != null) 'total_amount': totalAmount,
+      if (roundOffAmount != null) 'round_off_amount': roundOffAmount,
       if (amountInWords != null) 'amount_in_words': amountInWords,
       if (notes != null) 'notes': notes,
       if (terms != null) 'terms': terms,
       if (status != null) 'status': status,
       if (isIgst != null) 'is_igst': isIgst,
       if (templateId != null) 'template_id': templateId,
+      if (reverseCharge != null) 'reverse_charge': reverseCharge,
+      if (shipToName != null) 'ship_to_name': shipToName,
+      if (shipToAddress != null) 'ship_to_address': shipToAddress,
+      if (shipToCity != null) 'ship_to_city': shipToCity,
+      if (exportWithLut != null) 'export_with_lut': exportWithLut,
+      if (tdsSection != null) 'tds_section': tdsSection,
+      if (tdsRate != null) 'tds_rate': tdsRate,
+      if (tdsAmount != null) 'tds_amount': tdsAmount,
+      if (tcsSection != null) 'tcs_section': tcsSection,
+      if (tcsRate != null) 'tcs_rate': tcsRate,
+      if (tcsAmount != null) 'tcs_amount': tcsAmount,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -7840,12 +9342,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
     Value<double>? igstAmount,
     Value<double>? cessAmount,
     Value<double>? totalAmount,
+    Value<double>? roundOffAmount,
     Value<String?>? amountInWords,
     Value<String?>? notes,
     Value<String?>? terms,
     Value<String>? status,
     Value<bool>? isIgst,
     Value<int?>? templateId,
+    Value<bool>? reverseCharge,
+    Value<String?>? shipToName,
+    Value<String?>? shipToAddress,
+    Value<String?>? shipToCity,
+    Value<bool>? exportWithLut,
+    Value<String?>? tdsSection,
+    Value<double>? tdsRate,
+    Value<double>? tdsAmount,
+    Value<String?>? tcsSection,
+    Value<double>? tcsRate,
+    Value<double>? tcsAmount,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -7868,12 +9382,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
       igstAmount: igstAmount ?? this.igstAmount,
       cessAmount: cessAmount ?? this.cessAmount,
       totalAmount: totalAmount ?? this.totalAmount,
+      roundOffAmount: roundOffAmount ?? this.roundOffAmount,
       amountInWords: amountInWords ?? this.amountInWords,
       notes: notes ?? this.notes,
       terms: terms ?? this.terms,
       status: status ?? this.status,
       isIgst: isIgst ?? this.isIgst,
       templateId: templateId ?? this.templateId,
+      reverseCharge: reverseCharge ?? this.reverseCharge,
+      shipToName: shipToName ?? this.shipToName,
+      shipToAddress: shipToAddress ?? this.shipToAddress,
+      shipToCity: shipToCity ?? this.shipToCity,
+      exportWithLut: exportWithLut ?? this.exportWithLut,
+      tdsSection: tdsSection ?? this.tdsSection,
+      tdsRate: tdsRate ?? this.tdsRate,
+      tdsAmount: tdsAmount ?? this.tdsAmount,
+      tcsSection: tcsSection ?? this.tcsSection,
+      tcsRate: tcsRate ?? this.tcsRate,
+      tcsAmount: tcsAmount ?? this.tcsAmount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -7936,6 +9462,9 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
     if (totalAmount.present) {
       map['total_amount'] = Variable<double>(totalAmount.value);
     }
+    if (roundOffAmount.present) {
+      map['round_off_amount'] = Variable<double>(roundOffAmount.value);
+    }
     if (amountInWords.present) {
       map['amount_in_words'] = Variable<String>(amountInWords.value);
     }
@@ -7953,6 +9482,39 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
     }
     if (templateId.present) {
       map['template_id'] = Variable<int>(templateId.value);
+    }
+    if (reverseCharge.present) {
+      map['reverse_charge'] = Variable<bool>(reverseCharge.value);
+    }
+    if (shipToName.present) {
+      map['ship_to_name'] = Variable<String>(shipToName.value);
+    }
+    if (shipToAddress.present) {
+      map['ship_to_address'] = Variable<String>(shipToAddress.value);
+    }
+    if (shipToCity.present) {
+      map['ship_to_city'] = Variable<String>(shipToCity.value);
+    }
+    if (exportWithLut.present) {
+      map['export_with_lut'] = Variable<bool>(exportWithLut.value);
+    }
+    if (tdsSection.present) {
+      map['tds_section'] = Variable<String>(tdsSection.value);
+    }
+    if (tdsRate.present) {
+      map['tds_rate'] = Variable<double>(tdsRate.value);
+    }
+    if (tdsAmount.present) {
+      map['tds_amount'] = Variable<double>(tdsAmount.value);
+    }
+    if (tcsSection.present) {
+      map['tcs_section'] = Variable<String>(tcsSection.value);
+    }
+    if (tcsRate.present) {
+      map['tcs_rate'] = Variable<double>(tcsRate.value);
+    }
+    if (tcsAmount.present) {
+      map['tcs_amount'] = Variable<double>(tcsAmount.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -7984,12 +9546,24 @@ class QuotesCompanion extends UpdateCompanion<Quote> {
           ..write('igstAmount: $igstAmount, ')
           ..write('cessAmount: $cessAmount, ')
           ..write('totalAmount: $totalAmount, ')
+          ..write('roundOffAmount: $roundOffAmount, ')
           ..write('amountInWords: $amountInWords, ')
           ..write('notes: $notes, ')
           ..write('terms: $terms, ')
           ..write('status: $status, ')
           ..write('isIgst: $isIgst, ')
           ..write('templateId: $templateId, ')
+          ..write('reverseCharge: $reverseCharge, ')
+          ..write('shipToName: $shipToName, ')
+          ..write('shipToAddress: $shipToAddress, ')
+          ..write('shipToCity: $shipToCity, ')
+          ..write('exportWithLut: $exportWithLut, ')
+          ..write('tdsSection: $tdsSection, ')
+          ..write('tdsRate: $tdsRate, ')
+          ..write('tdsAmount: $tdsAmount, ')
+          ..write('tcsSection: $tcsSection, ')
+          ..write('tcsRate: $tcsRate, ')
+          ..write('tcsAmount: $tcsAmount, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -9522,8 +11096,39 @@ class $HsnCodeRatesTable extends HsnCodeRates
         type: DriftSqlType.dateTime,
         requiredDuringInsert: true,
       );
+  static const VerificationMeta _minUnitPriceMeta = const VerificationMeta(
+    'minUnitPrice',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, code, gstRate, effectiveFrom];
+  late final GeneratedColumn<double> minUnitPrice = GeneratedColumn<double>(
+    'min_unit_price',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _maxUnitPriceMeta = const VerificationMeta(
+    'maxUnitPrice',
+  );
+  @override
+  late final GeneratedColumn<double> maxUnitPrice = GeneratedColumn<double>(
+    'max_unit_price',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(unboundedUnitPrice),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    code,
+    gstRate,
+    effectiveFrom,
+    minUnitPrice,
+    maxUnitPrice,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -9564,6 +11169,24 @@ class $HsnCodeRatesTable extends HsnCodeRates
     } else if (isInserting) {
       context.missing(_effectiveFromMeta);
     }
+    if (data.containsKey('min_unit_price')) {
+      context.handle(
+        _minUnitPriceMeta,
+        minUnitPrice.isAcceptableOrUnknown(
+          data['min_unit_price']!,
+          _minUnitPriceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('max_unit_price')) {
+      context.handle(
+        _maxUnitPriceMeta,
+        maxUnitPrice.isAcceptableOrUnknown(
+          data['max_unit_price']!,
+          _maxUnitPriceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -9571,7 +11194,7 @@ class $HsnCodeRatesTable extends HsnCodeRates
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
-    {code, effectiveFrom},
+    {code, effectiveFrom, minUnitPrice, maxUnitPrice},
   ];
   @override
   HsnCodeRate map(Map<String, dynamic> data, {String? tablePrefix}) {
@@ -9593,6 +11216,14 @@ class $HsnCodeRatesTable extends HsnCodeRates
         DriftSqlType.dateTime,
         data['${effectivePrefix}effective_from'],
       )!,
+      minUnitPrice: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}min_unit_price'],
+      )!,
+      maxUnitPrice: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}max_unit_price'],
+      )!,
     );
   }
 
@@ -9607,11 +11238,24 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
   final String code;
   final double? gstRate;
   final DateTime effectiveFrom;
+
+  /// Price band for rate rules that depend on the unit price (for example
+  /// readymade garments: 5% up to Rs.2,500 per piece, 18% above).
+  ///
+  /// Applied as `minUnitPrice < price <= maxUnitPrice`. The defaults
+  /// (0 and [unboundedUnitPrice]) mean "every price". Bounds are non-null so
+  /// the uniqueness constraint below stays effective — a nullable column would
+  /// let SQLite treat each row as distinct and duplicate seed rates on every
+  /// launch.
+  final double minUnitPrice;
+  final double maxUnitPrice;
   const HsnCodeRate({
     required this.id,
     required this.code,
     this.gstRate,
     required this.effectiveFrom,
+    required this.minUnitPrice,
+    required this.maxUnitPrice,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9622,6 +11266,8 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
       map['gst_rate'] = Variable<double>(gstRate);
     }
     map['effective_from'] = Variable<DateTime>(effectiveFrom);
+    map['min_unit_price'] = Variable<double>(minUnitPrice);
+    map['max_unit_price'] = Variable<double>(maxUnitPrice);
     return map;
   }
 
@@ -9633,6 +11279,8 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
           ? const Value.absent()
           : Value(gstRate),
       effectiveFrom: Value(effectiveFrom),
+      minUnitPrice: Value(minUnitPrice),
+      maxUnitPrice: Value(maxUnitPrice),
     );
   }
 
@@ -9646,6 +11294,8 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
       code: serializer.fromJson<String>(json['code']),
       gstRate: serializer.fromJson<double?>(json['gstRate']),
       effectiveFrom: serializer.fromJson<DateTime>(json['effectiveFrom']),
+      minUnitPrice: serializer.fromJson<double>(json['minUnitPrice']),
+      maxUnitPrice: serializer.fromJson<double>(json['maxUnitPrice']),
     );
   }
   @override
@@ -9656,6 +11306,8 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
       'code': serializer.toJson<String>(code),
       'gstRate': serializer.toJson<double?>(gstRate),
       'effectiveFrom': serializer.toJson<DateTime>(effectiveFrom),
+      'minUnitPrice': serializer.toJson<double>(minUnitPrice),
+      'maxUnitPrice': serializer.toJson<double>(maxUnitPrice),
     };
   }
 
@@ -9664,11 +11316,15 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
     String? code,
     Value<double?> gstRate = const Value.absent(),
     DateTime? effectiveFrom,
+    double? minUnitPrice,
+    double? maxUnitPrice,
   }) => HsnCodeRate(
     id: id ?? this.id,
     code: code ?? this.code,
     gstRate: gstRate.present ? gstRate.value : this.gstRate,
     effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+    minUnitPrice: minUnitPrice ?? this.minUnitPrice,
+    maxUnitPrice: maxUnitPrice ?? this.maxUnitPrice,
   );
   HsnCodeRate copyWithCompanion(HsnCodeRatesCompanion data) {
     return HsnCodeRate(
@@ -9678,6 +11334,12 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
       effectiveFrom: data.effectiveFrom.present
           ? data.effectiveFrom.value
           : this.effectiveFrom,
+      minUnitPrice: data.minUnitPrice.present
+          ? data.minUnitPrice.value
+          : this.minUnitPrice,
+      maxUnitPrice: data.maxUnitPrice.present
+          ? data.maxUnitPrice.value
+          : this.maxUnitPrice,
     );
   }
 
@@ -9687,13 +11349,16 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
           ..write('id: $id, ')
           ..write('code: $code, ')
           ..write('gstRate: $gstRate, ')
-          ..write('effectiveFrom: $effectiveFrom')
+          ..write('effectiveFrom: $effectiveFrom, ')
+          ..write('minUnitPrice: $minUnitPrice, ')
+          ..write('maxUnitPrice: $maxUnitPrice')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, code, gstRate, effectiveFrom);
+  int get hashCode =>
+      Object.hash(id, code, gstRate, effectiveFrom, minUnitPrice, maxUnitPrice);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -9701,7 +11366,9 @@ class HsnCodeRate extends DataClass implements Insertable<HsnCodeRate> {
           other.id == this.id &&
           other.code == this.code &&
           other.gstRate == this.gstRate &&
-          other.effectiveFrom == this.effectiveFrom);
+          other.effectiveFrom == this.effectiveFrom &&
+          other.minUnitPrice == this.minUnitPrice &&
+          other.maxUnitPrice == this.maxUnitPrice);
 }
 
 class HsnCodeRatesCompanion extends UpdateCompanion<HsnCodeRate> {
@@ -9709,17 +11376,23 @@ class HsnCodeRatesCompanion extends UpdateCompanion<HsnCodeRate> {
   final Value<String> code;
   final Value<double?> gstRate;
   final Value<DateTime> effectiveFrom;
+  final Value<double> minUnitPrice;
+  final Value<double> maxUnitPrice;
   const HsnCodeRatesCompanion({
     this.id = const Value.absent(),
     this.code = const Value.absent(),
     this.gstRate = const Value.absent(),
     this.effectiveFrom = const Value.absent(),
+    this.minUnitPrice = const Value.absent(),
+    this.maxUnitPrice = const Value.absent(),
   });
   HsnCodeRatesCompanion.insert({
     this.id = const Value.absent(),
     required String code,
     this.gstRate = const Value.absent(),
     required DateTime effectiveFrom,
+    this.minUnitPrice = const Value.absent(),
+    this.maxUnitPrice = const Value.absent(),
   }) : code = Value(code),
        effectiveFrom = Value(effectiveFrom);
   static Insertable<HsnCodeRate> custom({
@@ -9727,12 +11400,16 @@ class HsnCodeRatesCompanion extends UpdateCompanion<HsnCodeRate> {
     Expression<String>? code,
     Expression<double>? gstRate,
     Expression<DateTime>? effectiveFrom,
+    Expression<double>? minUnitPrice,
+    Expression<double>? maxUnitPrice,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (code != null) 'code': code,
       if (gstRate != null) 'gst_rate': gstRate,
       if (effectiveFrom != null) 'effective_from': effectiveFrom,
+      if (minUnitPrice != null) 'min_unit_price': minUnitPrice,
+      if (maxUnitPrice != null) 'max_unit_price': maxUnitPrice,
     });
   }
 
@@ -9741,12 +11418,16 @@ class HsnCodeRatesCompanion extends UpdateCompanion<HsnCodeRate> {
     Value<String>? code,
     Value<double?>? gstRate,
     Value<DateTime>? effectiveFrom,
+    Value<double>? minUnitPrice,
+    Value<double>? maxUnitPrice,
   }) {
     return HsnCodeRatesCompanion(
       id: id ?? this.id,
       code: code ?? this.code,
       gstRate: gstRate ?? this.gstRate,
       effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+      minUnitPrice: minUnitPrice ?? this.minUnitPrice,
+      maxUnitPrice: maxUnitPrice ?? this.maxUnitPrice,
     );
   }
 
@@ -9765,6 +11446,12 @@ class HsnCodeRatesCompanion extends UpdateCompanion<HsnCodeRate> {
     if (effectiveFrom.present) {
       map['effective_from'] = Variable<DateTime>(effectiveFrom.value);
     }
+    if (minUnitPrice.present) {
+      map['min_unit_price'] = Variable<double>(minUnitPrice.value);
+    }
+    if (maxUnitPrice.present) {
+      map['max_unit_price'] = Variable<double>(maxUnitPrice.value);
+    }
     return map;
   }
 
@@ -9774,7 +11461,9 @@ class HsnCodeRatesCompanion extends UpdateCompanion<HsnCodeRate> {
           ..write('id: $id, ')
           ..write('code: $code, ')
           ..write('gstRate: $gstRate, ')
-          ..write('effectiveFrom: $effectiveFrom')
+          ..write('effectiveFrom: $effectiveFrom, ')
+          ..write('minUnitPrice: $minUnitPrice, ')
+          ..write('maxUnitPrice: $maxUnitPrice')
           ..write(')'))
         .toString();
   }
@@ -10790,6 +12479,1363 @@ class TemplateConfigsCompanion extends UpdateCompanion<TemplateConfig> {
   }
 }
 
+class $DocumentSequencesTable extends DocumentSequences
+    with TableInfo<$DocumentSequencesTable, DocumentSequence> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DocumentSequencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<int> businessId = GeneratedColumn<int>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES businesses (id)',
+    ),
+  );
+  static const VerificationMeta _docTypeMeta = const VerificationMeta(
+    'docType',
+  );
+  @override
+  late final GeneratedColumn<String> docType = GeneratedColumn<String>(
+    'doc_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fiscalYearMeta = const VerificationMeta(
+    'fiscalYear',
+  );
+  @override
+  late final GeneratedColumn<String> fiscalYear = GeneratedColumn<String>(
+    'fiscal_year',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _formatMeta = const VerificationMeta('format');
+  @override
+  late final GeneratedColumn<String> format = GeneratedColumn<String>(
+    'format',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sequenceMeta = const VerificationMeta(
+    'sequence',
+  );
+  @override
+  late final GeneratedColumn<int> sequence = GeneratedColumn<int>(
+    'sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    docType,
+    fiscalYear,
+    format,
+    sequence,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'document_sequences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DocumentSequence> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('doc_type')) {
+      context.handle(
+        _docTypeMeta,
+        docType.isAcceptableOrUnknown(data['doc_type']!, _docTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_docTypeMeta);
+    }
+    if (data.containsKey('fiscal_year')) {
+      context.handle(
+        _fiscalYearMeta,
+        fiscalYear.isAcceptableOrUnknown(data['fiscal_year']!, _fiscalYearMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fiscalYearMeta);
+    }
+    if (data.containsKey('format')) {
+      context.handle(
+        _formatMeta,
+        format.isAcceptableOrUnknown(data['format']!, _formatMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_formatMeta);
+    }
+    if (data.containsKey('sequence')) {
+      context.handle(
+        _sequenceMeta,
+        sequence.isAcceptableOrUnknown(data['sequence']!, _sequenceMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {businessId, docType, fiscalYear, format},
+  ];
+  @override
+  DocumentSequence map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DocumentSequence(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}business_id'],
+      )!,
+      docType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}doc_type'],
+      )!,
+      fiscalYear: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fiscal_year'],
+      )!,
+      format: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}format'],
+      )!,
+      sequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sequence'],
+      )!,
+    );
+  }
+
+  @override
+  $DocumentSequencesTable createAlias(String alias) {
+    return $DocumentSequencesTable(attachedDatabase, alias);
+  }
+}
+
+class DocumentSequence extends DataClass
+    implements Insertable<DocumentSequence> {
+  final int id;
+  final int businessId;
+  final String docType;
+  final String fiscalYear;
+  final String format;
+  final int sequence;
+  const DocumentSequence({
+    required this.id,
+    required this.businessId,
+    required this.docType,
+    required this.fiscalYear,
+    required this.format,
+    required this.sequence,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['business_id'] = Variable<int>(businessId);
+    map['doc_type'] = Variable<String>(docType);
+    map['fiscal_year'] = Variable<String>(fiscalYear);
+    map['format'] = Variable<String>(format);
+    map['sequence'] = Variable<int>(sequence);
+    return map;
+  }
+
+  DocumentSequencesCompanion toCompanion(bool nullToAbsent) {
+    return DocumentSequencesCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      docType: Value(docType),
+      fiscalYear: Value(fiscalYear),
+      format: Value(format),
+      sequence: Value(sequence),
+    );
+  }
+
+  factory DocumentSequence.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DocumentSequence(
+      id: serializer.fromJson<int>(json['id']),
+      businessId: serializer.fromJson<int>(json['businessId']),
+      docType: serializer.fromJson<String>(json['docType']),
+      fiscalYear: serializer.fromJson<String>(json['fiscalYear']),
+      format: serializer.fromJson<String>(json['format']),
+      sequence: serializer.fromJson<int>(json['sequence']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'businessId': serializer.toJson<int>(businessId),
+      'docType': serializer.toJson<String>(docType),
+      'fiscalYear': serializer.toJson<String>(fiscalYear),
+      'format': serializer.toJson<String>(format),
+      'sequence': serializer.toJson<int>(sequence),
+    };
+  }
+
+  DocumentSequence copyWith({
+    int? id,
+    int? businessId,
+    String? docType,
+    String? fiscalYear,
+    String? format,
+    int? sequence,
+  }) => DocumentSequence(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    docType: docType ?? this.docType,
+    fiscalYear: fiscalYear ?? this.fiscalYear,
+    format: format ?? this.format,
+    sequence: sequence ?? this.sequence,
+  );
+  DocumentSequence copyWithCompanion(DocumentSequencesCompanion data) {
+    return DocumentSequence(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      docType: data.docType.present ? data.docType.value : this.docType,
+      fiscalYear: data.fiscalYear.present
+          ? data.fiscalYear.value
+          : this.fiscalYear,
+      format: data.format.present ? data.format.value : this.format,
+      sequence: data.sequence.present ? data.sequence.value : this.sequence,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentSequence(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('docType: $docType, ')
+          ..write('fiscalYear: $fiscalYear, ')
+          ..write('format: $format, ')
+          ..write('sequence: $sequence')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, businessId, docType, fiscalYear, format, sequence);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DocumentSequence &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.docType == this.docType &&
+          other.fiscalYear == this.fiscalYear &&
+          other.format == this.format &&
+          other.sequence == this.sequence);
+}
+
+class DocumentSequencesCompanion extends UpdateCompanion<DocumentSequence> {
+  final Value<int> id;
+  final Value<int> businessId;
+  final Value<String> docType;
+  final Value<String> fiscalYear;
+  final Value<String> format;
+  final Value<int> sequence;
+  const DocumentSequencesCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.docType = const Value.absent(),
+    this.fiscalYear = const Value.absent(),
+    this.format = const Value.absent(),
+    this.sequence = const Value.absent(),
+  });
+  DocumentSequencesCompanion.insert({
+    this.id = const Value.absent(),
+    required int businessId,
+    required String docType,
+    required String fiscalYear,
+    required String format,
+    this.sequence = const Value.absent(),
+  }) : businessId = Value(businessId),
+       docType = Value(docType),
+       fiscalYear = Value(fiscalYear),
+       format = Value(format);
+  static Insertable<DocumentSequence> custom({
+    Expression<int>? id,
+    Expression<int>? businessId,
+    Expression<String>? docType,
+    Expression<String>? fiscalYear,
+    Expression<String>? format,
+    Expression<int>? sequence,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (docType != null) 'doc_type': docType,
+      if (fiscalYear != null) 'fiscal_year': fiscalYear,
+      if (format != null) 'format': format,
+      if (sequence != null) 'sequence': sequence,
+    });
+  }
+
+  DocumentSequencesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? businessId,
+    Value<String>? docType,
+    Value<String>? fiscalYear,
+    Value<String>? format,
+    Value<int>? sequence,
+  }) {
+    return DocumentSequencesCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      docType: docType ?? this.docType,
+      fiscalYear: fiscalYear ?? this.fiscalYear,
+      format: format ?? this.format,
+      sequence: sequence ?? this.sequence,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<int>(businessId.value);
+    }
+    if (docType.present) {
+      map['doc_type'] = Variable<String>(docType.value);
+    }
+    if (fiscalYear.present) {
+      map['fiscal_year'] = Variable<String>(fiscalYear.value);
+    }
+    if (format.present) {
+      map['format'] = Variable<String>(format.value);
+    }
+    if (sequence.present) {
+      map['sequence'] = Variable<int>(sequence.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentSequencesCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('docType: $docType, ')
+          ..write('fiscalYear: $fiscalYear, ')
+          ..write('format: $format, ')
+          ..write('sequence: $sequence')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StockMovementsTable extends StockMovements
+    with TableInfo<$StockMovementsTable, StockMovement> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StockMovementsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<int> productId = GeneratedColumn<int>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES products (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _quantityDeltaMeta = const VerificationMeta(
+    'quantityDelta',
+  );
+  @override
+  late final GeneratedColumn<double> quantityDelta = GeneratedColumn<double>(
+    'quantity_delta',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _documentTypeMeta = const VerificationMeta(
+    'documentType',
+  );
+  @override
+  late final GeneratedColumn<String> documentType = GeneratedColumn<String>(
+    'document_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
+  );
+  @override
+  late final GeneratedColumn<int> documentId = GeneratedColumn<int>(
+    'document_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    productId,
+    quantityDelta,
+    reason,
+    documentType,
+    documentId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stock_movements';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StockMovement> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('quantity_delta')) {
+      context.handle(
+        _quantityDeltaMeta,
+        quantityDelta.isAcceptableOrUnknown(
+          data['quantity_delta']!,
+          _quantityDeltaMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityDeltaMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('document_type')) {
+      context.handle(
+        _documentTypeMeta,
+        documentType.isAcceptableOrUnknown(
+          data['document_type']!,
+          _documentTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('document_id')) {
+      context.handle(
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StockMovement map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StockMovement(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}product_id'],
+      )!,
+      quantityDelta: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}quantity_delta'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      documentType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}document_type'],
+      ),
+      documentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}document_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StockMovementsTable createAlias(String alias) {
+    return $StockMovementsTable(attachedDatabase, alias);
+  }
+}
+
+class StockMovement extends DataClass implements Insertable<StockMovement> {
+  final int id;
+  final int productId;
+
+  /// Signed change: negative for sales, positive for reversals and increases.
+  final double quantityDelta;
+
+  /// OPENING, ADJUSTMENT, INVOICE, INVOICE_REVERSAL.
+  final String reason;
+  final String? documentType;
+  final int? documentId;
+  final DateTime createdAt;
+  const StockMovement({
+    required this.id,
+    required this.productId,
+    required this.quantityDelta,
+    required this.reason,
+    this.documentType,
+    this.documentId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['product_id'] = Variable<int>(productId);
+    map['quantity_delta'] = Variable<double>(quantityDelta);
+    map['reason'] = Variable<String>(reason);
+    if (!nullToAbsent || documentType != null) {
+      map['document_type'] = Variable<String>(documentType);
+    }
+    if (!nullToAbsent || documentId != null) {
+      map['document_id'] = Variable<int>(documentId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  StockMovementsCompanion toCompanion(bool nullToAbsent) {
+    return StockMovementsCompanion(
+      id: Value(id),
+      productId: Value(productId),
+      quantityDelta: Value(quantityDelta),
+      reason: Value(reason),
+      documentType: documentType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(documentType),
+      documentId: documentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(documentId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory StockMovement.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StockMovement(
+      id: serializer.fromJson<int>(json['id']),
+      productId: serializer.fromJson<int>(json['productId']),
+      quantityDelta: serializer.fromJson<double>(json['quantityDelta']),
+      reason: serializer.fromJson<String>(json['reason']),
+      documentType: serializer.fromJson<String?>(json['documentType']),
+      documentId: serializer.fromJson<int?>(json['documentId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'productId': serializer.toJson<int>(productId),
+      'quantityDelta': serializer.toJson<double>(quantityDelta),
+      'reason': serializer.toJson<String>(reason),
+      'documentType': serializer.toJson<String?>(documentType),
+      'documentId': serializer.toJson<int?>(documentId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  StockMovement copyWith({
+    int? id,
+    int? productId,
+    double? quantityDelta,
+    String? reason,
+    Value<String?> documentType = const Value.absent(),
+    Value<int?> documentId = const Value.absent(),
+    DateTime? createdAt,
+  }) => StockMovement(
+    id: id ?? this.id,
+    productId: productId ?? this.productId,
+    quantityDelta: quantityDelta ?? this.quantityDelta,
+    reason: reason ?? this.reason,
+    documentType: documentType.present ? documentType.value : this.documentType,
+    documentId: documentId.present ? documentId.value : this.documentId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  StockMovement copyWithCompanion(StockMovementsCompanion data) {
+    return StockMovement(
+      id: data.id.present ? data.id.value : this.id,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      quantityDelta: data.quantityDelta.present
+          ? data.quantityDelta.value
+          : this.quantityDelta,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      documentType: data.documentType.present
+          ? data.documentType.value
+          : this.documentType,
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovement(')
+          ..write('id: $id, ')
+          ..write('productId: $productId, ')
+          ..write('quantityDelta: $quantityDelta, ')
+          ..write('reason: $reason, ')
+          ..write('documentType: $documentType, ')
+          ..write('documentId: $documentId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    productId,
+    quantityDelta,
+    reason,
+    documentType,
+    documentId,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StockMovement &&
+          other.id == this.id &&
+          other.productId == this.productId &&
+          other.quantityDelta == this.quantityDelta &&
+          other.reason == this.reason &&
+          other.documentType == this.documentType &&
+          other.documentId == this.documentId &&
+          other.createdAt == this.createdAt);
+}
+
+class StockMovementsCompanion extends UpdateCompanion<StockMovement> {
+  final Value<int> id;
+  final Value<int> productId;
+  final Value<double> quantityDelta;
+  final Value<String> reason;
+  final Value<String?> documentType;
+  final Value<int?> documentId;
+  final Value<DateTime> createdAt;
+  const StockMovementsCompanion({
+    this.id = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.quantityDelta = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.documentType = const Value.absent(),
+    this.documentId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  StockMovementsCompanion.insert({
+    this.id = const Value.absent(),
+    required int productId,
+    required double quantityDelta,
+    required String reason,
+    this.documentType = const Value.absent(),
+    this.documentId = const Value.absent(),
+    required DateTime createdAt,
+  }) : productId = Value(productId),
+       quantityDelta = Value(quantityDelta),
+       reason = Value(reason),
+       createdAt = Value(createdAt);
+  static Insertable<StockMovement> custom({
+    Expression<int>? id,
+    Expression<int>? productId,
+    Expression<double>? quantityDelta,
+    Expression<String>? reason,
+    Expression<String>? documentType,
+    Expression<int>? documentId,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (productId != null) 'product_id': productId,
+      if (quantityDelta != null) 'quantity_delta': quantityDelta,
+      if (reason != null) 'reason': reason,
+      if (documentType != null) 'document_type': documentType,
+      if (documentId != null) 'document_id': documentId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  StockMovementsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? productId,
+    Value<double>? quantityDelta,
+    Value<String>? reason,
+    Value<String?>? documentType,
+    Value<int?>? documentId,
+    Value<DateTime>? createdAt,
+  }) {
+    return StockMovementsCompanion(
+      id: id ?? this.id,
+      productId: productId ?? this.productId,
+      quantityDelta: quantityDelta ?? this.quantityDelta,
+      reason: reason ?? this.reason,
+      documentType: documentType ?? this.documentType,
+      documentId: documentId ?? this.documentId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<int>(productId.value);
+    }
+    if (quantityDelta.present) {
+      map['quantity_delta'] = Variable<double>(quantityDelta.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (documentType.present) {
+      map['document_type'] = Variable<String>(documentType.value);
+    }
+    if (documentId.present) {
+      map['document_id'] = Variable<int>(documentId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovementsCompanion(')
+          ..write('id: $id, ')
+          ..write('productId: $productId, ')
+          ..write('quantityDelta: $quantityDelta, ')
+          ..write('reason: $reason, ')
+          ..write('documentType: $documentType, ')
+          ..write('documentId: $documentId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RecurringInvoicesTable extends RecurringInvoices
+    with TableInfo<$RecurringInvoicesTable, RecurringInvoice> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringInvoicesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<int> businessId = GeneratedColumn<int>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES businesses (id)',
+    ),
+  );
+  static const VerificationMeta _sourceInvoiceIdMeta = const VerificationMeta(
+    'sourceInvoiceId',
+  );
+  @override
+  late final GeneratedColumn<int> sourceInvoiceId = GeneratedColumn<int>(
+    'source_invoice_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES invoices (id)',
+    ),
+  );
+  static const VerificationMeta _frequencyMeta = const VerificationMeta(
+    'frequency',
+  );
+  @override
+  late final GeneratedColumn<String> frequency = GeneratedColumn<String>(
+    'frequency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('MONTHLY'),
+  );
+  static const VerificationMeta _nextRunDateMeta = const VerificationMeta(
+    'nextRunDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextRunDate = GeneratedColumn<DateTime>(
+    'next_run_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    sourceInvoiceId,
+    frequency,
+    nextRunDate,
+    isActive,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurring_invoices';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecurringInvoice> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('source_invoice_id')) {
+      context.handle(
+        _sourceInvoiceIdMeta,
+        sourceInvoiceId.isAcceptableOrUnknown(
+          data['source_invoice_id']!,
+          _sourceInvoiceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceInvoiceIdMeta);
+    }
+    if (data.containsKey('frequency')) {
+      context.handle(
+        _frequencyMeta,
+        frequency.isAcceptableOrUnknown(data['frequency']!, _frequencyMeta),
+      );
+    }
+    if (data.containsKey('next_run_date')) {
+      context.handle(
+        _nextRunDateMeta,
+        nextRunDate.isAcceptableOrUnknown(
+          data['next_run_date']!,
+          _nextRunDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nextRunDateMeta);
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecurringInvoice map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringInvoice(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}business_id'],
+      )!,
+      sourceInvoiceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}source_invoice_id'],
+      )!,
+      frequency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}frequency'],
+      )!,
+      nextRunDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_run_date'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RecurringInvoicesTable createAlias(String alias) {
+    return $RecurringInvoicesTable(attachedDatabase, alias);
+  }
+}
+
+class RecurringInvoice extends DataClass
+    implements Insertable<RecurringInvoice> {
+  final int id;
+  final int businessId;
+  final int sourceInvoiceId;
+
+  /// WEEKLY, MONTHLY, QUARTERLY or YEARLY.
+  final String frequency;
+
+  /// The next date a draft should be generated for.
+  final DateTime nextRunDate;
+  final bool isActive;
+  final DateTime createdAt;
+  const RecurringInvoice({
+    required this.id,
+    required this.businessId,
+    required this.sourceInvoiceId,
+    required this.frequency,
+    required this.nextRunDate,
+    required this.isActive,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['business_id'] = Variable<int>(businessId);
+    map['source_invoice_id'] = Variable<int>(sourceInvoiceId);
+    map['frequency'] = Variable<String>(frequency);
+    map['next_run_date'] = Variable<DateTime>(nextRunDate);
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  RecurringInvoicesCompanion toCompanion(bool nullToAbsent) {
+    return RecurringInvoicesCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      sourceInvoiceId: Value(sourceInvoiceId),
+      frequency: Value(frequency),
+      nextRunDate: Value(nextRunDate),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory RecurringInvoice.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringInvoice(
+      id: serializer.fromJson<int>(json['id']),
+      businessId: serializer.fromJson<int>(json['businessId']),
+      sourceInvoiceId: serializer.fromJson<int>(json['sourceInvoiceId']),
+      frequency: serializer.fromJson<String>(json['frequency']),
+      nextRunDate: serializer.fromJson<DateTime>(json['nextRunDate']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'businessId': serializer.toJson<int>(businessId),
+      'sourceInvoiceId': serializer.toJson<int>(sourceInvoiceId),
+      'frequency': serializer.toJson<String>(frequency),
+      'nextRunDate': serializer.toJson<DateTime>(nextRunDate),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  RecurringInvoice copyWith({
+    int? id,
+    int? businessId,
+    int? sourceInvoiceId,
+    String? frequency,
+    DateTime? nextRunDate,
+    bool? isActive,
+    DateTime? createdAt,
+  }) => RecurringInvoice(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    sourceInvoiceId: sourceInvoiceId ?? this.sourceInvoiceId,
+    frequency: frequency ?? this.frequency,
+    nextRunDate: nextRunDate ?? this.nextRunDate,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  RecurringInvoice copyWithCompanion(RecurringInvoicesCompanion data) {
+    return RecurringInvoice(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      sourceInvoiceId: data.sourceInvoiceId.present
+          ? data.sourceInvoiceId.value
+          : this.sourceInvoiceId,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      nextRunDate: data.nextRunDate.present
+          ? data.nextRunDate.value
+          : this.nextRunDate,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringInvoice(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('sourceInvoiceId: $sourceInvoiceId, ')
+          ..write('frequency: $frequency, ')
+          ..write('nextRunDate: $nextRunDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    sourceInvoiceId,
+    frequency,
+    nextRunDate,
+    isActive,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringInvoice &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.sourceInvoiceId == this.sourceInvoiceId &&
+          other.frequency == this.frequency &&
+          other.nextRunDate == this.nextRunDate &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt);
+}
+
+class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
+  final Value<int> id;
+  final Value<int> businessId;
+  final Value<int> sourceInvoiceId;
+  final Value<String> frequency;
+  final Value<DateTime> nextRunDate;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  const RecurringInvoicesCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.sourceInvoiceId = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.nextRunDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  RecurringInvoicesCompanion.insert({
+    this.id = const Value.absent(),
+    required int businessId,
+    required int sourceInvoiceId,
+    this.frequency = const Value.absent(),
+    required DateTime nextRunDate,
+    this.isActive = const Value.absent(),
+    required DateTime createdAt,
+  }) : businessId = Value(businessId),
+       sourceInvoiceId = Value(sourceInvoiceId),
+       nextRunDate = Value(nextRunDate),
+       createdAt = Value(createdAt);
+  static Insertable<RecurringInvoice> custom({
+    Expression<int>? id,
+    Expression<int>? businessId,
+    Expression<int>? sourceInvoiceId,
+    Expression<String>? frequency,
+    Expression<DateTime>? nextRunDate,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (sourceInvoiceId != null) 'source_invoice_id': sourceInvoiceId,
+      if (frequency != null) 'frequency': frequency,
+      if (nextRunDate != null) 'next_run_date': nextRunDate,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  RecurringInvoicesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? businessId,
+    Value<int>? sourceInvoiceId,
+    Value<String>? frequency,
+    Value<DateTime>? nextRunDate,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+  }) {
+    return RecurringInvoicesCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      sourceInvoiceId: sourceInvoiceId ?? this.sourceInvoiceId,
+      frequency: frequency ?? this.frequency,
+      nextRunDate: nextRunDate ?? this.nextRunDate,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<int>(businessId.value);
+    }
+    if (sourceInvoiceId.present) {
+      map['source_invoice_id'] = Variable<int>(sourceInvoiceId.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(frequency.value);
+    }
+    if (nextRunDate.present) {
+      map['next_run_date'] = Variable<DateTime>(nextRunDate.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringInvoicesCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('sourceInvoiceId: $sourceInvoiceId, ')
+          ..write('frequency: $frequency, ')
+          ..write('nextRunDate: $nextRunDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10811,6 +13857,83 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TemplateConfigsTable templateConfigs = $TemplateConfigsTable(
     this,
   );
+  late final $DocumentSequencesTable documentSequences =
+      $DocumentSequencesTable(this);
+  late final $StockMovementsTable stockMovements = $StockMovementsTable(this);
+  late final $RecurringInvoicesTable recurringInvoices =
+      $RecurringInvoicesTable(this);
+  late final Index idxCustomersBusinessId = Index(
+    'idx_customers_business_id',
+    'CREATE INDEX idx_customers_business_id ON customers (business_id)',
+  );
+  late final Index idxProductsBusinessId = Index(
+    'idx_products_business_id',
+    'CREATE INDEX idx_products_business_id ON products (business_id)',
+  );
+  late final Index idxInvoicesBusinessId = Index(
+    'idx_invoices_business_id',
+    'CREATE INDEX idx_invoices_business_id ON invoices (business_id)',
+  );
+  late final Index idxInvoicesCustomerId = Index(
+    'idx_invoices_customer_id',
+    'CREATE INDEX idx_invoices_customer_id ON invoices (customer_id)',
+  );
+  late final Index idxInvoicesInvoiceDate = Index(
+    'idx_invoices_invoice_date',
+    'CREATE INDEX idx_invoices_invoice_date ON invoices (invoice_date)',
+  );
+  late final Index idxInvoicesStatus = Index(
+    'idx_invoices_status',
+    'CREATE INDEX idx_invoices_status ON invoices (status)',
+  );
+  late final Index idxInvoiceItemsInvoiceId = Index(
+    'idx_invoice_items_invoice_id',
+    'CREATE INDEX idx_invoice_items_invoice_id ON invoice_items (invoice_id)',
+  );
+  late final Index idxInvoiceItemsProductId = Index(
+    'idx_invoice_items_product_id',
+    'CREATE INDEX idx_invoice_items_product_id ON invoice_items (product_id)',
+  );
+  late final Index idxInvoicePaymentsInvoiceId = Index(
+    'idx_invoice_payments_invoice_id',
+    'CREATE INDEX idx_invoice_payments_invoice_id ON invoice_payments (invoice_id)',
+  );
+  late final Index idxCustomerActivityBusinessId = Index(
+    'idx_customer_activity_business_id',
+    'CREATE INDEX idx_customer_activity_business_id ON customer_activity_events (business_id)',
+  );
+  late final Index idxCustomerActivityCustomerId = Index(
+    'idx_customer_activity_customer_id',
+    'CREATE INDEX idx_customer_activity_customer_id ON customer_activity_events (customer_id)',
+  );
+  late final Index idxQuotesBusinessId = Index(
+    'idx_quotes_business_id',
+    'CREATE INDEX idx_quotes_business_id ON quotes (business_id)',
+  );
+  late final Index idxQuotesCustomerId = Index(
+    'idx_quotes_customer_id',
+    'CREATE INDEX idx_quotes_customer_id ON quotes (customer_id)',
+  );
+  late final Index idxQuoteItemsQuoteId = Index(
+    'idx_quote_items_quote_id',
+    'CREATE INDEX idx_quote_items_quote_id ON quote_items (quote_id)',
+  );
+  late final Index idxQuoteItemsProductId = Index(
+    'idx_quote_items_product_id',
+    'CREATE INDEX idx_quote_items_product_id ON quote_items (product_id)',
+  );
+  late final Index idxTemplateConfigsBusinessId = Index(
+    'idx_template_configs_business_id',
+    'CREATE INDEX idx_template_configs_business_id ON template_configs (business_id)',
+  );
+  late final Index idxStockMovementsProductId = Index(
+    'idx_stock_movements_product_id',
+    'CREATE INDEX idx_stock_movements_product_id ON stock_movements (product_id)',
+  );
+  late final Index idxRecurringInvoicesSource = Index(
+    'idx_recurring_invoices_source',
+    'CREATE INDEX idx_recurring_invoices_source ON recurring_invoices (source_invoice_id)',
+  );
   late final BusinessDao businessDao = BusinessDao(this as AppDatabase);
   late final CustomerDao customerDao = CustomerDao(this as AppDatabase);
   late final ProductDao productDao = ProductDao(this as AppDatabase);
@@ -10822,6 +13945,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final HsnDao hsnDao = HsnDao(this as AppDatabase);
   late final UomDao uomDao = UomDao(this as AppDatabase);
   late final TemplateConfigDao templateConfigDao = TemplateConfigDao(
+    this as AppDatabase,
+  );
+  late final RecurringInvoiceDao recurringInvoiceDao = RecurringInvoiceDao(
     this as AppDatabase,
   );
   @override
@@ -10842,6 +13968,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     hsnCodeRates,
     uoms,
     templateConfigs,
+    documentSequences,
+    stockMovements,
+    recurringInvoices,
+    idxCustomersBusinessId,
+    idxProductsBusinessId,
+    idxInvoicesBusinessId,
+    idxInvoicesCustomerId,
+    idxInvoicesInvoiceDate,
+    idxInvoicesStatus,
+    idxInvoiceItemsInvoiceId,
+    idxInvoiceItemsProductId,
+    idxInvoicePaymentsInvoiceId,
+    idxCustomerActivityBusinessId,
+    idxCustomerActivityCustomerId,
+    idxQuotesBusinessId,
+    idxQuotesCustomerId,
+    idxQuoteItemsQuoteId,
+    idxQuoteItemsProductId,
+    idxTemplateConfigsBusinessId,
+    idxStockMovementsProductId,
+    idxRecurringInvoicesSource,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -10865,6 +14012,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('quote_items', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'products',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('stock_movements', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -10892,6 +14046,8 @@ typedef $$BusinessesTableCreateCompanionBuilder =
       Value<String> quoteTemplate,
       Value<String> invoiceSeriesFormat,
       Value<String> quoteSeriesFormat,
+      Value<String> creditNoteSeriesFormat,
+      Value<String> debitNoteSeriesFormat,
       Value<int?> defaultInvoiceTemplateId,
       Value<int?> defaultQuoteTemplateId,
       Value<int?> brandColor,
@@ -10921,6 +14077,8 @@ typedef $$BusinessesTableUpdateCompanionBuilder =
       Value<String> quoteTemplate,
       Value<String> invoiceSeriesFormat,
       Value<String> quoteSeriesFormat,
+      Value<String> creditNoteSeriesFormat,
+      Value<String> debitNoteSeriesFormat,
       Value<int?> defaultInvoiceTemplateId,
       Value<int?> defaultQuoteTemplateId,
       Value<int?> brandColor,
@@ -11051,6 +14209,48 @@ final class $$BusinessesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$DocumentSequencesTable, List<DocumentSequence>>
+  _documentSequencesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.documentSequences,
+        aliasName: 'businesses__id__document_sequences__business_id',
+      );
+
+  $$DocumentSequencesTableProcessedTableManager get documentSequencesRefs {
+    final manager = $$DocumentSequencesTableTableManager(
+      $_db,
+      $_db.documentSequences,
+    ).filter((f) => f.businessId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _documentSequencesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RecurringInvoicesTable, List<RecurringInvoice>>
+  _recurringInvoicesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.recurringInvoices,
+        aliasName: 'businesses__id__recurring_invoices__business_id',
+      );
+
+  $$RecurringInvoicesTableProcessedTableManager get recurringInvoicesRefs {
+    final manager = $$RecurringInvoicesTableTableManager(
+      $_db,
+      $_db.recurringInvoices,
+    ).filter((f) => f.businessId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _recurringInvoicesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$BusinessesTableFilterComposer
@@ -11165,6 +14365,16 @@ class $$BusinessesTableFilterComposer
 
   ColumnFilters<String> get quoteSeriesFormat => $composableBuilder(
     column: $table.quoteSeriesFormat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get creditNoteSeriesFormat => $composableBuilder(
+    column: $table.creditNoteSeriesFormat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get debitNoteSeriesFormat => $composableBuilder(
+    column: $table.debitNoteSeriesFormat,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11343,6 +14553,56 @@ class $$BusinessesTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> documentSequencesRefs(
+    Expression<bool> Function($$DocumentSequencesTableFilterComposer f) f,
+  ) {
+    final $$DocumentSequencesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.documentSequences,
+      getReferencedColumn: (t) => t.businessId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentSequencesTableFilterComposer(
+            $db: $db,
+            $table: $db.documentSequences,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> recurringInvoicesRefs(
+    Expression<bool> Function($$RecurringInvoicesTableFilterComposer f) f,
+  ) {
+    final $$RecurringInvoicesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.recurringInvoices,
+      getReferencedColumn: (t) => t.businessId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RecurringInvoicesTableFilterComposer(
+            $db: $db,
+            $table: $db.recurringInvoices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$BusinessesTableOrderingComposer
@@ -11459,6 +14719,16 @@ class $$BusinessesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get creditNoteSeriesFormat => $composableBuilder(
+    column: $table.creditNoteSeriesFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get debitNoteSeriesFormat => $composableBuilder(
+    column: $table.debitNoteSeriesFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get defaultInvoiceTemplateId => $composableBuilder(
     column: $table.defaultInvoiceTemplateId,
     builder: (column) => ColumnOrderings(column),
@@ -11569,6 +14839,16 @@ class $$BusinessesTableAnnotationComposer
 
   GeneratedColumn<String> get quoteSeriesFormat => $composableBuilder(
     column: $table.quoteSeriesFormat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get creditNoteSeriesFormat => $composableBuilder(
+    column: $table.creditNoteSeriesFormat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get debitNoteSeriesFormat => $composableBuilder(
+    column: $table.debitNoteSeriesFormat,
     builder: (column) => column,
   );
 
@@ -11743,6 +15023,58 @@ class $$BusinessesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> documentSequencesRefs<T extends Object>(
+    Expression<T> Function($$DocumentSequencesTableAnnotationComposer a) f,
+  ) {
+    final $$DocumentSequencesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.documentSequences,
+          getReferencedColumn: (t) => t.businessId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DocumentSequencesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.documentSequences,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> recurringInvoicesRefs<T extends Object>(
+    Expression<T> Function($$RecurringInvoicesTableAnnotationComposer a) f,
+  ) {
+    final $$RecurringInvoicesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.recurringInvoices,
+          getReferencedColumn: (t) => t.businessId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RecurringInvoicesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.recurringInvoices,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$BusinessesTableTableManager
@@ -11765,6 +15097,8 @@ class $$BusinessesTableTableManager
             bool customerActivityEventsRefs,
             bool quotesRefs,
             bool templateConfigsRefs,
+            bool documentSequencesRefs,
+            bool recurringInvoicesRefs,
           })
         > {
   $$BusinessesTableTableManager(_$AppDatabase db, $BusinessesTable table)
@@ -11801,6 +15135,8 @@ class $$BusinessesTableTableManager
                 Value<String> quoteTemplate = const Value.absent(),
                 Value<String> invoiceSeriesFormat = const Value.absent(),
                 Value<String> quoteSeriesFormat = const Value.absent(),
+                Value<String> creditNoteSeriesFormat = const Value.absent(),
+                Value<String> debitNoteSeriesFormat = const Value.absent(),
                 Value<int?> defaultInvoiceTemplateId = const Value.absent(),
                 Value<int?> defaultQuoteTemplateId = const Value.absent(),
                 Value<int?> brandColor = const Value.absent(),
@@ -11828,6 +15164,8 @@ class $$BusinessesTableTableManager
                 quoteTemplate: quoteTemplate,
                 invoiceSeriesFormat: invoiceSeriesFormat,
                 quoteSeriesFormat: quoteSeriesFormat,
+                creditNoteSeriesFormat: creditNoteSeriesFormat,
+                debitNoteSeriesFormat: debitNoteSeriesFormat,
                 defaultInvoiceTemplateId: defaultInvoiceTemplateId,
                 defaultQuoteTemplateId: defaultQuoteTemplateId,
                 brandColor: brandColor,
@@ -11857,6 +15195,8 @@ class $$BusinessesTableTableManager
                 Value<String> quoteTemplate = const Value.absent(),
                 Value<String> invoiceSeriesFormat = const Value.absent(),
                 Value<String> quoteSeriesFormat = const Value.absent(),
+                Value<String> creditNoteSeriesFormat = const Value.absent(),
+                Value<String> debitNoteSeriesFormat = const Value.absent(),
                 Value<int?> defaultInvoiceTemplateId = const Value.absent(),
                 Value<int?> defaultQuoteTemplateId = const Value.absent(),
                 Value<int?> brandColor = const Value.absent(),
@@ -11884,6 +15224,8 @@ class $$BusinessesTableTableManager
                 quoteTemplate: quoteTemplate,
                 invoiceSeriesFormat: invoiceSeriesFormat,
                 quoteSeriesFormat: quoteSeriesFormat,
+                creditNoteSeriesFormat: creditNoteSeriesFormat,
+                debitNoteSeriesFormat: debitNoteSeriesFormat,
                 defaultInvoiceTemplateId: defaultInvoiceTemplateId,
                 defaultQuoteTemplateId: defaultQuoteTemplateId,
                 brandColor: brandColor,
@@ -11906,6 +15248,8 @@ class $$BusinessesTableTableManager
                 customerActivityEventsRefs = false,
                 quotesRefs = false,
                 templateConfigsRefs = false,
+                documentSequencesRefs = false,
+                recurringInvoicesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -11916,6 +15260,8 @@ class $$BusinessesTableTableManager
                     if (customerActivityEventsRefs) db.customerActivityEvents,
                     if (quotesRefs) db.quotes,
                     if (templateConfigsRefs) db.templateConfigs,
+                    if (documentSequencesRefs) db.documentSequences,
+                    if (recurringInvoicesRefs) db.recurringInvoices,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -12046,6 +15392,48 @@ class $$BusinessesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (documentSequencesRefs)
+                        await $_getPrefetchedData<
+                          Business,
+                          $BusinessesTable,
+                          DocumentSequence
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BusinessesTableReferences
+                              ._documentSequencesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BusinessesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).documentSequencesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.businessId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (recurringInvoicesRefs)
+                        await $_getPrefetchedData<
+                          Business,
+                          $BusinessesTable,
+                          RecurringInvoice
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BusinessesTableReferences
+                              ._recurringInvoicesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BusinessesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).recurringInvoicesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.businessId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -12073,6 +15461,8 @@ typedef $$BusinessesTableProcessedTableManager =
         bool customerActivityEventsRefs,
         bool quotesRefs,
         bool templateConfigsRefs,
+        bool documentSequencesRefs,
+        bool recurringInvoicesRefs,
       })
     >;
 typedef $$CustomersTableCreateCompanionBuilder =
@@ -12850,6 +16240,7 @@ typedef $$ProductsTableCreateCompanionBuilder =
       required double gstRate,
       Value<double> cessRate,
       Value<double> stockQuantity,
+      Value<double> reorderLevel,
       Value<bool> isService,
       Value<bool> isActive,
       required DateTime createdAt,
@@ -12867,6 +16258,7 @@ typedef $$ProductsTableUpdateCompanionBuilder =
       Value<double> gstRate,
       Value<double> cessRate,
       Value<double> stockQuantity,
+      Value<double> reorderLevel,
       Value<bool> isService,
       Value<bool> isActive,
       Value<DateTime> createdAt,
@@ -12924,6 +16316,24 @@ final class $$ProductsTableReferences
     ).filter((f) => f.productId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_quoteItemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$StockMovementsTable, List<StockMovement>>
+  _stockMovementsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.stockMovements,
+    aliasName: 'products__id__stock_movements__product_id',
+  );
+
+  $$StockMovementsTableProcessedTableManager get stockMovementsRefs {
+    final manager = $$StockMovementsTableTableManager(
+      $_db,
+      $_db.stockMovements,
+    ).filter((f) => f.productId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stockMovementsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -12986,6 +16396,11 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<double> get stockQuantity => $composableBuilder(
     column: $table.stockQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get reorderLevel => $composableBuilder(
+    column: $table.reorderLevel,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13076,6 +16491,31 @@ class $$ProductsTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> stockMovementsRefs(
+    Expression<bool> Function($$StockMovementsTableFilterComposer f) f,
+  ) {
+    final $$StockMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stockMovements,
+      getReferencedColumn: (t) => t.productId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StockMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.stockMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ProductsTableOrderingComposer
@@ -13134,6 +16574,11 @@ class $$ProductsTableOrderingComposer
 
   ColumnOrderings<double> get stockQuantity => $composableBuilder(
     column: $table.stockQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get reorderLevel => $composableBuilder(
+    column: $table.reorderLevel,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13221,6 +16666,11 @@ class $$ProductsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get reorderLevel => $composableBuilder(
+    column: $table.reorderLevel,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isService =>
       $composableBuilder(column: $table.isService, builder: (column) => column);
 
@@ -13302,6 +16752,31 @@ class $$ProductsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> stockMovementsRefs<T extends Object>(
+    Expression<T> Function($$StockMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$StockMovementsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stockMovements,
+      getReferencedColumn: (t) => t.productId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StockMovementsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stockMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ProductsTableTableManager
@@ -13321,6 +16796,7 @@ class $$ProductsTableTableManager
             bool businessId,
             bool invoiceItemsRefs,
             bool quoteItemsRefs,
+            bool stockMovementsRefs,
           })
         > {
   $$ProductsTableTableManager(_$AppDatabase db, $ProductsTable table)
@@ -13347,6 +16823,7 @@ class $$ProductsTableTableManager
                 Value<double> gstRate = const Value.absent(),
                 Value<double> cessRate = const Value.absent(),
                 Value<double> stockQuantity = const Value.absent(),
+                Value<double> reorderLevel = const Value.absent(),
                 Value<bool> isService = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -13362,6 +16839,7 @@ class $$ProductsTableTableManager
                 gstRate: gstRate,
                 cessRate: cessRate,
                 stockQuantity: stockQuantity,
+                reorderLevel: reorderLevel,
                 isService: isService,
                 isActive: isActive,
                 createdAt: createdAt,
@@ -13379,6 +16857,7 @@ class $$ProductsTableTableManager
                 required double gstRate,
                 Value<double> cessRate = const Value.absent(),
                 Value<double> stockQuantity = const Value.absent(),
+                Value<double> reorderLevel = const Value.absent(),
                 Value<bool> isService = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 required DateTime createdAt,
@@ -13394,6 +16873,7 @@ class $$ProductsTableTableManager
                 gstRate: gstRate,
                 cessRate: cessRate,
                 stockQuantity: stockQuantity,
+                reorderLevel: reorderLevel,
                 isService: isService,
                 isActive: isActive,
                 createdAt: createdAt,
@@ -13411,12 +16891,14 @@ class $$ProductsTableTableManager
                 businessId = false,
                 invoiceItemsRefs = false,
                 quoteItemsRefs = false,
+                stockMovementsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (invoiceItemsRefs) db.invoiceItems,
                     if (quoteItemsRefs) db.quoteItems,
+                    if (stockMovementsRefs) db.stockMovements,
                   ],
                   addJoins:
                       <
@@ -13494,6 +16976,27 @@ class $$ProductsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (stockMovementsRefs)
+                        await $_getPrefetchedData<
+                          Product,
+                          $ProductsTable,
+                          StockMovement
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ProductsTableReferences
+                              ._stockMovementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ProductsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stockMovementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.productId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -13518,6 +17021,7 @@ typedef $$ProductsTableProcessedTableManager =
         bool businessId,
         bool invoiceItemsRefs,
         bool quoteItemsRefs,
+        bool stockMovementsRefs,
       })
     >;
 typedef $$InvoicesTableCreateCompanionBuilder =
@@ -13540,6 +17044,7 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       Value<double> igstAmount,
       Value<double> cessAmount,
       required double totalAmount,
+      Value<double> roundOffAmount,
       Value<double> amountPaid,
       Value<String?> amountInWords,
       Value<String?> notes,
@@ -13547,6 +17052,18 @@ typedef $$InvoicesTableCreateCompanionBuilder =
       Value<String> status,
       Value<bool> isIgst,
       Value<int?> templateId,
+      Value<int?> referenceInvoiceId,
+      Value<bool> reverseCharge,
+      Value<String?> shipToName,
+      Value<String?> shipToAddress,
+      Value<String?> shipToCity,
+      Value<bool> exportWithLut,
+      Value<String?> tdsSection,
+      Value<double> tdsRate,
+      Value<double> tdsAmount,
+      Value<String?> tcsSection,
+      Value<double> tcsRate,
+      Value<double> tcsAmount,
       required DateTime createdAt,
       required DateTime updatedAt,
     });
@@ -13570,6 +17087,7 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<double> igstAmount,
       Value<double> cessAmount,
       Value<double> totalAmount,
+      Value<double> roundOffAmount,
       Value<double> amountPaid,
       Value<String?> amountInWords,
       Value<String?> notes,
@@ -13577,6 +17095,18 @@ typedef $$InvoicesTableUpdateCompanionBuilder =
       Value<String> status,
       Value<bool> isIgst,
       Value<int?> templateId,
+      Value<int?> referenceInvoiceId,
+      Value<bool> reverseCharge,
+      Value<String?> shipToName,
+      Value<String?> shipToAddress,
+      Value<String?> shipToCity,
+      Value<bool> exportWithLut,
+      Value<String?> tdsSection,
+      Value<double> tdsRate,
+      Value<double> tdsAmount,
+      Value<String?> tcsSection,
+      Value<double> tcsRate,
+      Value<double> tcsAmount,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -13651,6 +17181,27 @@ final class $$InvoicesTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _invoicePaymentsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RecurringInvoicesTable, List<RecurringInvoice>>
+  _recurringInvoicesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.recurringInvoices,
+        aliasName: 'invoices__id__recurring_invoices__source_invoice_id',
+      );
+
+  $$RecurringInvoicesTableProcessedTableManager get recurringInvoicesRefs {
+    final manager = $$RecurringInvoicesTableTableManager(
+      $_db,
+      $_db.recurringInvoices,
+    ).filter((f) => f.sourceInvoiceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _recurringInvoicesRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -13747,6 +17298,11 @@ class $$InvoicesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get roundOffAmount => $composableBuilder(
+    column: $table.roundOffAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<double> get amountPaid => $composableBuilder(
     column: $table.amountPaid,
     builder: (column) => ColumnFilters(column),
@@ -13779,6 +17335,66 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<int> get templateId => $composableBuilder(
     column: $table.templateId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get referenceInvoiceId => $composableBuilder(
+    column: $table.referenceInvoiceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get reverseCharge => $composableBuilder(
+    column: $table.reverseCharge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToCity => $composableBuilder(
+    column: $table.shipToCity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get exportWithLut => $composableBuilder(
+    column: $table.exportWithLut,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tdsSection => $composableBuilder(
+    column: $table.tdsSection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tdsRate => $composableBuilder(
+    column: $table.tdsRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tdsAmount => $composableBuilder(
+    column: $table.tdsAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tcsSection => $composableBuilder(
+    column: $table.tcsSection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tcsRate => $composableBuilder(
+    column: $table.tcsRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tcsAmount => $composableBuilder(
+    column: $table.tcsAmount,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13887,6 +17503,31 @@ class $$InvoicesTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> recurringInvoicesRefs(
+    Expression<bool> Function($$RecurringInvoicesTableFilterComposer f) f,
+  ) {
+    final $$RecurringInvoicesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.recurringInvoices,
+      getReferencedColumn: (t) => t.sourceInvoiceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RecurringInvoicesTableFilterComposer(
+            $db: $db,
+            $table: $db.recurringInvoices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$InvoicesTableOrderingComposer
@@ -13978,6 +17619,11 @@ class $$InvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get roundOffAmount => $composableBuilder(
+    column: $table.roundOffAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get amountPaid => $composableBuilder(
     column: $table.amountPaid,
     builder: (column) => ColumnOrderings(column),
@@ -14010,6 +17656,66 @@ class $$InvoicesTableOrderingComposer
 
   ColumnOrderings<int> get templateId => $composableBuilder(
     column: $table.templateId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get referenceInvoiceId => $composableBuilder(
+    column: $table.referenceInvoiceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get reverseCharge => $composableBuilder(
+    column: $table.reverseCharge,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shipToCity => $composableBuilder(
+    column: $table.shipToCity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get exportWithLut => $composableBuilder(
+    column: $table.exportWithLut,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tdsSection => $composableBuilder(
+    column: $table.tdsSection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tdsRate => $composableBuilder(
+    column: $table.tdsRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tdsAmount => $composableBuilder(
+    column: $table.tdsAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tcsSection => $composableBuilder(
+    column: $table.tcsSection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tcsRate => $composableBuilder(
+    column: $table.tcsRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tcsAmount => $composableBuilder(
+    column: $table.tcsAmount,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -14153,6 +17859,11 @@ class $$InvoicesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get roundOffAmount => $composableBuilder(
+    column: $table.roundOffAmount,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get amountPaid => $composableBuilder(
     column: $table.amountPaid,
     builder: (column) => column,
@@ -14179,6 +17890,58 @@ class $$InvoicesTableAnnotationComposer
     column: $table.templateId,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get referenceInvoiceId => $composableBuilder(
+    column: $table.referenceInvoiceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get reverseCharge => $composableBuilder(
+    column: $table.reverseCharge,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToCity => $composableBuilder(
+    column: $table.shipToCity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get exportWithLut => $composableBuilder(
+    column: $table.exportWithLut,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tdsSection => $composableBuilder(
+    column: $table.tdsSection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get tdsRate =>
+      $composableBuilder(column: $table.tdsRate, builder: (column) => column);
+
+  GeneratedColumn<double> get tdsAmount =>
+      $composableBuilder(column: $table.tdsAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get tcsSection => $composableBuilder(
+    column: $table.tcsSection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get tcsRate =>
+      $composableBuilder(column: $table.tcsRate, builder: (column) => column);
+
+  GeneratedColumn<double> get tcsAmount =>
+      $composableBuilder(column: $table.tcsAmount, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -14281,6 +18044,32 @@ class $$InvoicesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> recurringInvoicesRefs<T extends Object>(
+    Expression<T> Function($$RecurringInvoicesTableAnnotationComposer a) f,
+  ) {
+    final $$RecurringInvoicesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.recurringInvoices,
+          getReferencedColumn: (t) => t.sourceInvoiceId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RecurringInvoicesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.recurringInvoices,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$InvoicesTableTableManager
@@ -14301,6 +18090,7 @@ class $$InvoicesTableTableManager
             bool customerId,
             bool invoiceItemsRefs,
             bool invoicePaymentsRefs,
+            bool recurringInvoicesRefs,
           })
         > {
   $$InvoicesTableTableManager(_$AppDatabase db, $InvoicesTable table)
@@ -14334,6 +18124,7 @@ class $$InvoicesTableTableManager
                 Value<double> igstAmount = const Value.absent(),
                 Value<double> cessAmount = const Value.absent(),
                 Value<double> totalAmount = const Value.absent(),
+                Value<double> roundOffAmount = const Value.absent(),
                 Value<double> amountPaid = const Value.absent(),
                 Value<String?> amountInWords = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -14341,6 +18132,18 @@ class $$InvoicesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<bool> isIgst = const Value.absent(),
                 Value<int?> templateId = const Value.absent(),
+                Value<int?> referenceInvoiceId = const Value.absent(),
+                Value<bool> reverseCharge = const Value.absent(),
+                Value<String?> shipToName = const Value.absent(),
+                Value<String?> shipToAddress = const Value.absent(),
+                Value<String?> shipToCity = const Value.absent(),
+                Value<bool> exportWithLut = const Value.absent(),
+                Value<String?> tdsSection = const Value.absent(),
+                Value<double> tdsRate = const Value.absent(),
+                Value<double> tdsAmount = const Value.absent(),
+                Value<String?> tcsSection = const Value.absent(),
+                Value<double> tcsRate = const Value.absent(),
+                Value<double> tcsAmount = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => InvoicesCompanion(
@@ -14362,6 +18165,7 @@ class $$InvoicesTableTableManager
                 igstAmount: igstAmount,
                 cessAmount: cessAmount,
                 totalAmount: totalAmount,
+                roundOffAmount: roundOffAmount,
                 amountPaid: amountPaid,
                 amountInWords: amountInWords,
                 notes: notes,
@@ -14369,6 +18173,18 @@ class $$InvoicesTableTableManager
                 status: status,
                 isIgst: isIgst,
                 templateId: templateId,
+                referenceInvoiceId: referenceInvoiceId,
+                reverseCharge: reverseCharge,
+                shipToName: shipToName,
+                shipToAddress: shipToAddress,
+                shipToCity: shipToCity,
+                exportWithLut: exportWithLut,
+                tdsSection: tdsSection,
+                tdsRate: tdsRate,
+                tdsAmount: tdsAmount,
+                tcsSection: tcsSection,
+                tcsRate: tcsRate,
+                tcsAmount: tcsAmount,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -14392,6 +18208,7 @@ class $$InvoicesTableTableManager
                 Value<double> igstAmount = const Value.absent(),
                 Value<double> cessAmount = const Value.absent(),
                 required double totalAmount,
+                Value<double> roundOffAmount = const Value.absent(),
                 Value<double> amountPaid = const Value.absent(),
                 Value<String?> amountInWords = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -14399,6 +18216,18 @@ class $$InvoicesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<bool> isIgst = const Value.absent(),
                 Value<int?> templateId = const Value.absent(),
+                Value<int?> referenceInvoiceId = const Value.absent(),
+                Value<bool> reverseCharge = const Value.absent(),
+                Value<String?> shipToName = const Value.absent(),
+                Value<String?> shipToAddress = const Value.absent(),
+                Value<String?> shipToCity = const Value.absent(),
+                Value<bool> exportWithLut = const Value.absent(),
+                Value<String?> tdsSection = const Value.absent(),
+                Value<double> tdsRate = const Value.absent(),
+                Value<double> tdsAmount = const Value.absent(),
+                Value<String?> tcsSection = const Value.absent(),
+                Value<double> tcsRate = const Value.absent(),
+                Value<double> tcsAmount = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
               }) => InvoicesCompanion.insert(
@@ -14420,6 +18249,7 @@ class $$InvoicesTableTableManager
                 igstAmount: igstAmount,
                 cessAmount: cessAmount,
                 totalAmount: totalAmount,
+                roundOffAmount: roundOffAmount,
                 amountPaid: amountPaid,
                 amountInWords: amountInWords,
                 notes: notes,
@@ -14427,6 +18257,18 @@ class $$InvoicesTableTableManager
                 status: status,
                 isIgst: isIgst,
                 templateId: templateId,
+                referenceInvoiceId: referenceInvoiceId,
+                reverseCharge: reverseCharge,
+                shipToName: shipToName,
+                shipToAddress: shipToAddress,
+                shipToCity: shipToCity,
+                exportWithLut: exportWithLut,
+                tdsSection: tdsSection,
+                tdsRate: tdsRate,
+                tdsAmount: tdsAmount,
+                tcsSection: tcsSection,
+                tcsRate: tcsRate,
+                tcsAmount: tcsAmount,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -14444,12 +18286,14 @@ class $$InvoicesTableTableManager
                 customerId = false,
                 invoiceItemsRefs = false,
                 invoicePaymentsRefs = false,
+                recurringInvoicesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (invoiceItemsRefs) db.invoiceItems,
                     if (invoicePaymentsRefs) db.invoicePayments,
+                    if (recurringInvoicesRefs) db.recurringInvoices,
                   ],
                   addJoins:
                       <
@@ -14540,6 +18384,27 @@ class $$InvoicesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (recurringInvoicesRefs)
+                        await $_getPrefetchedData<
+                          Invoice,
+                          $InvoicesTable,
+                          RecurringInvoice
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InvoicesTableReferences
+                              ._recurringInvoicesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InvoicesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).recurringInvoicesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sourceInvoiceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -14565,6 +18430,7 @@ typedef $$InvoicesTableProcessedTableManager =
         bool customerId,
         bool invoiceItemsRefs,
         bool invoicePaymentsRefs,
+        bool recurringInvoicesRefs,
       })
     >;
 typedef $$InvoiceItemsTableCreateCompanionBuilder =
@@ -15289,6 +19155,8 @@ typedef $$InvoicePaymentsTableCreateCompanionBuilder =
       required double amount,
       Value<String> kind,
       required DateTime paidAt,
+      Value<String?> mode,
+      Value<String?> reference,
       Value<String?> note,
       required DateTime createdAt,
     });
@@ -15299,6 +19167,8 @@ typedef $$InvoicePaymentsTableUpdateCompanionBuilder =
       Value<double> amount,
       Value<String> kind,
       Value<DateTime> paidAt,
+      Value<String?> mode,
+      Value<String?> reference,
       Value<String?> note,
       Value<DateTime> createdAt,
     });
@@ -15356,6 +19226,16 @@ class $$InvoicePaymentsTableFilterComposer
 
   ColumnFilters<DateTime> get paidAt => $composableBuilder(
     column: $table.paidAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reference => $composableBuilder(
+    column: $table.reference,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15422,6 +19302,16 @@ class $$InvoicePaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get note => $composableBuilder(
     column: $table.note,
     builder: (column) => ColumnOrderings(column),
@@ -15476,6 +19366,12 @@ class $$InvoicePaymentsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get paidAt =>
       $composableBuilder(column: $table.paidAt, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get reference =>
+      $composableBuilder(column: $table.reference, builder: (column) => column);
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
@@ -15542,6 +19438,8 @@ class $$InvoicePaymentsTableTableManager
                 Value<double> amount = const Value.absent(),
                 Value<String> kind = const Value.absent(),
                 Value<DateTime> paidAt = const Value.absent(),
+                Value<String?> mode = const Value.absent(),
+                Value<String?> reference = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => InvoicePaymentsCompanion(
@@ -15550,6 +19448,8 @@ class $$InvoicePaymentsTableTableManager
                 amount: amount,
                 kind: kind,
                 paidAt: paidAt,
+                mode: mode,
+                reference: reference,
                 note: note,
                 createdAt: createdAt,
               ),
@@ -15560,6 +19460,8 @@ class $$InvoicePaymentsTableTableManager
                 required double amount,
                 Value<String> kind = const Value.absent(),
                 required DateTime paidAt,
+                Value<String?> mode = const Value.absent(),
+                Value<String?> reference = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 required DateTime createdAt,
               }) => InvoicePaymentsCompanion.insert(
@@ -15568,6 +19470,8 @@ class $$InvoicePaymentsTableTableManager
                 amount: amount,
                 kind: kind,
                 paidAt: paidAt,
+                mode: mode,
+                reference: reference,
                 note: note,
                 createdAt: createdAt,
               ),
@@ -16159,12 +20063,24 @@ typedef $$QuotesTableCreateCompanionBuilder =
       Value<double> igstAmount,
       Value<double> cessAmount,
       required double totalAmount,
+      Value<double> roundOffAmount,
       Value<String?> amountInWords,
       Value<String?> notes,
       Value<String?> terms,
       Value<String> status,
       Value<bool> isIgst,
       Value<int?> templateId,
+      Value<bool> reverseCharge,
+      Value<String?> shipToName,
+      Value<String?> shipToAddress,
+      Value<String?> shipToCity,
+      Value<bool> exportWithLut,
+      Value<String?> tdsSection,
+      Value<double> tdsRate,
+      Value<double> tdsAmount,
+      Value<String?> tcsSection,
+      Value<double> tcsRate,
+      Value<double> tcsAmount,
       required DateTime createdAt,
       required DateTime updatedAt,
     });
@@ -16188,12 +20104,24 @@ typedef $$QuotesTableUpdateCompanionBuilder =
       Value<double> igstAmount,
       Value<double> cessAmount,
       Value<double> totalAmount,
+      Value<double> roundOffAmount,
       Value<String?> amountInWords,
       Value<String?> notes,
       Value<String?> terms,
       Value<String> status,
       Value<bool> isIgst,
       Value<int?> templateId,
+      Value<bool> reverseCharge,
+      Value<String?> shipToName,
+      Value<String?> shipToAddress,
+      Value<String?> shipToCity,
+      Value<bool> exportWithLut,
+      Value<String?> tdsSection,
+      Value<double> tdsRate,
+      Value<double> tdsAmount,
+      Value<String?> tcsSection,
+      Value<double> tcsRate,
+      Value<double> tcsAmount,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -16344,6 +20272,11 @@ class $$QuotesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get roundOffAmount => $composableBuilder(
+    column: $table.roundOffAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get amountInWords => $composableBuilder(
     column: $table.amountInWords,
     builder: (column) => ColumnFilters(column),
@@ -16371,6 +20304,61 @@ class $$QuotesTableFilterComposer
 
   ColumnFilters<int> get templateId => $composableBuilder(
     column: $table.templateId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get reverseCharge => $composableBuilder(
+    column: $table.reverseCharge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shipToCity => $composableBuilder(
+    column: $table.shipToCity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get exportWithLut => $composableBuilder(
+    column: $table.exportWithLut,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tdsSection => $composableBuilder(
+    column: $table.tdsSection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tdsRate => $composableBuilder(
+    column: $table.tdsRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tdsAmount => $composableBuilder(
+    column: $table.tdsAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tcsSection => $composableBuilder(
+    column: $table.tcsSection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tcsRate => $composableBuilder(
+    column: $table.tcsRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tcsAmount => $composableBuilder(
+    column: $table.tcsAmount,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16545,6 +20533,11 @@ class $$QuotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get roundOffAmount => $composableBuilder(
+    column: $table.roundOffAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get amountInWords => $composableBuilder(
     column: $table.amountInWords,
     builder: (column) => ColumnOrderings(column),
@@ -16572,6 +20565,61 @@ class $$QuotesTableOrderingComposer
 
   ColumnOrderings<int> get templateId => $composableBuilder(
     column: $table.templateId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get reverseCharge => $composableBuilder(
+    column: $table.reverseCharge,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shipToCity => $composableBuilder(
+    column: $table.shipToCity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get exportWithLut => $composableBuilder(
+    column: $table.exportWithLut,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tdsSection => $composableBuilder(
+    column: $table.tdsSection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tdsRate => $composableBuilder(
+    column: $table.tdsRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tdsAmount => $composableBuilder(
+    column: $table.tdsAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tcsSection => $composableBuilder(
+    column: $table.tcsSection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tcsRate => $composableBuilder(
+    column: $table.tcsRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tcsAmount => $composableBuilder(
+    column: $table.tcsAmount,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16715,6 +20763,11 @@ class $$QuotesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get roundOffAmount => $composableBuilder(
+    column: $table.roundOffAmount,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get amountInWords => $composableBuilder(
     column: $table.amountInWords,
     builder: (column) => column,
@@ -16736,6 +20789,53 @@ class $$QuotesTableAnnotationComposer
     column: $table.templateId,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get reverseCharge => $composableBuilder(
+    column: $table.reverseCharge,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToName => $composableBuilder(
+    column: $table.shipToName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToAddress => $composableBuilder(
+    column: $table.shipToAddress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shipToCity => $composableBuilder(
+    column: $table.shipToCity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get exportWithLut => $composableBuilder(
+    column: $table.exportWithLut,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tdsSection => $composableBuilder(
+    column: $table.tdsSection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get tdsRate =>
+      $composableBuilder(column: $table.tdsRate, builder: (column) => column);
+
+  GeneratedColumn<double> get tdsAmount =>
+      $composableBuilder(column: $table.tdsAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get tcsSection => $composableBuilder(
+    column: $table.tcsSection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get tcsRate =>
+      $composableBuilder(column: $table.tcsRate, builder: (column) => column);
+
+  GeneratedColumn<double> get tcsAmount =>
+      $composableBuilder(column: $table.tcsAmount, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -16865,12 +20965,24 @@ class $$QuotesTableTableManager
                 Value<double> igstAmount = const Value.absent(),
                 Value<double> cessAmount = const Value.absent(),
                 Value<double> totalAmount = const Value.absent(),
+                Value<double> roundOffAmount = const Value.absent(),
                 Value<String?> amountInWords = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String?> terms = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> isIgst = const Value.absent(),
                 Value<int?> templateId = const Value.absent(),
+                Value<bool> reverseCharge = const Value.absent(),
+                Value<String?> shipToName = const Value.absent(),
+                Value<String?> shipToAddress = const Value.absent(),
+                Value<String?> shipToCity = const Value.absent(),
+                Value<bool> exportWithLut = const Value.absent(),
+                Value<String?> tdsSection = const Value.absent(),
+                Value<double> tdsRate = const Value.absent(),
+                Value<double> tdsAmount = const Value.absent(),
+                Value<String?> tcsSection = const Value.absent(),
+                Value<double> tcsRate = const Value.absent(),
+                Value<double> tcsAmount = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => QuotesCompanion(
@@ -16892,12 +21004,24 @@ class $$QuotesTableTableManager
                 igstAmount: igstAmount,
                 cessAmount: cessAmount,
                 totalAmount: totalAmount,
+                roundOffAmount: roundOffAmount,
                 amountInWords: amountInWords,
                 notes: notes,
                 terms: terms,
                 status: status,
                 isIgst: isIgst,
                 templateId: templateId,
+                reverseCharge: reverseCharge,
+                shipToName: shipToName,
+                shipToAddress: shipToAddress,
+                shipToCity: shipToCity,
+                exportWithLut: exportWithLut,
+                tdsSection: tdsSection,
+                tdsRate: tdsRate,
+                tdsAmount: tdsAmount,
+                tcsSection: tcsSection,
+                tcsRate: tcsRate,
+                tcsAmount: tcsAmount,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -16921,12 +21045,24 @@ class $$QuotesTableTableManager
                 Value<double> igstAmount = const Value.absent(),
                 Value<double> cessAmount = const Value.absent(),
                 required double totalAmount,
+                Value<double> roundOffAmount = const Value.absent(),
                 Value<String?> amountInWords = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String?> terms = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> isIgst = const Value.absent(),
                 Value<int?> templateId = const Value.absent(),
+                Value<bool> reverseCharge = const Value.absent(),
+                Value<String?> shipToName = const Value.absent(),
+                Value<String?> shipToAddress = const Value.absent(),
+                Value<String?> shipToCity = const Value.absent(),
+                Value<bool> exportWithLut = const Value.absent(),
+                Value<String?> tdsSection = const Value.absent(),
+                Value<double> tdsRate = const Value.absent(),
+                Value<double> tdsAmount = const Value.absent(),
+                Value<String?> tcsSection = const Value.absent(),
+                Value<double> tcsRate = const Value.absent(),
+                Value<double> tcsAmount = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
               }) => QuotesCompanion.insert(
@@ -16948,12 +21084,24 @@ class $$QuotesTableTableManager
                 igstAmount: igstAmount,
                 cessAmount: cessAmount,
                 totalAmount: totalAmount,
+                roundOffAmount: roundOffAmount,
                 amountInWords: amountInWords,
                 notes: notes,
                 terms: terms,
                 status: status,
                 isIgst: isIgst,
                 templateId: templateId,
+                reverseCharge: reverseCharge,
+                shipToName: shipToName,
+                shipToAddress: shipToAddress,
+                shipToCity: shipToCity,
+                exportWithLut: exportWithLut,
+                tdsSection: tdsSection,
+                tdsRate: tdsRate,
+                tdsAmount: tdsAmount,
+                tcsSection: tcsSection,
+                tcsRate: tcsRate,
+                tcsAmount: tcsAmount,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -17977,6 +22125,8 @@ typedef $$HsnCodeRatesTableCreateCompanionBuilder =
       required String code,
       Value<double?> gstRate,
       required DateTime effectiveFrom,
+      Value<double> minUnitPrice,
+      Value<double> maxUnitPrice,
     });
 typedef $$HsnCodeRatesTableUpdateCompanionBuilder =
     HsnCodeRatesCompanion Function({
@@ -17984,6 +22134,8 @@ typedef $$HsnCodeRatesTableUpdateCompanionBuilder =
       Value<String> code,
       Value<double?> gstRate,
       Value<DateTime> effectiveFrom,
+      Value<double> minUnitPrice,
+      Value<double> maxUnitPrice,
     });
 
 class $$HsnCodeRatesTableFilterComposer
@@ -18012,6 +22164,16 @@ class $$HsnCodeRatesTableFilterComposer
 
   ColumnFilters<DateTime> get effectiveFrom => $composableBuilder(
     column: $table.effectiveFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get minUnitPrice => $composableBuilder(
+    column: $table.minUnitPrice,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get maxUnitPrice => $composableBuilder(
+    column: $table.maxUnitPrice,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -18044,6 +22206,16 @@ class $$HsnCodeRatesTableOrderingComposer
     column: $table.effectiveFrom,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get minUnitPrice => $composableBuilder(
+    column: $table.minUnitPrice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get maxUnitPrice => $composableBuilder(
+    column: $table.maxUnitPrice,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HsnCodeRatesTableAnnotationComposer
@@ -18066,6 +22238,16 @@ class $$HsnCodeRatesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get effectiveFrom => $composableBuilder(
     column: $table.effectiveFrom,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get minUnitPrice => $composableBuilder(
+    column: $table.minUnitPrice,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get maxUnitPrice => $composableBuilder(
+    column: $table.maxUnitPrice,
     builder: (column) => column,
   );
 }
@@ -18105,11 +22287,15 @@ class $$HsnCodeRatesTableTableManager
                 Value<String> code = const Value.absent(),
                 Value<double?> gstRate = const Value.absent(),
                 Value<DateTime> effectiveFrom = const Value.absent(),
+                Value<double> minUnitPrice = const Value.absent(),
+                Value<double> maxUnitPrice = const Value.absent(),
               }) => HsnCodeRatesCompanion(
                 id: id,
                 code: code,
                 gstRate: gstRate,
                 effectiveFrom: effectiveFrom,
+                minUnitPrice: minUnitPrice,
+                maxUnitPrice: maxUnitPrice,
               ),
           createCompanionCallback:
               ({
@@ -18117,11 +22303,15 @@ class $$HsnCodeRatesTableTableManager
                 required String code,
                 Value<double?> gstRate = const Value.absent(),
                 required DateTime effectiveFrom,
+                Value<double> minUnitPrice = const Value.absent(),
+                Value<double> maxUnitPrice = const Value.absent(),
               }) => HsnCodeRatesCompanion.insert(
                 id: id,
                 code: code,
                 gstRate: gstRate,
                 effectiveFrom: effectiveFrom,
+                minUnitPrice: minUnitPrice,
+                maxUnitPrice: maxUnitPrice,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -18773,6 +22963,1172 @@ typedef $$TemplateConfigsTableProcessedTableManager =
       TemplateConfig,
       PrefetchHooks Function({bool businessId})
     >;
+typedef $$DocumentSequencesTableCreateCompanionBuilder =
+    DocumentSequencesCompanion Function({
+      Value<int> id,
+      required int businessId,
+      required String docType,
+      required String fiscalYear,
+      required String format,
+      Value<int> sequence,
+    });
+typedef $$DocumentSequencesTableUpdateCompanionBuilder =
+    DocumentSequencesCompanion Function({
+      Value<int> id,
+      Value<int> businessId,
+      Value<String> docType,
+      Value<String> fiscalYear,
+      Value<String> format,
+      Value<int> sequence,
+    });
+
+final class $$DocumentSequencesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $DocumentSequencesTable,
+          DocumentSequence
+        > {
+  $$DocumentSequencesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $BusinessesTable _businessIdTable(_$AppDatabase db) => db.businesses
+      .createAlias('document_sequences__business_id__businesses__id');
+
+  $$BusinessesTableProcessedTableManager get businessId {
+    final $_column = $_itemColumn<int>('business_id')!;
+
+    final manager = $$BusinessesTableTableManager(
+      $_db,
+      $_db.businesses,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_businessIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DocumentSequencesTableFilterComposer
+    extends Composer<_$AppDatabase, $DocumentSequencesTable> {
+  $$DocumentSequencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get docType => $composableBuilder(
+    column: $table.docType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fiscalYear => $composableBuilder(
+    column: $table.fiscalYear,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$BusinessesTableFilterComposer get businessId {
+    final $$BusinessesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.businessId,
+      referencedTable: $db.businesses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BusinessesTableFilterComposer(
+            $db: $db,
+            $table: $db.businesses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DocumentSequencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DocumentSequencesTable> {
+  $$DocumentSequencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get docType => $composableBuilder(
+    column: $table.docType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fiscalYear => $composableBuilder(
+    column: $table.fiscalYear,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$BusinessesTableOrderingComposer get businessId {
+    final $$BusinessesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.businessId,
+      referencedTable: $db.businesses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BusinessesTableOrderingComposer(
+            $db: $db,
+            $table: $db.businesses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DocumentSequencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DocumentSequencesTable> {
+  $$DocumentSequencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get docType =>
+      $composableBuilder(column: $table.docType, builder: (column) => column);
+
+  GeneratedColumn<String> get fiscalYear => $composableBuilder(
+    column: $table.fiscalYear,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get format =>
+      $composableBuilder(column: $table.format, builder: (column) => column);
+
+  GeneratedColumn<int> get sequence =>
+      $composableBuilder(column: $table.sequence, builder: (column) => column);
+
+  $$BusinessesTableAnnotationComposer get businessId {
+    final $$BusinessesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.businessId,
+      referencedTable: $db.businesses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BusinessesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.businesses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DocumentSequencesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DocumentSequencesTable,
+          DocumentSequence,
+          $$DocumentSequencesTableFilterComposer,
+          $$DocumentSequencesTableOrderingComposer,
+          $$DocumentSequencesTableAnnotationComposer,
+          $$DocumentSequencesTableCreateCompanionBuilder,
+          $$DocumentSequencesTableUpdateCompanionBuilder,
+          (DocumentSequence, $$DocumentSequencesTableReferences),
+          DocumentSequence,
+          PrefetchHooks Function({bool businessId})
+        > {
+  $$DocumentSequencesTableTableManager(
+    _$AppDatabase db,
+    $DocumentSequencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DocumentSequencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DocumentSequencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DocumentSequencesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> businessId = const Value.absent(),
+                Value<String> docType = const Value.absent(),
+                Value<String> fiscalYear = const Value.absent(),
+                Value<String> format = const Value.absent(),
+                Value<int> sequence = const Value.absent(),
+              }) => DocumentSequencesCompanion(
+                id: id,
+                businessId: businessId,
+                docType: docType,
+                fiscalYear: fiscalYear,
+                format: format,
+                sequence: sequence,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int businessId,
+                required String docType,
+                required String fiscalYear,
+                required String format,
+                Value<int> sequence = const Value.absent(),
+              }) => DocumentSequencesCompanion.insert(
+                id: id,
+                businessId: businessId,
+                docType: docType,
+                fiscalYear: fiscalYear,
+                format: format,
+                sequence: sequence,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$DocumentSequencesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({businessId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (businessId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.businessId,
+                                referencedTable:
+                                    $$DocumentSequencesTableReferences
+                                        ._businessIdTable(db),
+                                referencedColumn:
+                                    $$DocumentSequencesTableReferences
+                                        ._businessIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DocumentSequencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DocumentSequencesTable,
+      DocumentSequence,
+      $$DocumentSequencesTableFilterComposer,
+      $$DocumentSequencesTableOrderingComposer,
+      $$DocumentSequencesTableAnnotationComposer,
+      $$DocumentSequencesTableCreateCompanionBuilder,
+      $$DocumentSequencesTableUpdateCompanionBuilder,
+      (DocumentSequence, $$DocumentSequencesTableReferences),
+      DocumentSequence,
+      PrefetchHooks Function({bool businessId})
+    >;
+typedef $$StockMovementsTableCreateCompanionBuilder =
+    StockMovementsCompanion Function({
+      Value<int> id,
+      required int productId,
+      required double quantityDelta,
+      required String reason,
+      Value<String?> documentType,
+      Value<int?> documentId,
+      required DateTime createdAt,
+    });
+typedef $$StockMovementsTableUpdateCompanionBuilder =
+    StockMovementsCompanion Function({
+      Value<int> id,
+      Value<int> productId,
+      Value<double> quantityDelta,
+      Value<String> reason,
+      Value<String?> documentType,
+      Value<int?> documentId,
+      Value<DateTime> createdAt,
+    });
+
+final class $$StockMovementsTableReferences
+    extends BaseReferences<_$AppDatabase, $StockMovementsTable, StockMovement> {
+  $$StockMovementsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ProductsTable _productIdTable(_$AppDatabase db) =>
+      db.products.createAlias('stock_movements__product_id__products__id');
+
+  $$ProductsTableProcessedTableManager get productId {
+    final $_column = $_itemColumn<int>('product_id')!;
+
+    final manager = $$ProductsTableTableManager(
+      $_db,
+      $_db.products,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_productIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StockMovementsTableFilterComposer
+    extends Composer<_$AppDatabase, $StockMovementsTable> {
+  $$StockMovementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get quantityDelta => $composableBuilder(
+    column: $table.quantityDelta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get documentType => $composableBuilder(
+    column: $table.documentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get documentId => $composableBuilder(
+    column: $table.documentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ProductsTableFilterComposer get productId {
+    final $$ProductsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.products,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductsTableFilterComposer(
+            $db: $db,
+            $table: $db.products,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StockMovementsTable> {
+  $$StockMovementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get quantityDelta => $composableBuilder(
+    column: $table.quantityDelta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get documentType => $composableBuilder(
+    column: $table.documentType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get documentId => $composableBuilder(
+    column: $table.documentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ProductsTableOrderingComposer get productId {
+    final $$ProductsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.products,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductsTableOrderingComposer(
+            $db: $db,
+            $table: $db.products,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StockMovementsTable> {
+  $$StockMovementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<double> get quantityDelta => $composableBuilder(
+    column: $table.quantityDelta,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get documentType => $composableBuilder(
+    column: $table.documentType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get documentId => $composableBuilder(
+    column: $table.documentId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ProductsTableAnnotationComposer get productId {
+    final $$ProductsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.products,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.products,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StockMovementsTable,
+          StockMovement,
+          $$StockMovementsTableFilterComposer,
+          $$StockMovementsTableOrderingComposer,
+          $$StockMovementsTableAnnotationComposer,
+          $$StockMovementsTableCreateCompanionBuilder,
+          $$StockMovementsTableUpdateCompanionBuilder,
+          (StockMovement, $$StockMovementsTableReferences),
+          StockMovement,
+          PrefetchHooks Function({bool productId})
+        > {
+  $$StockMovementsTableTableManager(
+    _$AppDatabase db,
+    $StockMovementsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StockMovementsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StockMovementsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StockMovementsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> productId = const Value.absent(),
+                Value<double> quantityDelta = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<String?> documentType = const Value.absent(),
+                Value<int?> documentId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => StockMovementsCompanion(
+                id: id,
+                productId: productId,
+                quantityDelta: quantityDelta,
+                reason: reason,
+                documentType: documentType,
+                documentId: documentId,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int productId,
+                required double quantityDelta,
+                required String reason,
+                Value<String?> documentType = const Value.absent(),
+                Value<int?> documentId = const Value.absent(),
+                required DateTime createdAt,
+              }) => StockMovementsCompanion.insert(
+                id: id,
+                productId: productId,
+                quantityDelta: quantityDelta,
+                reason: reason,
+                documentType: documentType,
+                documentId: documentId,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StockMovementsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({productId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (productId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.productId,
+                                referencedTable: $$StockMovementsTableReferences
+                                    ._productIdTable(db),
+                                referencedColumn:
+                                    $$StockMovementsTableReferences
+                                        ._productIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StockMovementsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StockMovementsTable,
+      StockMovement,
+      $$StockMovementsTableFilterComposer,
+      $$StockMovementsTableOrderingComposer,
+      $$StockMovementsTableAnnotationComposer,
+      $$StockMovementsTableCreateCompanionBuilder,
+      $$StockMovementsTableUpdateCompanionBuilder,
+      (StockMovement, $$StockMovementsTableReferences),
+      StockMovement,
+      PrefetchHooks Function({bool productId})
+    >;
+typedef $$RecurringInvoicesTableCreateCompanionBuilder =
+    RecurringInvoicesCompanion Function({
+      Value<int> id,
+      required int businessId,
+      required int sourceInvoiceId,
+      Value<String> frequency,
+      required DateTime nextRunDate,
+      Value<bool> isActive,
+      required DateTime createdAt,
+    });
+typedef $$RecurringInvoicesTableUpdateCompanionBuilder =
+    RecurringInvoicesCompanion Function({
+      Value<int> id,
+      Value<int> businessId,
+      Value<int> sourceInvoiceId,
+      Value<String> frequency,
+      Value<DateTime> nextRunDate,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+    });
+
+final class $$RecurringInvoicesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $RecurringInvoicesTable,
+          RecurringInvoice
+        > {
+  $$RecurringInvoicesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $BusinessesTable _businessIdTable(_$AppDatabase db) => db.businesses
+      .createAlias('recurring_invoices__business_id__businesses__id');
+
+  $$BusinessesTableProcessedTableManager get businessId {
+    final $_column = $_itemColumn<int>('business_id')!;
+
+    final manager = $$BusinessesTableTableManager(
+      $_db,
+      $_db.businesses,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_businessIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $InvoicesTable _sourceInvoiceIdTable(_$AppDatabase db) => db.invoices
+      .createAlias('recurring_invoices__source_invoice_id__invoices__id');
+
+  $$InvoicesTableProcessedTableManager get sourceInvoiceId {
+    final $_column = $_itemColumn<int>('source_invoice_id')!;
+
+    final manager = $$InvoicesTableTableManager(
+      $_db,
+      $_db.invoices,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sourceInvoiceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RecurringInvoicesTableFilterComposer
+    extends Composer<_$AppDatabase, $RecurringInvoicesTable> {
+  $$RecurringInvoicesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$BusinessesTableFilterComposer get businessId {
+    final $$BusinessesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.businessId,
+      referencedTable: $db.businesses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BusinessesTableFilterComposer(
+            $db: $db,
+            $table: $db.businesses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvoicesTableFilterComposer get sourceInvoiceId {
+    final $$InvoicesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sourceInvoiceId,
+      referencedTable: $db.invoices,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvoicesTableFilterComposer(
+            $db: $db,
+            $table: $db.invoices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RecurringInvoicesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecurringInvoicesTable> {
+  $$RecurringInvoicesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$BusinessesTableOrderingComposer get businessId {
+    final $$BusinessesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.businessId,
+      referencedTable: $db.businesses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BusinessesTableOrderingComposer(
+            $db: $db,
+            $table: $db.businesses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvoicesTableOrderingComposer get sourceInvoiceId {
+    final $$InvoicesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sourceInvoiceId,
+      referencedTable: $db.invoices,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvoicesTableOrderingComposer(
+            $db: $db,
+            $table: $db.invoices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RecurringInvoicesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecurringInvoicesTable> {
+  $$RecurringInvoicesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get frequency =>
+      $composableBuilder(column: $table.frequency, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$BusinessesTableAnnotationComposer get businessId {
+    final $$BusinessesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.businessId,
+      referencedTable: $db.businesses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BusinessesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.businesses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvoicesTableAnnotationComposer get sourceInvoiceId {
+    final $$InvoicesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sourceInvoiceId,
+      referencedTable: $db.invoices,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvoicesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.invoices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RecurringInvoicesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecurringInvoicesTable,
+          RecurringInvoice,
+          $$RecurringInvoicesTableFilterComposer,
+          $$RecurringInvoicesTableOrderingComposer,
+          $$RecurringInvoicesTableAnnotationComposer,
+          $$RecurringInvoicesTableCreateCompanionBuilder,
+          $$RecurringInvoicesTableUpdateCompanionBuilder,
+          (RecurringInvoice, $$RecurringInvoicesTableReferences),
+          RecurringInvoice,
+          PrefetchHooks Function({bool businessId, bool sourceInvoiceId})
+        > {
+  $$RecurringInvoicesTableTableManager(
+    _$AppDatabase db,
+    $RecurringInvoicesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecurringInvoicesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecurringInvoicesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecurringInvoicesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> businessId = const Value.absent(),
+                Value<int> sourceInvoiceId = const Value.absent(),
+                Value<String> frequency = const Value.absent(),
+                Value<DateTime> nextRunDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => RecurringInvoicesCompanion(
+                id: id,
+                businessId: businessId,
+                sourceInvoiceId: sourceInvoiceId,
+                frequency: frequency,
+                nextRunDate: nextRunDate,
+                isActive: isActive,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int businessId,
+                required int sourceInvoiceId,
+                Value<String> frequency = const Value.absent(),
+                required DateTime nextRunDate,
+                Value<bool> isActive = const Value.absent(),
+                required DateTime createdAt,
+              }) => RecurringInvoicesCompanion.insert(
+                id: id,
+                businessId: businessId,
+                sourceInvoiceId: sourceInvoiceId,
+                frequency: frequency,
+                nextRunDate: nextRunDate,
+                isActive: isActive,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$RecurringInvoicesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({businessId = false, sourceInvoiceId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (businessId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.businessId,
+                                    referencedTable:
+                                        $$RecurringInvoicesTableReferences
+                                            ._businessIdTable(db),
+                                    referencedColumn:
+                                        $$RecurringInvoicesTableReferences
+                                            ._businessIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (sourceInvoiceId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.sourceInvoiceId,
+                                    referencedTable:
+                                        $$RecurringInvoicesTableReferences
+                                            ._sourceInvoiceIdTable(db),
+                                    referencedColumn:
+                                        $$RecurringInvoicesTableReferences
+                                            ._sourceInvoiceIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$RecurringInvoicesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecurringInvoicesTable,
+      RecurringInvoice,
+      $$RecurringInvoicesTableFilterComposer,
+      $$RecurringInvoicesTableOrderingComposer,
+      $$RecurringInvoicesTableAnnotationComposer,
+      $$RecurringInvoicesTableCreateCompanionBuilder,
+      $$RecurringInvoicesTableUpdateCompanionBuilder,
+      (RecurringInvoice, $$RecurringInvoicesTableReferences),
+      RecurringInvoice,
+      PrefetchHooks Function({bool businessId, bool sourceInvoiceId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -18805,4 +24161,10 @@ class $AppDatabaseManager {
   $$UomsTableTableManager get uoms => $$UomsTableTableManager(_db, _db.uoms);
   $$TemplateConfigsTableTableManager get templateConfigs =>
       $$TemplateConfigsTableTableManager(_db, _db.templateConfigs);
+  $$DocumentSequencesTableTableManager get documentSequences =>
+      $$DocumentSequencesTableTableManager(_db, _db.documentSequences);
+  $$StockMovementsTableTableManager get stockMovements =>
+      $$StockMovementsTableTableManager(_db, _db.stockMovements);
+  $$RecurringInvoicesTableTableManager get recurringInvoices =>
+      $$RecurringInvoicesTableTableManager(_db, _db.recurringInvoices);
 }

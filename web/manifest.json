@@ -1,11 +1,11 @@
 {
-    "name": "vittix_invoice",
-    "short_name": "vittix_invoice",
+    "name": "Vittix Invoice",
+    "short_name": "Vittix",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#3730A3",
+    "theme_color": "#3730A3",
+    "description": "Vittix Invoice — GST invoicing, quotes, reminders and Nextcloud/Drive backup.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

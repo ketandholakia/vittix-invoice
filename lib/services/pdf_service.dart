@@ -1,7 +1,9 @@
-import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../core/constants/gst_states.dart';
+import '../core/utils/formatting.dart';
 import '../core/utils/invoice_balance.dart';
 import '../core/utils/money_formatter.dart';
 import '../database/app_database.dart';
@@ -51,28 +53,73 @@ class PdfService {
     return null;
   }
 
+  /// Cached font bytes so the assets are only read from disk once.
+  static final Map<String, ByteData> _fontDataCache = {};
+
+  static Future<ByteData> _loadFontAsset(String asset) async {
+    final cached = _fontDataCache[asset];
+    if (cached != null) return cached;
+    final data = await rootBundle.load(asset);
+    _fontDataCache[asset] = data;
+    return data;
+  }
+
+  /// Indic fallbacks, applied to every theme so Gujarati/Devanagari names are
+  /// never dropped from a printed document.
+  static Future<List<pw.Font>> _indicFallbacks() async => [
+    pw.Font.ttf(
+      await _loadFontAsset('assets/fonts/NotoSansDevanagari-Regular.ttf'),
+    ),
+    pw.Font.ttf(
+      await _loadFontAsset('assets/fonts/NotoSansGujarati-Regular.ttf'),
+    ),
+  ];
+
+  /// The default theme, built from fonts bundled with the app. This replaces
+  /// the built-in Helvetica (which cannot draw the rupee sign or Indic text)
+  /// and needs no network access.
+  static Future<pw.ThemeData> _bundledTheme() async => pw.ThemeData.withFont(
+    base: pw.Font.ttf(
+      await _loadFontAsset('assets/fonts/NotoSans-Regular.ttf'),
+    ),
+    bold: pw.Font.ttf(await _loadFontAsset('assets/fonts/NotoSans-Bold.ttf')),
+    fontFallback: await _indicFallbacks(),
+  );
+
   static Future<pw.ThemeData?> _getThemeForFont(String? fontFamily) async {
-    if (fontFamily == null || fontFamily.isEmpty) return null;
-    pw.Font? baseFont;
-    pw.Font? boldFont;
-    switch (fontFamily) {
-      case 'Open Sans':
-        baseFont = await PdfGoogleFonts.openSansRegular();
-        boldFont = await PdfGoogleFonts.openSansBold();
-        break;
-      case 'Lato':
-        baseFont = await PdfGoogleFonts.latoRegular();
-        boldFont = await PdfGoogleFonts.latoBold();
-        break;
-      case 'Montserrat':
-        baseFont = await PdfGoogleFonts.montserratRegular();
-        boldFont = await PdfGoogleFonts.montserratBold();
-        break;
-      default:
-        baseFont = await PdfGoogleFonts.robotoRegular();
-        boldFont = await PdfGoogleFonts.robotoBold();
+    final bundled = await _bundledTheme();
+    if (fontFamily == null || fontFamily.isEmpty) return bundled;
+
+    // A named template font is fetched on demand; if it is unavailable (for
+    // example offline) fall back to the bundled fonts rather than Helvetica.
+    try {
+      pw.Font? baseFont;
+      pw.Font? boldFont;
+      switch (fontFamily) {
+        case 'Open Sans':
+          baseFont = await PdfGoogleFonts.openSansRegular();
+          boldFont = await PdfGoogleFonts.openSansBold();
+          break;
+        case 'Lato':
+          baseFont = await PdfGoogleFonts.latoRegular();
+          boldFont = await PdfGoogleFonts.latoBold();
+          break;
+        case 'Montserrat':
+          baseFont = await PdfGoogleFonts.montserratRegular();
+          boldFont = await PdfGoogleFonts.montserratBold();
+          break;
+        default:
+          baseFont = await PdfGoogleFonts.robotoRegular();
+          boldFont = await PdfGoogleFonts.robotoBold();
+      }
+      return pw.ThemeData.withFont(
+        base: baseFont,
+        bold: boldFont,
+        fontFallback: await _indicFallbacks(),
+      );
+    } catch (_) {
+      return bundled;
     }
-    return pw.ThemeData.withFont(base: baseFont, bold: boldFont);
   }
 
   static Future<Uint8List> generateInvoice({
@@ -102,17 +149,17 @@ class PdfService {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: pageFormat,
-        margin: pw.EdgeInsets.all(isModern || isElegant ? 24 : 32),
-        theme: theme,
         pageTheme: pw.PageTheme(
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.all(isModern || isElegant ? 24 : 32),
+          theme: theme,
           buildBackground: config.watermarkText?.isNotEmpty == true
               ? (context) => pw.FullPage(
                     ignoreMargins: true,
                     child: pw.Watermark(
                       child: pw.Text(
                         config.watermarkText!,
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           color: PdfColors.grey300,
                           fontSize: 80,
                           fontWeight: pw.FontWeight.bold,
@@ -146,6 +193,24 @@ class PdfService {
                         config,
                       )
                     : _buildParties(business, customer, isGstEnabled, config),
+            if (invoice.shipToName != null ||
+                invoice.shipToAddress != null ||
+                invoice.shipToCity != null) ...[
+              pw.SizedBox(height: spacing / 2),
+              _buildShipTo(
+                invoice.shipToName,
+                invoice.shipToAddress,
+                invoice.shipToCity,
+              ),
+            ],
+            if (invoice.supplyType == 'EXPORT' ||
+                invoice.supplyType == 'SEZ') ...[
+              pw.SizedBox(height: spacing / 2),
+              _buildSupplyDeclaration(
+                invoice.supplyType,
+                invoice.exportWithLut,
+              ),
+            ],
             pw.SizedBox(height: spacing),
             _buildItemsTable(
               items,
@@ -154,6 +219,10 @@ class PdfService {
               business,
               config,
             ),
+            if (isGstEnabled && items.isNotEmpty) ...[
+              pw.SizedBox(height: spacing),
+              _buildHsnSummary(items, invoice.isIgst, invoice.currencyCode),
+            ],
             pw.SizedBox(height: spacing),
             _buildTotals(invoice, isGstEnabled, compact: isModern, config: config),
             if (showBankDetails) ...[
@@ -202,17 +271,17 @@ class PdfService {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: pageFormat,
-        margin: pw.EdgeInsets.all(isModern || isElegant ? 24 : 32),
-        theme: theme,
         pageTheme: pw.PageTheme(
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.all(isModern || isElegant ? 24 : 32),
+          theme: theme,
           buildBackground: config.watermarkText?.isNotEmpty == true
               ? (context) => pw.FullPage(
                     ignoreMargins: true,
                     child: pw.Watermark(
                       child: pw.Text(
                         config.watermarkText!,
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           color: PdfColors.grey300,
                           fontSize: 80,
                           fontWeight: pw.FontWeight.bold,
@@ -232,6 +301,20 @@ class PdfService {
           isElegant
               ? _buildElegantParties(business, customer, isGstEnabled, config)
               : _buildAddresses(business, customer, isGstEnabled, config),
+          if (quote.shipToName != null ||
+              quote.shipToAddress != null ||
+              quote.shipToCity != null) ...[
+            pw.SizedBox(height: spacing / 2),
+            _buildShipTo(
+              quote.shipToName,
+              quote.shipToAddress,
+              quote.shipToCity,
+            ),
+          ],
+          if (quote.supplyType == 'EXPORT' || quote.supplyType == 'SEZ') ...[
+            pw.SizedBox(height: spacing / 2),
+            _buildSupplyDeclaration(quote.supplyType, quote.exportWithLut),
+          ],
           pw.SizedBox(height: spacing),
           _buildQuoteDetails(quote, isGstEnabled, config),
           pw.SizedBox(height: spacing),
@@ -350,13 +433,13 @@ class PdfService {
                 children: [
                   pw.Text(
                     invoice.invoiceNumber,
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
                   pw.Text(
-                    invoice.invoiceDate.toIso8601String().split('T')[0],
+                    formatDateNumeric(invoice.invoiceDate),
                     style: const pw.TextStyle(fontSize: 10),
                   ),
                 ],
@@ -426,13 +509,13 @@ class PdfService {
             children: [
               pw.Text(
                 quote.invoiceNumber,
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
               pw.Text(
-                quote.invoiceDate.toIso8601String().split('T')[0],
+                formatDateNumeric(quote.invoiceDate),
                 style: const pw.TextStyle(fontSize: 10),
               ),
             ],
@@ -467,7 +550,7 @@ class PdfService {
               children: [
                 pw.Text(
                   'Summary',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
                 pw.SizedBox(height: 6),
                 pw.Text('Invoice: ${invoice.invoiceNumber}'),
@@ -492,12 +575,12 @@ class PdfService {
       children: [
         pw.Text(
           label,
-          style: isBold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null,
+          style: isBold ? const pw.TextStyle(fontWeight: pw.FontWeight.bold) : null,
         ),
         pw.SizedBox(width: 20),
         pw.Text(
           value.toStringAsFixed(2),
-          style: isBold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null,
+          style: isBold ? const pw.TextStyle(fontWeight: pw.FontWeight.bold) : null,
         ),
       ],
     );
@@ -578,16 +661,16 @@ class PdfService {
                   if (business.pan != null && business.pan!.isNotEmpty)
                     pw.Text(
                       'PAN: ${business.pan}',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                 ] else if (isGstEnabled) ...[
                   pw.Text(
-                    '${business.city}, State Code: ${business.stateCode}',
+                    '${business.city}, ${GstStates.labelFor(business.stateCode)}',
                   ),
                   if (business.gstin.isNotEmpty)
                     pw.Text(
                       'GSTIN: ${business.gstin}',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                   if (business.businessType == BusinessType.compositionScheme)
                     pw.Text(
@@ -602,7 +685,7 @@ class PdfService {
                   if (business.pan != null && business.pan!.isNotEmpty)
                     pw.Text(
                       'PAN: ${business.pan}',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                 ],
               ],
@@ -612,17 +695,20 @@ class PdfService {
               children: [
                 pw.Text(
                   '${config.invoiceNoLabel}: ${invoice.invoiceNumber}',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
                 pw.Text(
-                  '${config.dateLabel}: ${invoice.invoiceDate.toIso8601String().split('T')[0]}',
+                  '${config.dateLabel}: ${formatDateNumeric(invoice.invoiceDate)}',
                 ),
                 if (config.showDueDate && invoice.dueDate != null)
                   pw.Text(
-                    'Due Date: ${invoice.dueDate!.toIso8601String().split('T')[0]}',
+                    'Due Date: ${formatDateNumeric(invoice.dueDate!)}',
                   ),
                 if (config.showPlaceOfSupply)
-                  pw.Text('Place of Supply: ${invoice.placeOfSupply}'),
+                  pw.Text(
+                    'Place of Supply: '
+                    '${GstStates.labelFor(invoice.placeOfSupply)}',
+                  ),
               ],
             ),
           ],
@@ -704,21 +790,21 @@ class PdfService {
             ),
             pw.Text(
               customer.name,
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
             if (customer.address != null) pw.Text(customer.address!),
             if (customer.city != null) pw.Text(customer.city!),
             if (isGstEnabled && customer.stateCode != null)
-              pw.Text('State Code: ${customer.stateCode}'),
+              pw.Text(GstStates.labelFor(customer.stateCode)),
             if (isGstEnabled && customer.gstin != null)
               pw.Text(
                 'GSTIN: ${customer.gstin}',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
               ),
             if (customer.pan != null && customer.pan!.isNotEmpty)
               pw.Text(
                 'PAN: ${customer.pan}',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
               ),
           ],
         ),
@@ -752,7 +838,7 @@ class PdfService {
               ),
             pw.Text(business.address),
             if (isGstEnabled)
-              pw.Text('${business.city}, State Code: ${business.stateCode}'),
+              pw.Text('${business.city}, ${GstStates.labelFor(business.stateCode)}'),
           ],
         ),
       ],
@@ -772,10 +858,10 @@ class PdfService {
           children: [
             pw.Text(
               '${config.invoiceNoLabel}: ${quote.invoiceNumber}',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
-              '${config.dateLabel}: ${quote.invoiceDate.toLocal().toString().split(' ')[0]}',
+              '${config.dateLabel}: ${formatDateNumeric(quote.invoiceDate)}',
             ),
           ],
         ),
@@ -830,7 +916,7 @@ class PdfService {
       headers: headers,
       data: data,
       border: _tableBorder(config),
-      headerStyle: pw.TextStyle(
+      headerStyle: const pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
       ),
@@ -901,7 +987,7 @@ class PdfService {
       headers: headers,
       data: data,
       border: _tableBorder(config),
-      headerStyle: pw.TextStyle(
+      headerStyle: const pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
       ),
@@ -915,6 +1001,119 @@ class PdfService {
         if (isGstEnabled) 4: pw.Alignment.centerRight,
         isGstEnabled ? 5 : 3: pw.Alignment.centerRight,
       },
+    );
+  }
+
+  /// Optional ship-to (delivery) block when it differs from the customer.
+  static pw.Widget _buildShipTo(
+    String? name,
+    String? address,
+    String? city,
+  ) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(6),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Ship To',
+            style: const pw.TextStyle(
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          if (name != null && name.isNotEmpty)
+            pw.Text(name, style: const pw.TextStyle(fontSize: 9)),
+          if (address != null && address.isNotEmpty)
+            pw.Text(address, style: const pw.TextStyle(fontSize: 9)),
+          if (city != null && city.isNotEmpty)
+            pw.Text(city, style: const pw.TextStyle(fontSize: 9)),
+        ],
+      ),
+    );
+  }
+
+  /// Export / SEZ declaration printed on the invoice.
+  static pw.Widget _buildSupplyDeclaration(String supplyType, bool underLut) {
+    final String declaration;
+    if (supplyType == 'EXPORT') {
+      declaration = underLut
+          ? 'Supply meant for export under LUT without payment of IGST'
+          : 'Supply meant for export — IGST payable';
+    } else if (supplyType == 'SEZ') {
+      declaration = underLut
+          ? 'Supply to SEZ unit/developer under LUT without payment of IGST'
+          : 'Supply to SEZ unit/developer — IGST payable';
+    } else {
+      return pw.SizedBox.shrink();
+    }
+
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(6),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+      ),
+      child: pw.Text(declaration, style: const pw.TextStyle(fontSize: 9)),
+    );
+  }
+
+  /// HSN/SAC-wise summary of the taxable value and tax, as required for
+  /// GSTR-1 style reporting.
+  static pw.Widget _buildHsnSummary(
+    List<InvoiceItem> items,
+    bool isIgst,
+    String currencyCode,
+  ) {
+    final byHsn = <String, ({double taxable, double tax})>{};
+    for (final item in items) {
+      final code = item.hsnSac.trim();
+      if (code.isEmpty) continue;
+      final tax = isIgst ? item.igstAmount : item.cgstAmount + item.sgstAmount;
+      final current = byHsn[code];
+      byHsn[code] = (
+        taxable: (current?.taxable ?? 0) + item.taxableAmount,
+        tax: (current?.tax ?? 0) + tax,
+      );
+    }
+    if (byHsn.isEmpty) return pw.SizedBox.shrink();
+
+    final codes = byHsn.keys.toList()..sort();
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'HSN / SAC Summary',
+          style: const pw.TextStyle(
+            fontSize: 10,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        pw.TableHelper.fromTextArray(
+          headerStyle: const pw.TextStyle(
+            fontSize: 9,
+            fontWeight: pw.FontWeight.bold,
+          ),
+          cellStyle: const pw.TextStyle(fontSize: 9),
+          headers: const ['HSN/SAC', 'Taxable Value', 'Tax'],
+          data: [
+            for (final code in codes)
+              [
+                code,
+                formatMoney(
+                  byHsn[code]!.taxable,
+                  currencyCode: currencyCode,
+                ),
+                formatMoney(byHsn[code]!.tax, currencyCode: currencyCode),
+              ],
+          ],
+        ),
+      ],
     );
   }
 
@@ -935,13 +1134,19 @@ class PdfService {
             children: [
               if (isGstEnabled) ...[
                 pw.Text('Subtotal:'),
+                if (invoice.discountAmount != 0) pw.Text('Discount:'),
+                pw.Text('Taxable Amount:'),
                 if (!invoice.isIgst) pw.Text('Total CGST:'),
                 if (!invoice.isIgst) pw.Text('Total SGST:'),
                 if (invoice.isIgst) pw.Text('Total IGST:'),
               ],
+              if (invoice.tcsAmount != 0) pw.Text('TCS:'),
+              if (invoice.tdsAmount != 0) pw.Text('Less: TDS:'),
+              if (invoice.roundOffAmount != 0) pw.Text('Round Off:'),
+              if (invoice.reverseCharge) pw.Text('Reverse charge:'),
               pw.Text(
                 'Grand Total:',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -950,7 +1155,7 @@ class PdfService {
                 pw.SizedBox(height: 8),
                 pw.Text(
                   'Amount in Words:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
                 pw.Text(
                   invoice.amountInWords ?? '',
@@ -964,6 +1169,19 @@ class PdfService {
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               if (isGstEnabled) ...[
+                pw.Text(
+                  formatMoney(
+                    invoice.subtotal,
+                    currencyCode: invoice.currencyCode,
+                  ),
+                ),
+                if (invoice.discountAmount != 0)
+                  pw.Text(
+                    '-${formatMoney(
+                      invoice.discountAmount,
+                      currencyCode: invoice.currencyCode,
+                    )}',
+                  ),
                 pw.Text(
                   formatMoney(
                     invoice.taxableAmount,
@@ -992,12 +1210,34 @@ class PdfService {
                     ),
                   ),
               ],
+              if (invoice.tcsAmount != 0)
+                pw.Text(
+                  formatMoney(
+                    invoice.tcsAmount,
+                    currencyCode: invoice.currencyCode,
+                  ),
+                ),
+              if (invoice.tdsAmount != 0)
+                pw.Text(
+                  '-${formatMoney(
+                    invoice.tdsAmount,
+                    currencyCode: invoice.currencyCode,
+                  )}',
+                ),
+              if (invoice.roundOffAmount != 0)
+                pw.Text(
+                  formatMoney(
+                    invoice.roundOffAmount,
+                    currencyCode: invoice.currencyCode,
+                  ),
+                ),
+              if (invoice.reverseCharge) pw.Text('Yes'),
               pw.Text(
                 formatMoney(
                   invoice.totalAmount,
                   currencyCode: invoice.currencyCode,
                 ),
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -1010,7 +1250,7 @@ class PdfService {
                 ),
                 pw.Text(
                   'Balance Due: ${formatMoney(invoiceBalanceDue(invoice), currencyCode: invoice.currencyCode)}',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.red,
                   ),
@@ -1026,7 +1266,7 @@ class PdfService {
                 ),
                 pw.Text(
                   'Balance Due: ${formatMoney(invoice.totalAmount, currencyCode: invoice.currencyCode)}',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.red,
                   ),
@@ -1058,7 +1298,7 @@ class PdfService {
         children: [
           pw.Text(
             'Bank Details',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+            style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
           ),
           if ((business.bankName ?? '').isNotEmpty)
             pw.Text('Bank: ${business.bankName}'),
@@ -1091,7 +1331,7 @@ class PdfService {
                   config.termsText.isNotEmpty
                       ? config.termsText
                       : 'Terms & Conditions:',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     fontSize: 10,
                   ),
@@ -1115,7 +1355,7 @@ class PdfService {
               children: [
                 pw.Text(
                   'For ${business.name}',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     fontSize: 10,
                   ),
@@ -1188,7 +1428,7 @@ class PdfService {
                   config.termsText.isNotEmpty
                       ? config.termsText
                       : 'Declaration:',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     fontSize: 10,
                   ),
@@ -1212,7 +1452,7 @@ class PdfService {
               children: [
                 pw.Text(
                   'For ${business.name}',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     fontSize: 10,
                   ),
@@ -1351,14 +1591,14 @@ class PdfService {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         if ((notes ?? '').isNotEmpty) ...[
-          pw.Text('Notes', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text('Notes', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 4),
           pw.Text(notes!, style: const pw.TextStyle(fontSize: 10)),
         ],
         if ((notes ?? '').isNotEmpty && (terms ?? '').isNotEmpty)
           pw.SizedBox(height: 12),
         if ((terms ?? '').isNotEmpty) ...[
-          pw.Text('Terms', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text('Terms', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 4),
           pw.Text(terms!, style: const pw.TextStyle(fontSize: 10)),
         ],
@@ -1421,11 +1661,11 @@ class PdfService {
           children: [
             pw.Text(
               'No: $invoiceNumber',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
-              'Date: ${date.toIso8601String().split('T')[0]}',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              'Date: ${formatDateNumeric(date)}',
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
           ],
         ),
@@ -1462,7 +1702,7 @@ class PdfService {
                 pw.SizedBox(height: 4),
                 pw.Text(
                   customer.name,
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
+                  style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
                 ),
                 if (customer.address != null) pw.Text(customer.address!),
                 if (customer.city != null) pw.Text(customer.city!),

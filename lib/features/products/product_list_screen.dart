@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/utils/money_formatter.dart';
+import '../../core/utils/stock_status.dart';
 import '../../database/app_database.dart';
 import '../../providers/business_provider.dart';
 import '../../providers/product_provider.dart';
+import '../../providers/shared_preferences_provider.dart';
 import '../../services/share_service.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
@@ -234,8 +236,36 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                             : Icons.inventory_2,
                       ),
                 title: Text(product.name),
-                subtitle: Text(
-                  '${product.isService ? 'Service' : 'Product'} | HSN/SAC: ${product.hsnSac} | Rate: ${formatMoney(product.salePrice, currencyCode: currencyCode)} | Stock: ${product.stockQuantity.toStringAsFixed(2)}',
+                subtitle: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${product.isService ? 'Service' : 'Product'} | HSN/SAC: ${product.hsnSac} | Rate: ${formatMoney(product.salePrice, currencyCode: currencyCode)} | Stock: ${product.stockQuantity.toStringAsFixed(2)}',
+                      ),
+                    ),
+                    if (ref.watch(lowStockWarningsEnabledProvider) &&
+                        lowStockLabel(product) != null)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          lowStockLabel(product)!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 trailing: PopupMenuButton<String>(
                   onSelected: (value) {

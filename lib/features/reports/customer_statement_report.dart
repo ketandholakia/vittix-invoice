@@ -1,3 +1,4 @@
+import '../../core/utils/invoice_status.dart';
 import '../../database/app_database.dart';
 
 class CustomerStatementRow {
@@ -40,9 +41,18 @@ List<CustomerStatementRow> buildCustomerStatementRows({
   };
 
   final rows = <CustomerStatementRow>[];
-  final invoiceById = {for (final invoice in invoices) invoice.id: invoice};
+
+  // Drafts are not issued and cancelled invoices are void, so they stay out of
+  // the statement entirely — along with any payments attached to them.
+  final statementInvoices = invoices
+      .where((invoice) => isInvoiceCountedInTotals(invoice.status))
+      .toList();
+
+  final invoiceById = {
+    for (final invoice in statementInvoices) invoice.id: invoice,
+  };
   final customerInvoices = <int, List<Invoice>>{};
-  for (final invoice in invoices) {
+  for (final invoice in statementInvoices) {
     customerInvoices.putIfAbsent(invoice.customerId, () => []).add(invoice);
   }
 
@@ -66,14 +76,26 @@ List<CustomerStatementRow> buildCustomerStatementRows({
     final entries = <_StatementEntry>[];
 
     for (final invoice in customerInvoices[customerId] ?? const <Invoice>[]) {
+      // A credit note reduces what the customer owes, so it enters the ledger
+      // with a negative amount under its own entry type.
+      final isCreditNote = invoice.invoiceType == 'CREDIT_NOTE';
+      final isDebitNote = invoice.invoiceType == 'DEBIT_NOTE';
       entries.add(
         _StatementEntry(
           customerName: customerName,
-          entryType: 'INVOICE',
+          entryType: isCreditNote
+              ? 'CREDIT_NOTE'
+              : isDebitNote
+              ? 'DEBIT_NOTE'
+              : 'INVOICE',
           documentNumber: invoice.invoiceNumber,
           entryDate: invoice.invoiceDate,
-          amount: invoice.totalAmount,
-          note: 'Invoice issued',
+          amount: isCreditNote ? -invoice.totalAmount : invoice.totalAmount,
+          note: isCreditNote
+              ? 'Credit note issued'
+              : isDebitNote
+              ? 'Debit note issued'
+              : 'Invoice issued',
           sortKey: invoice.invoiceDate,
           secondarySort: 0,
         ),

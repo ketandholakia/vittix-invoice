@@ -65,7 +65,7 @@ class ReminderNotificationService {
       return;
     }
 
-    final details = NotificationDetails(
+    final details = const NotificationDetails(
       android: AndroidNotificationDetails(
         'reminder_notifications',
         'Reminder Notifications',
@@ -73,7 +73,7 @@ class ReminderNotificationService {
         importance: Importance.max,
         priority: Priority.high,
       ),
-      iOS: const DarwinNotificationDetails(),
+      iOS: DarwinNotificationDetails(),
     );
 
     final now = tz.TZDateTime.now(tz.local);

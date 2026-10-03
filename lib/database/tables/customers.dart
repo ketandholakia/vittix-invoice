@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'businesses.dart';
 
+@TableIndex(name: 'idx_customers_business_id', columns: {#businessId})
 @DataClassName('Customer')
 class Customers extends Table {
   IntColumn get id => integer().autoIncrement()();

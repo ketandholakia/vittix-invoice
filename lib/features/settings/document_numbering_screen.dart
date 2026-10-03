@@ -18,6 +18,8 @@ class _DocumentNumberingScreenState
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _invoiceController;
   late final TextEditingController _quoteController;
+  late final TextEditingController _creditNoteController;
+  late final TextEditingController _debitNoteController;
   bool _initialized = false;
   bool _saving = false;
 
@@ -26,12 +28,16 @@ class _DocumentNumberingScreenState
     super.initState();
     _invoiceController = TextEditingController();
     _quoteController = TextEditingController();
+    _creditNoteController = TextEditingController();
+    _debitNoteController = TextEditingController();
   }
 
   @override
   void dispose() {
     _invoiceController.dispose();
     _quoteController.dispose();
+    _creditNoteController.dispose();
+    _debitNoteController.dispose();
     super.dispose();
   }
 
@@ -51,6 +57,8 @@ class _DocumentNumberingScreenState
           if (!_initialized) {
             _invoiceController.text = business.invoiceSeriesFormat;
             _quoteController.text = business.quoteSeriesFormat;
+            _creditNoteController.text = business.creditNoteSeriesFormat;
+            _debitNoteController.text = business.debitNoteSeriesFormat;
             _initialized = true;
           }
 
@@ -61,6 +69,14 @@ class _DocumentNumberingScreenState
           final quoteFormat = InvoiceNumberGenerator.normalizeFormat(
             _quoteController.text,
             fallback: InvoiceNumberGenerator.defaultQuoteFormat,
+          );
+          final creditNoteFormat = InvoiceNumberGenerator.normalizeFormat(
+            _creditNoteController.text,
+            fallback: InvoiceNumberGenerator.defaultCreditNoteFormat,
+          );
+          final debitNoteFormat = InvoiceNumberGenerator.normalizeFormat(
+            _debitNoteController.text,
+            fallback: InvoiceNumberGenerator.defaultDebitNoteFormat,
           );
 
           return Form(
@@ -102,6 +118,34 @@ class _DocumentNumberingScreenState
                 Text(
                   'Example: ${InvoiceNumberGenerator.samplePreview(quoteFormat, now)}',
                 ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _creditNoteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Credit Note Series Format',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateFormat,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Example: ${InvoiceNumberGenerator.samplePreview(creditNoteFormat, now)}',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _debitNoteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Debit Note Series Format',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateFormat,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Example: ${InvoiceNumberGenerator.samplePreview(debitNoteFormat, now)}',
+                ),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _saving
@@ -110,6 +154,8 @@ class _DocumentNumberingScreenState
                             business.copyWith(
                               invoiceSeriesFormat: invoiceFormat,
                               quoteSeriesFormat: quoteFormat,
+                              creditNoteSeriesFormat: creditNoteFormat,
+                              debitNoteSeriesFormat: debitNoteFormat,
                             ),
                           ),
                   child: _saving
@@ -148,7 +194,6 @@ class _DocumentNumberingScreenState
     setState(() => _saving = true);
     try {
       await ref.read(businessProvider).updateBusiness(updatedBusiness);
-      ref.invalidate(activeBusinessProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Document numbering updated.')),

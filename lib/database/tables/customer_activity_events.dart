@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'businesses.dart';
 import 'customers.dart';
 
+@TableIndex(name: 'idx_customer_activity_business_id', columns: {#businessId})
+@TableIndex(name: 'idx_customer_activity_customer_id', columns: {#customerId})
 @DataClassName('CustomerActivityEvent')
 class CustomerActivityEvents extends Table {
   IntColumn get id => integer().autoIncrement()();

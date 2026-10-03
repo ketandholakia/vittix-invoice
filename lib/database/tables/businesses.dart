@@ -31,6 +31,10 @@ class Businesses extends Table {
       text().withDefault(const Constant('INV-{FY}-{SEQ4}'))();
   TextColumn get quoteSeriesFormat =>
       text().withDefault(const Constant('QT-{FY}-{SEQ4}'))();
+  TextColumn get creditNoteSeriesFormat =>
+      text().withDefault(const Constant('CN-{FY}-{SEQ4}'))();
+  TextColumn get debitNoteSeriesFormat =>
+      text().withDefault(const Constant('DN-{FY}-{SEQ4}'))();
   IntColumn get defaultInvoiceTemplateId => integer().nullable()();
   IntColumn get defaultQuoteTemplateId => integer().nullable()();
   IntColumn get brandColor => integer().nullable()();

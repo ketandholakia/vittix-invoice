@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'database/app_database.dart';
+import 'core/utils/app_diagnostics.dart';
 import 'core/constants/app_routes.dart';
+import 'core/theme/app_theme.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/business/business_list_screen.dart';
@@ -27,9 +32,20 @@ import 'features/settings/document_numbering_screen.dart';
 import 'features/settings/uom_management_screen.dart';
 import 'features/settings/template_manager_screen.dart';
 import 'features/settings/template_editor_screen.dart';
+import 'features/shared/not_found_screen.dart';
 import 'providers/shared_preferences_provider.dart';
+import 'providers/app_lock_provider.dart';
 import 'providers/reminder_provider.dart';
+import 'features/lock/lock_screen.dart';
 import 'services/reminder_notification_service.dart';
+
+T? _extraOrNull<T>(GoRouterState state) {
+  final extra = state.extra;
+  return extra is T ? extra : null;
+}
+
+int? _idFrom(GoRouterState state) =>
+    int.tryParse(state.pathParameters['id'] ?? '');
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final activeBusinessId = ref.watch(activeBusinessIdProvider);
@@ -56,7 +72,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editBusiness,
         builder: (context, state) {
-          final business = state.extra! as Business;
+          final business = _extraOrNull<Business>(state);
+          if (business == null) return const NotFoundScreen();
           return BusinessFormScreen(existingBusiness: business);
         },
       ),
@@ -71,14 +88,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editCustomer,
         builder: (context, state) {
-          final customer = state.extra! as Customer;
+          final customer = _extraOrNull<Customer>(state);
+          if (customer == null) return const NotFoundScreen();
           return CustomerFormScreen(existingCustomer: customer);
         },
       ),
       GoRoute(
         path: AppRoutes.customerDetail,
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
+          final id = _idFrom(state);
+          if (id == null) return const NotFoundScreen();
           return CustomerDetailScreen(customerId: id);
         },
       ),
@@ -93,7 +112,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editProduct,
         builder: (context, state) {
-          final product = state.extra! as Product;
+          final product = _extraOrNull<Product>(state);
+          if (product == null) return const NotFoundScreen();
           return ProductFormScreen(existingProduct: product);
         },
       ),
@@ -108,14 +128,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editInvoice,
         builder: (context, state) {
-          final invoice = state.extra! as Invoice;
+          final invoice = _extraOrNull<Invoice>(state);
+          if (invoice == null) return const NotFoundScreen();
           return InvoiceFormScreen(existingInvoice: invoice);
         },
       ),
       GoRoute(
         path: AppRoutes.invoicePreview,
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
+          final id = _idFrom(state);
+          if (id == null) return const NotFoundScreen();
           return InvoicePreviewScreen(invoiceId: id);
         },
       ),
@@ -130,14 +152,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editQuote,
         builder: (context, state) {
-          final quote = state.extra! as Quote;
+          final quote = _extraOrNull<Quote>(state);
+          if (quote == null) return const NotFoundScreen();
           return QuoteFormScreen(existingQuote: quote);
         },
       ),
       GoRoute(
         path: AppRoutes.quotePreview,
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
+          final id = _idFrom(state);
+          if (id == null) return const NotFoundScreen();
           return QuotePreviewScreen(quoteId: id);
         },
       ),
@@ -156,7 +180,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.templateEditor,
         builder: (context, state) {
-          final args = state.extra! as TemplateEditorArgs;
+          final args = _extraOrNull<TemplateEditorArgs>(state);
+          if (args == null) return const NotFoundScreen();
           return TemplateEditorScreen(args: args);
         },
       ),
@@ -188,14 +213,43 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       }
       return null;
     },
+    errorBuilder: (context, state) => const NotFoundScreen(),
   );
 });
 
-class VittixInvoiceApp extends ConsumerWidget {
+class VittixInvoiceApp extends ConsumerStatefulWidget {
   const VittixInvoiceApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VittixInvoiceApp> createState() => _VittixInvoiceAppState();
+}
+
+class _VittixInvoiceAppState extends ConsumerState<VittixInvoiceApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-lock when the app leaves the foreground so financial data is not left
+    // open behind the app switcher.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      ref.read(appLockedProvider.notifier).lock();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final reminderDataAsync = ref.watch(reminderCenterProvider);
     final remindersEnabled = ref.watch(reminderNotificationsEnabledProvider);
     final reminderOffsets = ref.watch(reminderNotificationOffsetsProvider);
@@ -203,43 +257,70 @@ class VittixInvoiceApp extends ConsumerWidget {
 
     ref.listen(reminderCenterProvider, (previous, next) {
       next.whenData((data) {
-        ReminderNotificationService.instance.syncReminders(
+        unawaited(_syncReminders(
           data: data,
           offsets: ref.read(reminderNotificationOffsetsProvider),
           enabled: ref.read(reminderNotificationsEnabledProvider),
-        );
+        ));
       });
     });
     ref.listen(reminderNotificationsEnabledProvider, (previous, next) {
       reminderDataAsync.whenData((data) {
-        ReminderNotificationService.instance.syncReminders(
+        unawaited(_syncReminders(
           data: data,
           offsets: reminderOffsets,
           enabled: next,
-        );
+        ));
       });
     });
     ref.listen(reminderNotificationOffsetsProvider, (previous, next) {
       reminderDataAsync.whenData((data) {
-        ReminderNotificationService.instance.syncReminders(
+        unawaited(_syncReminders(
           data: data,
           offsets: next,
           enabled: remindersEnabled,
-        );
+        ));
       });
     });
 
     return MaterialApp.router(
       title: 'VittixInvoice',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
+      themeMode: ref.watch(themeModeProvider),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
+      builder: (context, child) {
+        final locked = ref.watch(appLockedProvider);
+        if (!locked) return child ?? const SizedBox.shrink();
+        return Stack(
+          children: [
+            ?child,
+            const LockScreen(),
+          ],
+        );
+      },
     );
+  }
+}
+
+/// Notification plugin failures (e.g., missing platform support) must never
+/// break the app UI, so reminder sync runs defensively off the build path.
+Future<void> _syncReminders({
+  required ReminderCenterData data,
+  required List<int> offsets,
+  required bool enabled,
+}) async {
+  try {
+    await ReminderNotificationService.instance.syncReminders(
+      data: data,
+      offsets: offsets,
+      enabled: enabled,
+    );
+  } catch (error, stackTrace) {
+    // Swallow platform-channel failures; reminders remain disabled safely, but
+    // the failure stays visible to diagnostics.
+    reportNonFatal(error, stackTrace, context: 'while syncing reminders');
   }
 }

@@ -13,6 +13,7 @@ class HsnDao extends DatabaseAccessor<AppDatabase> with _$HsnDaoMixin {
   Future<List<HsnCodeLookup>> searchHsnCodes(
     String query, {
     DateTime? asOf,
+    double? unitPrice,
   }) async {
     final normalizedAsOf = asOf ?? DateTime.now();
     final baseQuery = select(hsnCodes);
@@ -35,6 +36,7 @@ class HsnDao extends DatabaseAccessor<AppDatabase> with _$HsnDaoMixin {
         final latestRate = await _latestRateForCode(
           code.code,
           asOf: normalizedAsOf,
+          unitPrice: unitPrice,
         );
         return HsnCodeLookup(
           code: code.code,
@@ -42,6 +44,8 @@ class HsnDao extends DatabaseAccessor<AppDatabase> with _$HsnDaoMixin {
           type: code.type,
           gstRate: latestRate?.gstRate,
           effectiveFrom: latestRate?.effectiveFrom,
+          minUnitPrice: latestRate?.minUnitPrice,
+          maxUnitPrice: latestRate?.maxUnitPrice,
         );
       }),
     );
@@ -52,8 +56,9 @@ class HsnDao extends DatabaseAccessor<AppDatabase> with _$HsnDaoMixin {
   Future<HsnCodeLookup?> getHsnCodeByCode(
     String code, {
     DateTime? asOf,
+    double? unitPrice,
   }) async {
-    final matches = await searchHsnCodes(code, asOf: asOf);
+    final matches = await searchHsnCodes(code, asOf: asOf, unitPrice: unitPrice);
     for (final match in matches) {
       if (match.code == code) {
         return match;
@@ -101,12 +106,19 @@ class HsnDao extends DatabaseAccessor<AppDatabase> with _$HsnDaoMixin {
   Future<HsnCodeRate?> _latestRateForCode(
     String code, {
     required DateTime asOf,
+    double? unitPrice,
   }) {
     return (select(hsnCodeRates)
           ..where(
             (t) =>
                 t.code.equals(code) &
-                t.effectiveFrom.isSmallerOrEqualValue(asOf),
+                t.effectiveFrom.isSmallerOrEqualValue(asOf) &
+                (unitPrice == null
+                    // No price supplied: fall back to the base band so the
+                    // lookup still returns a representative rate.
+                    ? t.minUnitPrice.equals(0)
+                    : t.minUnitPrice.isSmallerThanValue(unitPrice) &
+                          t.maxUnitPrice.isBiggerOrEqualValue(unitPrice)),
           )
           ..orderBy([
             (t) => OrderingTerm(

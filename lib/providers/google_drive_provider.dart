@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../services/google_drive_service.dart';
 
-final googleDriveAccountProvider = FutureProvider<GoogleSignInAccount?>((ref) {
+final googleDriveAccountProvider =
+    FutureProvider.autoDispose<GoogleSignInAccount?>((ref) {
   return GoogleDriveService.instance.currentAccount();
 });

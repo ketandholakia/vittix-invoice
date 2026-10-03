@@ -1,17 +1,189 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../core/utils/invoice_number.dart';
 import '../../providers/shared_preferences_provider.dart';
 import '../../services/reminder_notification_service.dart';
 import '../../services/database_backup_service.dart';
 import '../../services/google_drive_service.dart';
+import '../../database/app_database.dart';
 import '../../providers/database_provider.dart';
+import '../../providers/app_lock_provider.dart';
 import '../../providers/business_provider.dart';
 import '../../providers/google_drive_provider.dart';
 import '../../providers/nextcloud_provider.dart';
 import '../../services/nextcloud_service.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:go_router/go_router.dart';
+
+/// Destructive-restore confirmation. Restoring replaces every table, so the
+/// user is warned and told a safety copy of the current data is taken first.
+Future<bool> _confirmRestore(
+  BuildContext context, {
+  required String source,
+}) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Restore from backup?'),
+      content: Text(
+        'This replaces ALL current data with the contents of $source. '
+        'A safety copy of your current data is saved first, but anything '
+        'changed after that copy cannot be recovered.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Restore'),
+        ),
+      ],
+    ),
+  );
+  return confirmed == true;
+}
+
+/// Writes a pre-restore snapshot, swallowing failures so a failed safety copy
+/// never blocks the restore the user asked for.
+Future<String?> _safeSnapshot(AppDatabase database) async {
+  try {
+    return await DatabaseBackupService.createRestoreSafetySnapshot(database);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Prompts for a new app-lock PIN (4-8 digits). Returns null when cancelled.
+Future<String?> _promptForNewPin(BuildContext context) async {
+  final controller = TextEditingController();
+  String? error;
+
+  final result = await showDialog<String>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: const Text('Set an app lock PIN'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(8),
+          ],
+          decoration: InputDecoration(
+            labelText: 'PIN (4-8 digits)',
+            errorText: error,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final pin = controller.text.trim();
+              if (pin.length < 4) {
+                setState(() => error = 'Use at least 4 digits');
+                return;
+              }
+              Navigator.pop(ctx, pin);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  controller.dispose();
+  return result;
+}
+
+/// Prompts for a backup passphrase. Returns null when cancelled; an empty
+/// string means "no encryption" for exports.
+Future<String?> _promptForPassphrase(
+  BuildContext context, {
+  required String title,
+  required String helpText,
+  bool allowEmpty = false,
+}) async {
+  final controller = TextEditingController();
+  String? error;
+
+  final result = await showDialog<String>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(helpText),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Passphrase',
+                errorText: error,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (!allowEmpty && value.isEmpty) {
+                setState(() => error = 'Enter a passphrase');
+                return;
+              }
+              Navigator.pop(ctx, value);
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  controller.dispose();
+  return result;
+}
+
+/// Runs a cloud restore, prompting for a passphrase when the backup turns out
+/// to be encrypted.
+Future<int?> _restoreCloudBackup(
+  BuildContext context,
+  Future<int?> Function(String? passphrase) restore,
+) async {
+  try {
+    return await restore(null);
+  } on BackupPassphraseRequired {
+    if (!context.mounted) return null;
+    final passphrase = await _promptForPassphrase(
+      context,
+      title: 'Backup passphrase',
+      helpText: 'This backup is encrypted. Enter its passphrase to restore it.',
+    );
+    if (passphrase == null) {
+      throw StateError('Restore cancelled');
+    }
+    return restore(passphrase);
+  }
+}
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -25,6 +197,8 @@ class SettingsScreen extends ConsumerWidget {
     final printBankDetailsOnInvoice = ref.watch(
       printBankDetailsOnInvoiceProvider,
     );
+    final themeMode = ref.watch(themeModeProvider);
+    final loc = AppLocalizations.of(context)!;
     final database = ref.watch(databaseProvider);
     final activeBusinessAsync = ref.watch(activeBusinessProvider);
     final googleDriveAccountAsync = ref.watch(googleDriveAccountProvider);
@@ -72,6 +246,34 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           const Divider(),
+          ListTile(
+            title: Text(loc.appearance),
+            subtitle: Text(_themeModeLabel(themeMode)),
+            trailing: DropdownButton<ThemeMode>(
+              value: themeMode,
+              underline: const SizedBox.shrink(),
+              items: [
+                DropdownMenuItem(
+                  value: ThemeMode.system,
+                  child: Text(loc.system),
+                ),
+                DropdownMenuItem(
+                  value: ThemeMode.light,
+                  child: Text(loc.light),
+                ),
+                DropdownMenuItem(
+                  value: ThemeMode.dark,
+                  child: Text(loc.dark),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  ref.read(themeModeProvider.notifier).setMode(value);
+                }
+              },
+            ),
+          ),
+          const Divider(),
           SwitchListTile(
             title: const Text('Print Bank Details on Invoice'),
             subtitle: const Text(
@@ -82,6 +284,17 @@ class SettingsScreen extends ConsumerWidget {
               ref
                   .read(printBankDetailsOnInvoiceProvider.notifier)
                   .setEnabled(value);
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Round off invoice totals'),
+            subtitle: const Text(
+              'Round the payable to the nearest rupee and show the adjustment '
+              'as a round-off line.',
+            ),
+            value: ref.watch(roundOffEnabledProvider),
+            onChanged: (value) {
+              ref.read(roundOffEnabledProvider.notifier).setEnabled(value);
             },
           ),
           Padding(
@@ -307,10 +520,26 @@ class SettingsScreen extends ConsumerWidget {
                             onPressed: signedInEmail == null
                                 ? null
                                 : () async {
+                                    final passphrase =
+                                        await _promptForPassphrase(
+                                          context,
+                                          title: 'Encrypt this backup?',
+                                          helpText:
+                                              'Enter a passphrase to seal the '
+                                              'backup, or leave it blank to '
+                                              'upload it unencrypted.',
+                                          allowEmpty: true,
+                                        );
+                                    if (passphrase == null) return;
                                     try {
                                       final result = await GoogleDriveService
                                           .instance
-                                          .uploadBackup(database);
+                                          .uploadBackup(
+                                            database,
+                                            passphrase: passphrase.isEmpty
+                                                ? null
+                                                : passphrase,
+                                          );
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
@@ -346,10 +575,24 @@ class SettingsScreen extends ConsumerWidget {
                             onPressed: signedInEmail == null
                                 ? null
                                 : () async {
+                                    final confirmed = await _confirmRestore(
+                                      context,
+                                      source: 'Google Drive',
+                                    );
+                                    if (!confirmed) return;
+                                    await _safeSnapshot(database);
+                                    if (!context.mounted) return;
                                     try {
                                       final restoredActiveId =
-                                          await GoogleDriveService.instance
-                                              .restoreLatestBackup(database);
+                                          await _restoreCloudBackup(
+                                            context,
+                                            (passphrase) =>
+                                                GoogleDriveService.instance
+                                                    .restoreLatestBackup(
+                                                      database,
+                                                      passphrase: passphrase,
+                                                    ),
+                                          );
                                       ref.invalidate(businessListProvider);
                                       ref.invalidate(activeBusinessProvider);
                                       if (restoredActiveId != null) {
@@ -365,7 +608,7 @@ class SettingsScreen extends ConsumerWidget {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          SnackBar(
+                                          const SnackBar(
                                             content: Text(
                                               'Restored cloud backup',
                                             ),
@@ -469,9 +712,26 @@ class SettingsScreen extends ConsumerWidget {
                         onPressed: !nextcloudConfig.isValid
                             ? null
                             : () async {
+                                final passphrase =
+                                    await _promptForPassphrase(
+                                      context,
+                                      title: 'Encrypt this backup?',
+                                      helpText:
+                                          'Enter a passphrase to seal the '
+                                          'backup, or leave it blank to '
+                                          'upload it unencrypted.',
+                                      allowEmpty: true,
+                                    );
+                                if (passphrase == null) return;
                                 try {
                                   final result = await NextcloudService.instance
-                                      .uploadBackup(database, nextcloudConfig);
+                                      .uploadBackup(
+                                        database,
+                                        nextcloudConfig,
+                                        passphrase: passphrase.isEmpty
+                                            ? null
+                                            : passphrase,
+                                      );
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -503,10 +763,25 @@ class SettingsScreen extends ConsumerWidget {
                         onPressed: !nextcloudConfig.isValid
                             ? null
                             : () async {
+                                final confirmed = await _confirmRestore(
+                                  context,
+                                  source: 'Nextcloud',
+                                );
+                                if (!confirmed) return;
+                                await _safeSnapshot(database);
+                                if (!context.mounted) return;
                                 try {
                                   final restoredActiveId =
-                                      await NextcloudService.instance
-                                          .restoreLatestBackup(database, nextcloudConfig);
+                                      await _restoreCloudBackup(
+                                        context,
+                                        (passphrase) =>
+                                            NextcloudService.instance
+                                                .restoreLatestBackup(
+                                                  database,
+                                                  nextcloudConfig,
+                                                  passphrase: passphrase,
+                                                ),
+                                      );
                                   ref.invalidate(businessListProvider);
                                   ref.invalidate(activeBusinessProvider);
                                   if (restoredActiveId != null) {
@@ -633,7 +908,8 @@ class SettingsScreen extends ConsumerWidget {
           SwitchListTile(
             title: const Text('Auto Backup to Drive'),
             subtitle: const Text(
-              'Automatically backup your database to Google Drive in the background.',
+              'Back up to Google Drive automatically when you open the app '
+              '(at most once every 24 hours).',
             ),
             value: ref.watch(autoBackupEnabledProvider),
             onChanged: (value) async {
@@ -658,8 +934,20 @@ class SettingsScreen extends ConsumerWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
+                      final passphrase = await _promptForPassphrase(
+                        context,
+                        title: 'Encrypt this backup?',
+                        helpText:
+                            'Enter a passphrase to seal the backup, or leave it '
+                            'blank to export an unencrypted file.',
+                        allowEmpty: true,
+                      );
+                      if (passphrase == null) return;
                       try {
-                        await DatabaseBackupService.shareBackup(database);
+                        await DatabaseBackupService.shareBackup(
+                          database,
+                          passphrase: passphrase.isEmpty ? null : passphrase,
+                        );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Backup exported')),
@@ -683,6 +971,12 @@ class SettingsScreen extends ConsumerWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
+                      final confirmed = await _confirmRestore(
+                        context,
+                        source: 'a backup file',
+                      );
+                      if (!confirmed) return;
+                      await _safeSnapshot(database);
                       try {
                         final file = await openFile(
                           acceptedTypeGroups: const [
@@ -691,11 +985,28 @@ class SettingsScreen extends ConsumerWidget {
                         );
                         final path = file?.path;
                         if (path == null || path.isEmpty) return;
+                        if (!context.mounted) return;
+
+                        final encrypted =
+                            await DatabaseBackupService.isEncryptedFile(path);
+                        if (!context.mounted) return;
+                        String? passphrase;
+                        if (encrypted) {
+                          passphrase = await _promptForPassphrase(
+                            context,
+                            title: 'Backup passphrase',
+                            helpText:
+                                'This backup is encrypted. Enter its '
+                                'passphrase to restore it.',
+                          );
+                          if (passphrase == null) return;
+                        }
 
                         final restoredActiveId =
                             await DatabaseBackupService.restoreFromFile(
                               database,
                               path,
+                              passphrase: passphrase,
                             );
                         ref.invalidate(businessListProvider);
                         ref.invalidate(activeBusinessProvider);
@@ -734,6 +1045,35 @@ class SettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Text(
+              'Security',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('App lock'),
+            subtitle: const Text('Require a PIN to open the app'),
+            value: ref.watch(appLockEnabledProvider),
+            onChanged: (value) async {
+              final service = ref.read(appLockServiceProvider);
+              if (value) {
+                final pin = await _promptForNewPin(context);
+                if (pin == null) return;
+                await service.setPin(pin);
+                await ref
+                    .read(appLockEnabledProvider.notifier)
+                    .setEnabled(true);
+              } else {
+                await ref
+                    .read(appLockEnabledProvider.notifier)
+                    .setEnabled(false);
+                await service.clearPin();
+              }
+            },
+          ),
+          const Divider(height: 32),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
               'Units of Measure',
               style: Theme.of(context).textTheme.labelLarge,
             ),
@@ -756,6 +1096,17 @@ class SettingsScreen extends ConsumerWidget {
     if (offset == 0) return 'Due date';
     final abs = offset.abs();
     return offset < 0 ? '$abs d before' : '$abs d after';
+  }
+
+  String _themeModeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'Follow system setting';
+      case ThemeMode.light:
+        return 'Light mode';
+      case ThemeMode.dark:
+        return 'Dark mode';
+    }
   }
 }
 

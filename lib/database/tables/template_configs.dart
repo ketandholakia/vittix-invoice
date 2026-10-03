@@ -3,6 +3,7 @@ import 'businesses.dart';
 
 enum TemplateScope { invoice, quote }
 
+@TableIndex(name: 'idx_template_configs_business_id', columns: {#businessId})
 @DataClassName('TemplateConfig')
 class TemplateConfigs extends Table {
   IntColumn get id => integer().autoIncrement()();

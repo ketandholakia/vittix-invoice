@@ -3,9 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/utils/invoice_balance.dart';
+import '../../core/utils/invoice_status.dart';
+import '../../core/utils/stock_status.dart';
+import '../../core/utils/formatting.dart';
+import '../../core/theme/app_theme.dart';
+import '../../providers/business_provider.dart';
 import '../../providers/shared_preferences_provider.dart';
-import '../../providers/database_provider.dart';
 import '../../providers/invoice_provider.dart';
+import '../../providers/product_provider.dart';
 import '../../providers/quote_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -15,23 +20,22 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeBusinessId = ref.watch(activeBusinessIdProvider);
     final businessAsync = activeBusinessId != null
-        ? ref.watch(businessDaoProvider).getBusinessById(activeBusinessId)
-        : Future.value(null);
+        ? ref.watch(businessDetailProvider(activeBusinessId))
+        : null;
 
     final invoicesAsync = ref.watch(invoiceListProvider);
     final quotesAsync = ref.watch(quoteListProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: FutureBuilder(
-          future: businessAsync,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return Text(snapshot.data!.name);
-            }
-            return const Text('Dashboard');
-          },
-        ),
+        title: businessAsync == null
+            ? const Text('Dashboard')
+            : businessAsync.when(
+                data: (business) =>
+                    Text(business?.name ?? 'Dashboard'),
+                loading: () => const Text('Dashboard'),
+                error: (error, stack) => const Text('Dashboard'),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -114,23 +118,29 @@ class DashboardScreen extends ConsumerWidget {
           final quotes = quotesAsync.valueOrNull ?? const [];
           final now = DateTime.now();
           final today = DateTime(now.year, now.month, now.day);
-          final totalRevenue = invoices.fold<double>(
+          // Drafts are not issued and cancelled invoices are void, so neither
+          // may contribute to revenue or receivables.
+          final countedInvoices = invoices
+              .where((inv) => isInvoiceCountedInTotals(inv.status))
+              .toList();
+          final totalRevenue = countedInvoices.fold<double>(
             0,
-            (sum, inv) => sum + inv.totalAmount,
+            (sum, inv) =>
+                sum + signedInvoiceTotal(inv.totalAmount, inv.invoiceType),
           );
-          final thisMonth = invoices.where(
+          final thisMonth = countedInvoices.where(
             (i) =>
                 i.invoiceDate.month == DateTime.now().month &&
                 i.invoiceDate.year == DateTime.now().year,
           );
           final monthRevenue = thisMonth.fold<double>(
             0,
-            (sum, inv) => sum + inv.totalAmount,
+            (sum, inv) =>
+                sum + signedInvoiceTotal(inv.totalAmount, inv.invoiceType),
           );
-          final unpaidTotal = invoices.fold<double>(
-            0,
-            (sum, inv) => sum + invoiceBalanceDue(inv),
-          );
+          final unpaidTotal = countedInvoices
+              .where((inv) => !isAdjustmentNote(inv.invoiceType))
+              .fold<double>(0, (sum, inv) => sum + invoiceBalanceDue(inv));
           final activeQuotes = quotes.where(
             (quote) => quote.status != 'CONVERTED',
           );
@@ -171,58 +181,122 @@ class DashboardScreen extends ConsumerWidget {
             return due.isBefore(today);
           }).toList();
           final recentInvoices = invoices.take(5).toList();
+          final business = businessAsync?.valueOrNull;
+          String money(double amount, {int digits = 0}) => formatMoneyForBusiness(
+            amount,
+            business?.currencyCode ?? 'INR',
+            decimalDigits: digits,
+          );
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final statCards = [
+                      _StatCard(
                         title: 'Total Revenue',
-                        value: 'Rs. ${totalRevenue.toStringAsFixed(0)}',
+                        value: money(totalRevenue),
                         icon: Icons.account_balance_wallet,
                         color: Colors.green,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _StatCard(
+                      _StatCard(
                         title: 'This Month',
-                        value: 'Rs. ${monthRevenue.toStringAsFixed(0)}',
+                        value: money(monthRevenue),
                         icon: Icons.trending_up,
                         color: Colors.blue,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
+                      _StatCard(
                         title: 'Unpaid',
-                        value: 'Rs. ${unpaidTotal.toStringAsFixed(0)}',
+                        value: money(unpaidTotal),
                         icon: Icons.pending_actions,
                         color: Colors.orange,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _StatCard(
+                      _StatCard(
                         title: 'Quote Conversion',
                         value:
                             '$convertedQuotes/$totalQuotes (${conversionRate.toStringAsFixed(0)}%)',
                         icon: Icons.swap_horiz,
                         color: Colors.purple,
                       ),
-                    ),
-                  ],
+                    ];
+                    if (constraints.maxWidth >= 600) {
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: statCards[0]),
+                              const SizedBox(width: 16),
+                              Expanded(child: statCards[1]),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(child: statCards[2]),
+                              const SizedBox(width: 16),
+                              Expanded(child: statCards[3]),
+                            ],
+                          ),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        for (final card in statCards) ...[
+                          card,
+                          if (card != statCards.last)
+                            const SizedBox(height: 12),
+                        ],
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
-                
+
+                // --- LOW STOCK ---
+                if (ref.watch(lowStockWarningsEnabledProvider))
+                  ref
+                      .watch(productListProvider)
+                      .maybeWhen(
+                        data: (products) {
+                          final low = products.where(isProductLowStock).toList();
+                          if (low.isEmpty) return const SizedBox.shrink();
+                          final colours = Theme.of(context).colorScheme;
+                          return Card(
+                            color: colours.errorContainer,
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.warning_amber_rounded,
+                                color: colours.onErrorContainer,
+                              ),
+                              title: Text(
+                                '${low.length} product${low.length == 1 ? '' : 's'} low on stock',
+                                style: TextStyle(
+                                  color: colours.onErrorContainer,
+                                ),
+                              ),
+                              subtitle: Text(
+                                low.take(3).map((p) => p.name).join(', '),
+                                style: TextStyle(
+                                  color: colours.onErrorContainer,
+                                ),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.chevron_right),
+                                color: colours.onErrorContainer,
+                                tooltip: 'Open products',
+                                onPressed: () => context.go('/products'),
+                              ),
+                            ),
+                          );
+                        },
+                        orElse: () => const SizedBox.shrink(),
+                      ),
+                const SizedBox(height: 24),
+
                 // --- CHARTS SECTION ---
                 Text('Revenue vs Unpaid', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
@@ -259,8 +333,10 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 32),
                 
                 if (staleQuotes.isNotEmpty) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         'Quote Follow-up Queue',
@@ -282,17 +358,13 @@ class DashboardScreen extends ConsumerWidget {
                         final isExpired = expiredQuotes.any(
                           (entry) => entry.id == quote.id,
                         );
-                        final dueDate = quote.dueDate
-                            ?.toLocal()
-                            .toString()
-                            .split(' ')[0];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: isExpired
-                                  ? Colors.red
-                                  : Colors.deepOrange,
+                                  ? StatusPalette.overdue
+                                  : StatusPalette.expiringSoon,
                               child: const Icon(
                                 Icons.request_quote,
                                 color: Colors.white,
@@ -301,10 +373,10 @@ class DashboardScreen extends ConsumerWidget {
                             title: Text(quote.invoiceNumber),
                             subtitle: Text(
                               '${isExpired ? 'Expired' : 'Needs follow-up'}'
-                              '${dueDate != null ? ' | Valid until $dueDate' : ''}',
+                              '${quote.dueDate != null ? ' | Valid until ${formatDate(quote.dueDate!)}' : ''}',
                             ),
                             trailing: Text(
-                              'Rs. ${quote.totalAmount.toStringAsFixed(0)}',
+                              money(quote.totalAmount),
                             ),
                             onTap: () =>
                                 context.push('/quote-preview/${quote.id}'),
@@ -318,9 +390,12 @@ class DashboardScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Recent Invoices',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    Flexible(
+                      child: Text(
+                        'Recent Invoices',
+                        style: Theme.of(context).textTheme.titleLarge,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Text(
                       '${activeQuotes.length} active quotes',
@@ -384,16 +459,16 @@ class DashboardScreen extends ConsumerWidget {
                               focusColor: Colors.transparent,
                               hoverColor: Colors.transparent,
                               subtitle: Text(
-                                '${invoice.invoiceDate.toString().split(' ')[0]}'
-                                '${invoice.dueDate != null ? ' | Due ${invoice.dueDate!.toString().split(' ')[0]}' : ''}'
-                                '${balance > 0 ? '\nBalance Rs. ${balance.toStringAsFixed(2)}' : ''}',
+                                '${formatDate(invoice.invoiceDate)}'
+                                '${invoice.dueDate != null ? ' | Due ${formatDate(invoice.dueDate!)}' : ''}'
+                                '${balance > 0 ? '\nBalance ${money(balance, digits: 2)}' : ''}',
                               ),
                               trailing: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    'Rs. ${invoice.totalAmount.toStringAsFixed(2)}',
+                                    money(invoice.totalAmount, digits: 2),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -403,11 +478,10 @@ class DashboardScreen extends ConsumerWidget {
                                     invoice.status,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: invoice.status == 'PAID'
-                                          ? Colors.green
-                                          : (isOverdue
-                                                ? Colors.red
-                                                : Colors.orange),
+                                      color: invoiceStatusColor(
+                                        invoice.status,
+                                        isOverdue: isOverdue,
+                                      ),
                                     ),
                                   ),
                                 ],

@@ -1,19 +1,453 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../database/app_database.dart';
-import '../database/daos/product_dao.dart';
 import '../database/daos/invoice_dao.dart';
-import '../providers/customer_activity_provider.dart';
+import '../database/daos/product_dao.dart';
 import '../providers/database_provider.dart';
-import '../providers/invoice_provider.dart';
 import '../core/utils/invoice_number.dart';
+import '../core/utils/money.dart';
+import 'document_service.dart';
 
-final invoiceServiceProvider = Provider<InvoiceService>((ref) => InvoiceService(ref));
+final invoiceServiceProvider = Provider<InvoiceService>(InvoiceService.new);
 
-class InvoiceService {
-  final Ref _ref;
+class InvoiceService
+    extends DocumentServiceBase<Invoice, InvoiceItem, InvoicesCompanion, InvoiceItemsCompanion> {
+  InvoiceService(super.ref);
 
-  InvoiceService(this._ref);
+  @override
+  String get entityType => 'INVOICE';
+
+  @override
+  String get editEventType => 'INVOICE_EDIT';
+
+  @override
+  String get docNoun => 'Invoice';
+
+  @override
+  String get dateLabel => 'due date';
+
+  @override
+  String get contactEventType => 'INVOICE_REMINDER';
+
+  @override
+  String get contactTitle => 'Customer contacted about invoice';
+
+  @override
+  bool get contactTouchesUpdatedAt => false;
+
+  @override
+  String contactNote(String number) => 'Invoice $number reminder recorded';
+
+  @override
+  Future<Invoice?> getDocument(int id) => ref.read(invoiceDaoProvider).getInvoiceById(id);
+
+  @override
+  Future<List<InvoiceItem>> getItems(int documentId) =>
+      ref.read(invoiceDaoProvider).getItemsForInvoice(documentId);
+
+  @override
+  Future<Business?> getBusiness(int businessId) =>
+      ref.read(businessDaoProvider).getBusinessById(businessId);
+
+  @override
+  String seriesFormatOf(Business? business) => InvoiceNumberGenerator.normalizeFormat(
+    business?.invoiceSeriesFormat,
+    fallback: InvoiceNumberGenerator.defaultInvoiceFormat,
+  );
+
+  @override
+  DateTime dateOf(InvoicesCompanion companion) => companion.invoiceDate.value;
+
+  @override
+  int businessIdOfCompanion(InvoicesCompanion companion) => companion.businessId.value;
+
+  @override
+  Future<int> insertWithGeneratedNumber({
+    required InvoicesCompanion companion,
+    required String format,
+    required DateTime date,
+  }) => ref.read(invoiceDaoProvider).insertInvoiceWithGeneratedNumber(
+    invoice: companion,
+    format: format,
+    date: date,
+  );
+
+  @override
+  Future<void> insertItemForDocument({
+    required int documentId,
+    required InvoiceItemsCompanion item,
+  }) => ref.read(invoiceDaoProvider).insertInvoiceItem(
+    item.copyWith(invoiceId: drift.Value(documentId)),
+  );
+
+  @override
+  Future<void> deleteItems(int documentId) =>
+      ref.read(invoiceDaoProvider).deleteItemsForInvoice(documentId);
+
+  @override
+  Future<void> deleteDocumentRow(int documentId) =>
+      ref.read(invoiceDaoProvider).deleteInvoice(documentId);
+
+  @override
+  Future<bool> updateDocument(Invoice document) =>
+      ref.read(invoiceDaoProvider).updateInvoice(document);
+
+  @override
+  Invoice buildUpdatedDocument(Invoice existing, InvoicesCompanion companion) {
+    final nextCurrencyCode = companion.currencyCode.present
+        ? companion.currencyCode.value
+        : existing.currencyCode;
+    return existing.copyWith(
+      customerId: companion.customerId.value,
+      currencyCode: nextCurrencyCode,
+      invoiceDate: companion.invoiceDate.value,
+      dueDate: companion.dueDate,
+      invoiceType: companion.invoiceType.value,
+      supplyType: companion.supplyType.value,
+      placeOfSupply: companion.placeOfSupply.value,
+      subtotal: companion.subtotal.value,
+      discountAmount: companion.discountAmount.value,
+      taxableAmount: companion.taxableAmount.value,
+      cgstAmount: companion.cgstAmount.value,
+      sgstAmount: companion.sgstAmount.value,
+      igstAmount: companion.igstAmount.value,
+      cessAmount: companion.cessAmount.value,
+      totalAmount: companion.totalAmount.value,
+      roundOffAmount: companion.roundOffAmount.present
+          ? companion.roundOffAmount.value
+          : existing.roundOffAmount,
+      amountInWords: companion.amountInWords,
+      notes: companion.notes,
+      terms: companion.terms,
+      isIgst: companion.isIgst.value,
+      reverseCharge: companion.reverseCharge.present
+          ? companion.reverseCharge.value
+          : existing.reverseCharge,
+      shipToName: companion.shipToName,
+      shipToAddress: companion.shipToAddress,
+      shipToCity: companion.shipToCity,
+      exportWithLut: companion.exportWithLut.present
+          ? companion.exportWithLut.value
+          : existing.exportWithLut,
+      tdsSection: companion.tdsSection,
+      tdsRate: companion.tdsRate.present
+          ? companion.tdsRate.value
+          : existing.tdsRate,
+      tdsAmount: companion.tdsAmount.present
+          ? companion.tdsAmount.value
+          : existing.tdsAmount,
+      tcsSection: companion.tcsSection,
+      tcsRate: companion.tcsRate.present
+          ? companion.tcsRate.value
+          : existing.tcsRate,
+      tcsAmount: companion.tcsAmount.present
+          ? companion.tcsAmount.value
+          : existing.tcsAmount,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  @override
+  InvoicesCompanion duplicatedCompanion({
+    required Invoice source,
+    required DateTime duplicateDate,
+  }) {
+    return InvoicesCompanion.insert(
+      businessId: source.businessId,
+      customerId: source.customerId,
+      invoiceNumber: 'PENDING',
+      invoiceDate: duplicateDate,
+      invoiceType: source.invoiceType,
+      supplyType: source.supplyType,
+      placeOfSupply: source.placeOfSupply,
+      subtotal: source.subtotal,
+      taxableAmount: source.taxableAmount,
+      totalAmount: source.totalAmount,
+      roundOffAmount: drift.Value(source.roundOffAmount),
+      dueDate: drift.Value(source.dueDate),
+      isIgst: drift.Value(source.isIgst),
+      reverseCharge: drift.Value(source.reverseCharge),
+      shipToName: drift.Value(source.shipToName),
+      shipToAddress: drift.Value(source.shipToAddress),
+      shipToCity: drift.Value(source.shipToCity),
+      exportWithLut: drift.Value(source.exportWithLut),
+      tdsSection: drift.Value(source.tdsSection),
+      tdsRate: drift.Value(source.tdsRate),
+      tdsAmount: drift.Value(source.tdsAmount),
+      tcsSection: drift.Value(source.tcsSection),
+      tcsRate: drift.Value(source.tcsRate),
+      tcsAmount: drift.Value(source.tcsAmount),
+      discountAmount: drift.Value(source.discountAmount),
+      cgstAmount: drift.Value(source.cgstAmount),
+      sgstAmount: drift.Value(source.sgstAmount),
+      igstAmount: drift.Value(source.igstAmount),
+      cessAmount: drift.Value(source.cessAmount),
+      amountPaid: const drift.Value(0),
+      amountInWords: drift.Value(source.amountInWords),
+      notes: drift.Value(source.notes),
+      terms: drift.Value(source.terms),
+      status: const drift.Value('DRAFT'),
+      createdAt: duplicateDate,
+      updatedAt: duplicateDate,
+    ).copyWith(currencyCode: drift.Value(source.currencyCode));
+  }
+
+  @override
+  InvoiceItemsCompanion itemCompanionFrom(InvoiceItem source, {required int documentId}) {
+    return InvoiceItemsCompanion.insert(
+      invoiceId: documentId,
+      name: source.name,
+      hsnSac: source.hsnSac,
+      unit: source.unit,
+      quantity: source.quantity,
+      rate: source.rate,
+      taxableAmount: source.taxableAmount,
+      gstRate: source.gstRate,
+      totalAmount: source.totalAmount,
+      productId: drift.Value(source.productId),
+      discountPct: drift.Value(source.discountPct),
+      cgstRate: drift.Value(source.cgstRate),
+      sgstRate: drift.Value(source.sgstRate),
+      igstRate: drift.Value(source.igstRate),
+      cessRate: drift.Value(source.cessRate),
+      cgstAmount: drift.Value(source.cgstAmount),
+      sgstAmount: drift.Value(source.sgstAmount),
+      igstAmount: drift.Value(source.igstAmount),
+      cessAmount: drift.Value(source.cessAmount),
+      sortOrder: drift.Value(source.sortOrder),
+    );
+  }
+
+  @override
+  Invoice documentCopyWithStatus(Invoice document, String status) =>
+      document.copyWith(status: status, updatedAt: DateTime.now());
+
+  @override
+  Invoice documentCopyWithTemplate(Invoice document, int? templateId) =>
+      document.copyWith(templateId: drift.Value(templateId), updatedAt: DateTime.now());
+
+  @override
+  Invoice documentCopyWithTouched(Invoice document) =>
+      document.copyWith(updatedAt: DateTime.now());
+
+  @override
+  DocumentInfo infoOf(Invoice document) => (
+    id: document.id,
+    businessId: document.businessId,
+    customerId: document.customerId,
+    number: document.invoiceNumber,
+    totalAmount: document.totalAmount,
+    dueDate: document.dueDate,
+  );
+
+  @override
+  void validateStatusTransition(Invoice document, String status) {
+    if (document.status == 'CANCELLED' && status != 'CANCELLED') {
+      throw Exception('Cancelled invoices cannot be reopened');
+    }
+    if (document.status == 'PAID' && status != 'PAID') {
+      throw Exception('Paid invoices cannot be moved to another status');
+    }
+    if (status == 'CANCELLED' && document.amountPaid > 0) {
+      throw Exception('Invoices with recorded payments cannot be cancelled');
+    }
+  }
+
+  @override
+  void validateEdit(Invoice document) {
+    switch (document.status) {
+      case 'DRAFT':
+        return;
+      case 'PAID':
+        throw Exception('Paid invoices cannot be edited');
+      case 'CANCELLED':
+        throw Exception('Cancelled invoices cannot be edited');
+      default:
+        // SENT / PARTIALLY_PAID: an issued document is corrected with a note.
+        throw Exception(
+          'Issued invoices cannot be edited — raise a credit note instead',
+        );
+    }
+  }
+
+  @override
+  void validateDelete(Invoice document) {
+    if (document.status != 'DRAFT') {
+      throw Exception(
+        'Issued invoices must be cancelled, not deleted, to keep the number series intact',
+      );
+    }
+    if (document.amountPaid > 0) {
+      throw Exception('Invoices with recorded payments cannot be deleted');
+    }
+  }
+
+  /// Payments may only be recorded against a live (non-cancelled) invoice.
+  void _assertPaymentsAllowed(Invoice invoice) {
+    if (invoice.status == 'CANCELLED') {
+      throw Exception('Payments cannot be recorded on a cancelled invoice');
+    }
+  }
+
+  @override
+  Future<void> applyItemSideEffects({
+    required int documentId,
+    required InvoiceItemsCompanion item,
+  }) async {
+    // A credit note returns goods, so stock goes back up; invoices and debit
+    // notes take stock out.
+    final document =
+        await ref.read(invoiceDaoProvider).getInvoiceById(documentId);
+    final returnsToStock = document?.invoiceType == creditNoteType;
+
+    await _recordStockChange(
+      productId: item.productId.present ? item.productId.value : null,
+      quantityDelta:
+          returnsToStock ? item.quantity.value : -item.quantity.value,
+      reason: returnsToStock ? 'CREDIT_NOTE' : 'INVOICE',
+      documentId: documentId,
+    );
+  }
+
+  @override
+  Future<void> reverseItemEffects({
+    required int documentId,
+    required InvoiceItem item,
+  }) async {
+    final document =
+        await ref.read(invoiceDaoProvider).getInvoiceById(documentId);
+    final returnedToStock = document?.invoiceType == creditNoteType;
+
+    await _recordStockChange(
+      productId: item.productId,
+      quantityDelta: returnedToStock ? -item.quantity : item.quantity,
+      reason: 'INVOICE_REVERSAL',
+      documentId: documentId,
+    );
+  }
+
+  // ---- public API (document-specific names) ----
+
+  Future<int> createInvoiceWithItems(
+    InvoicesCompanion invoice,
+    List<InvoiceItemsCompanion> items,
+  ) => createWithItems(companion: invoice, items: items);
+
+  Future<int> duplicateInvoice(int invoiceId) => duplicate(invoiceId);
+
+  Future<void> updateInvoiceWithItems(
+    Invoice existingInvoice,
+    InvoicesCompanion invoice,
+    List<InvoiceItemsCompanion> items,
+  ) => updateWithItems(existingInvoice, invoice, items);
+
+  Future<void> updateInvoiceStatus(int invoiceId, String status) =>
+      updateStatus(invoiceId, status);
+
+  Future<void> updateInvoiceTemplate(int invoiceId, int? templateId) =>
+      updateTemplate(invoiceId, templateId);
+
+  Future<void> deleteInvoice(int invoiceId) => delete(invoiceId);
+
+  Future<void> markInvoiceReminderSent(int invoiceId) => markContacted(invoiceId);
+
+  // ---- credit & debit notes ----
+
+  static const creditNoteType = 'CREDIT_NOTE';
+  static const debitNoteType = 'DEBIT_NOTE';
+
+  String creditNoteSeriesFormatOf(Business? business) =>
+      InvoiceNumberGenerator.normalizeFormat(
+        business?.creditNoteSeriesFormat,
+        fallback: InvoiceNumberGenerator.defaultCreditNoteFormat,
+      );
+
+  String debitNoteSeriesFormatOf(Business? business) =>
+      InvoiceNumberGenerator.normalizeFormat(
+        business?.debitNoteSeriesFormat,
+        fallback: InvoiceNumberGenerator.defaultDebitNoteFormat,
+      );
+
+  /// Raises a draft credit note against an issued invoice, copying its parties
+  /// and lines. Returns the new document id.
+  Future<int> createCreditNote(int invoiceId) =>
+      _createAdjustmentNote(invoiceId, creditNoteType);
+
+  /// Raises a draft debit note against an issued invoice (e.g. an undercharge).
+  Future<int> createDebitNote(int invoiceId) =>
+      _createAdjustmentNote(invoiceId, debitNoteType);
+
+  Future<int> _createAdjustmentNote(int invoiceId, String noteType) async {
+    final dao = ref.read(invoiceDaoProvider);
+    final source = await dao.getInvoiceById(invoiceId);
+    if (source == null) throw Exception('Invoice not found');
+    if (source.invoiceType == creditNoteType ||
+        source.invoiceType == debitNoteType) {
+      throw Exception('A credit or debit note cannot be adjusted again');
+    }
+    if (source.status == 'DRAFT') {
+      throw Exception('Issue the invoice before raising a note against it');
+    }
+    if (source.status == 'CANCELLED') {
+      throw Exception('Cancelled invoices cannot be adjusted');
+    }
+
+    final items = await dao.getItemsForInvoice(invoiceId);
+    final business = await getBusiness(source.businessId);
+    final noteDate = DateTime.now();
+    final format = noteType == creditNoteType
+        ? creditNoteSeriesFormatOf(business)
+        : debitNoteSeriesFormatOf(business);
+
+    final companion = InvoicesCompanion.insert(
+      businessId: source.businessId,
+      customerId: source.customerId,
+      invoiceNumber: 'PENDING',
+      invoiceDate: noteDate,
+      invoiceType: noteType,
+      supplyType: source.supplyType,
+      placeOfSupply: source.placeOfSupply,
+      subtotal: source.subtotal,
+      discountAmount: drift.Value(source.discountAmount),
+      taxableAmount: source.taxableAmount,
+      cgstAmount: drift.Value(source.cgstAmount),
+      sgstAmount: drift.Value(source.sgstAmount),
+      igstAmount: drift.Value(source.igstAmount),
+      cessAmount: drift.Value(source.cessAmount),
+      totalAmount: source.totalAmount,
+      roundOffAmount: drift.Value(source.roundOffAmount),
+      isIgst: drift.Value(source.isIgst),
+      referenceInvoiceId: drift.Value(source.id),
+      reverseCharge: drift.Value(source.reverseCharge),
+      shipToName: drift.Value(source.shipToName),
+      shipToAddress: drift.Value(source.shipToAddress),
+      shipToCity: drift.Value(source.shipToCity),
+      exportWithLut: drift.Value(source.exportWithLut),
+      tdsSection: drift.Value(source.tdsSection),
+      tdsRate: drift.Value(source.tdsRate),
+      tdsAmount: drift.Value(source.tdsAmount),
+      tcsSection: drift.Value(source.tcsSection),
+      tcsRate: drift.Value(source.tcsRate),
+      tcsAmount: drift.Value(source.tcsAmount),
+      amountInWords: drift.Value(source.amountInWords),
+      notes: drift.Value('Against ${source.invoiceNumber}'),
+      status: const drift.Value('DRAFT'),
+      createdAt: noteDate,
+      updatedAt: noteDate,
+    ).copyWith(currencyCode: drift.Value(source.currencyCode));
+
+    final noteItems = items
+        .map((item) => itemCompanionFrom(item, documentId: 0))
+        .toList();
+
+    return createWithItems(
+      companion: companion,
+      items: noteItems,
+      formatOverride: format,
+    );
+  }
+
+  // ---- payment domain (invoice only) ----
 
   String _statusFromPayments(Invoice invoice, double amountPaid) {
     if (amountPaid >= invoice.totalAmount) return 'PAID';
@@ -22,9 +456,16 @@ class InvoiceService {
     return invoice.status;
   }
 
-  Future<void> _refreshInvoicePaymentState(Invoice invoice, InvoiceDao dao) async {
-    final payments = await dao.getPaymentsForInvoice(invoice.id);
-    final amountPaid = payments.fold<double>(0, (sum, p) => sum + _signedPaymentAmount(p));
+  Future<void> _refreshInvoicePaymentState(int invoiceId, InvoiceDao dao) async {
+    // Re-read inside the caller's transaction: writing back a row loaded before
+    // the transaction started would clobber any concurrent change.
+    final invoice = await dao.getInvoiceById(invoiceId);
+    if (invoice == null) throw Exception('Invoice not found');
+
+    final payments = await dao.getPaymentsForInvoice(invoiceId);
+    final amountPaid = round2(
+      payments.fold<double>(0, (sum, p) => sum + _signedPaymentAmount(p)),
+    );
     final nextStatus = _statusFromPayments(invoice, amountPaid);
 
     await dao.updateInvoice(
@@ -36,400 +477,171 @@ class InvoiceService {
     );
   }
 
-  Future<int> createInvoiceWithItems(InvoicesCompanion invoice, List<InvoiceItemsCompanion> items) async {
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
-    final businessDao = _ref.read(businessDaoProvider);
-    final productDao = _ref.read(productDaoProvider);
-    final now = invoice.invoiceDate.value;
-
-    final invoiceId = await db.transaction(() async {
-      final business = await businessDao.getBusinessById(invoice.businessId.value);
-      final format = InvoiceNumberGenerator.normalizeFormat(
-        business?.invoiceSeriesFormat,
-        fallback: InvoiceNumberGenerator.defaultInvoiceFormat,
-      );
-      final nextSequence = await dao.nextSequenceForBusiness(
-        businessId: invoice.businessId.value,
-        format: format,
-        date: now,
-      );
-      final invoiceWithNumber = invoice.copyWith(
-        invoiceNumber: drift.Value(InvoiceNumberGenerator.generateFromFormat(format, nextSequence, now)),
-      );
-      final createdInvoiceId = await dao.insertInvoice(invoiceWithNumber);
-
-      for (final item in items) {
-        await dao.insertInvoiceItem(item.copyWith(invoiceId: drift.Value(createdInvoiceId)));
-        await _applyStockChangeForInvoiceItem(
-          productDao,
-          productId: item.productId.present ? item.productId.value : null,
-          quantity: item.quantity.value,
-          deltaMultiplier: -1,
-        );
-      }
-      return createdInvoiceId;
-    });
-
-    _ref.invalidate(invoiceListProvider);
-    return invoiceId;
-  }
-
-  Future<int> duplicateInvoice(int invoiceId) async {
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
-    final businessDao = _ref.read(businessDaoProvider);
-    final productDao = _ref.read(productDaoProvider);
-
-    final sourceInvoice = await dao.getInvoiceById(invoiceId);
-    if (sourceInvoice == null) throw Exception('Invoice not found');
-    final sourceItems = await dao.getItemsForInvoice(invoiceId);
-    final duplicateDate = DateTime.now();
-
-    final duplicatedInvoiceId = await db.transaction(() async {
-      final business = await businessDao.getBusinessById(sourceInvoice.businessId);
-      final format = InvoiceNumberGenerator.normalizeFormat(
-        business?.invoiceSeriesFormat,
-        fallback: InvoiceNumberGenerator.defaultInvoiceFormat,
-      );
-      final nextSequence = await dao.nextSequenceForBusiness(
-        businessId: sourceInvoice.businessId,
-        format: format,
-        date: duplicateDate,
-      );
-
-      final duplicatedInvoice = InvoicesCompanion.insert(
-        businessId: sourceInvoice.businessId,
-        customerId: sourceInvoice.customerId,
-        invoiceNumber: InvoiceNumberGenerator.generateFromFormat(format, nextSequence, duplicateDate),
-        invoiceDate: duplicateDate,
-        invoiceType: sourceInvoice.invoiceType,
-        supplyType: sourceInvoice.supplyType,
-        placeOfSupply: sourceInvoice.placeOfSupply,
-        subtotal: sourceInvoice.subtotal,
-        taxableAmount: sourceInvoice.taxableAmount,
-        totalAmount: sourceInvoice.totalAmount,
-        dueDate: drift.Value(sourceInvoice.dueDate),
-        isIgst: drift.Value(sourceInvoice.isIgst),
-        discountAmount: drift.Value(sourceInvoice.discountAmount),
-        cgstAmount: drift.Value(sourceInvoice.cgstAmount),
-        sgstAmount: drift.Value(sourceInvoice.sgstAmount),
-        igstAmount: drift.Value(sourceInvoice.igstAmount),
-        cessAmount: drift.Value(sourceInvoice.cessAmount),
-        amountPaid: const drift.Value(0),
-        amountInWords: drift.Value(sourceInvoice.amountInWords),
-        notes: drift.Value(sourceInvoice.notes),
-        terms: drift.Value(sourceInvoice.terms),
-        status: const drift.Value('DRAFT'),
-        createdAt: duplicateDate,
-        updatedAt: duplicateDate,
-      ).copyWith(currencyCode: drift.Value(sourceInvoice.currencyCode));
-
-      final createdInvoiceId = await dao.insertInvoice(duplicatedInvoice);
-
-      for (final item in sourceItems) {
-        await dao.insertInvoiceItem(
-          InvoiceItemsCompanion.insert(
-            invoiceId: createdInvoiceId,
-            name: item.name,
-            hsnSac: item.hsnSac,
-            unit: item.unit,
-            quantity: item.quantity,
-            rate: item.rate,
-            taxableAmount: item.taxableAmount,
-            gstRate: item.gstRate,
-            totalAmount: item.totalAmount,
-            productId: drift.Value(item.productId),
-            discountPct: drift.Value(item.discountPct),
-            cgstRate: drift.Value(item.cgstRate),
-            sgstRate: drift.Value(item.sgstRate),
-            igstRate: drift.Value(item.igstRate),
-            cessRate: drift.Value(item.cessRate),
-            cgstAmount: drift.Value(item.cgstAmount),
-            sgstAmount: drift.Value(item.sgstAmount),
-            igstAmount: drift.Value(item.igstAmount),
-            cessAmount: drift.Value(item.cessAmount),
-            sortOrder: drift.Value(item.sortOrder),
-          ),
-        );
-        await _applyStockChangeForInvoiceItem(
-          productDao,
-          productId: item.productId,
-          quantity: item.quantity,
-          deltaMultiplier: -1,
-        );
-      }
-      return createdInvoiceId;
-    });
-
-    _ref.invalidate(invoiceListProvider);
-    return duplicatedInvoiceId;
-  }
-
-  Future<void> updateInvoiceWithItems(Invoice existingInvoice, InvoicesCompanion invoice, List<InvoiceItemsCompanion> items) async {
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
-    final activityDao = _ref.read(customerActivityDaoProvider);
-    final productDao = _ref.read(productDaoProvider);
-    
-    final previousItems = await dao.getItemsForInvoice(existingInvoice.id);
-    final nextCurrencyCode = invoice.currencyCode.present ? invoice.currencyCode.value : existingInvoice.currencyCode;
-
-    await db.transaction(() async {
-      await dao.updateInvoice(
-        existingInvoice.copyWith(
-          customerId: invoice.customerId.value,
-          currencyCode: nextCurrencyCode,
-          invoiceDate: invoice.invoiceDate.value,
-          dueDate: invoice.dueDate,
-          invoiceType: invoice.invoiceType.value,
-          supplyType: invoice.supplyType.value,
-          placeOfSupply: invoice.placeOfSupply.value,
-          subtotal: invoice.subtotal.value,
-          discountAmount: invoice.discountAmount.value,
-          taxableAmount: invoice.taxableAmount.value,
-          cgstAmount: invoice.cgstAmount.value,
-          sgstAmount: invoice.sgstAmount.value,
-          igstAmount: invoice.igstAmount.value,
-          cessAmount: invoice.cessAmount.value,
-          totalAmount: invoice.totalAmount.value,
-          amountInWords: invoice.amountInWords,
-          notes: invoice.notes,
-          terms: invoice.terms,
-          isIgst: invoice.isIgst.value,
-          updatedAt: DateTime.now(),
-        ),
-      );
-
-      await dao.deleteItemsForInvoice(existingInvoice.id);
-      for (final pItem in previousItems) {
-        await _applyStockChangeForInvoiceItem(productDao, productId: pItem.productId, quantity: pItem.quantity, deltaMultiplier: 1);
-      }
-      for (final item in items) {
-        await dao.insertInvoiceItem(item.copyWith(invoiceId: drift.Value(existingInvoice.id)));
-        await _applyStockChangeForInvoiceItem(productDao, productId: item.productId.present ? item.productId.value : null, quantity: item.quantity.value, deltaMultiplier: -1);
-      }
-    });
-
-    final currentInvoice = (await dao.getInvoiceById(existingInvoice.id))!;
-    final newItems = await dao.getItemsForInvoice(existingInvoice.id);
-    
-    final changeSummary = _describeInvoiceEdit(
-      previousCustomerId: existingInvoice.customerId,
-      currentCustomerId: currentInvoice.customerId,
-      previousTotal: existingInvoice.totalAmount,
-      currentTotal: currentInvoice.totalAmount,
-      previousDueDate: existingInvoice.dueDate,
-      currentDueDate: currentInvoice.dueDate,
-      previousItemCount: previousItems.length,
-      currentItemCount: newItems.length,
-    );
-
-    await activityDao.insertEvent(
-      CustomerActivityEventsCompanion.insert(
-        businessId: currentInvoice.businessId,
-        customerId: currentInvoice.customerId,
-        eventType: 'INVOICE_EDIT',
-        entityType: const drift.Value('INVOICE'),
-        entityId: drift.Value(currentInvoice.id),
-        title: 'Invoice updated',
-        note: drift.Value(changeSummary),
-        createdAt: DateTime.now(),
-      ),
-    );
-    
-    _ref.invalidate(invoiceListProvider);
-    _ref.invalidate(invoicePaymentsProvider(existingInvoice.id));
-    _ref.invalidate(customerActivityProvider(currentInvoice.customerId));
-  }
-
-  Future<void> recordPayment(int invoiceId, double paymentAmount) async {
+  Future<void> recordPayment(
+    int invoiceId,
+    double paymentAmount, {
+    DateTime? paidAt,
+    String? mode,
+    String? reference,
+    String? note,
+  }) async {
     if (paymentAmount <= 0) throw Exception('Payment amount must be greater than zero');
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
+    final db = ref.read(databaseProvider);
+    final dao = ref.read(invoiceDaoProvider);
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
+    _assertPaymentsAllowed(invoice);
 
     await db.transaction(() async {
       await dao.insertInvoicePayment(
         InvoicePaymentsCompanion.insert(
           invoiceId: invoiceId,
-          amount: paymentAmount,
+          amount: round2(paymentAmount),
           kind: const drift.Value('PAYMENT'),
-          paidAt: DateTime.now(),
+          paidAt: paidAt ?? DateTime.now(),
+          mode: drift.Value(mode),
+          reference: drift.Value(reference),
+          note: drift.Value(note),
           createdAt: DateTime.now(),
         ),
       );
-      await _refreshInvoicePaymentState(invoice, dao);
+      await _refreshInvoicePaymentState(invoiceId, dao);
     });
-    _ref.invalidate(invoiceListProvider);
-    _ref.invalidate(invoicePaymentsProvider(invoiceId));
   }
 
-  Future<void> updatePayment({required int invoiceId, required int paymentId, required double amount, required DateTime paidAt, String? note}) async {
+  Future<void> updatePayment({
+    required int invoiceId,
+    required int paymentId,
+    required double amount,
+    required DateTime paidAt,
+    String? mode,
+    String? reference,
+    String? note,
+  }) async {
     if (amount <= 0) throw Exception('Payment amount must be greater than zero');
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
+    final db = ref.read(databaseProvider);
+    final dao = ref.read(invoiceDaoProvider);
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
+    _assertPaymentsAllowed(invoice);
 
     final payments = await dao.getPaymentsForInvoice(invoiceId);
-    final payment = payments.firstWhere((e) => e.id == paymentId, orElse: () => throw Exception('Payment not found'));
+    final payment = payments.firstWhere(
+      (e) => e.id == paymentId,
+      orElse: () => throw Exception('Payment not found'),
+    );
     if (payment.kind == 'VOID') throw Exception('Voided payments cannot be edited');
 
-    final otherTotal = payments.where((e) => e.id != paymentId).fold<double>(0, (s, e) => s + _signedPaymentAmount(e));
-    final nextAmountPaid = otherTotal + (payment.kind == 'REFUND' ? -amount : amount);
-    if (payment.kind == 'REFUND' && nextAmountPaid < 0) throw Exception('Refund exceeds balance');
+    final otherTotal = payments
+        .where((e) => e.id != paymentId)
+        .fold<double>(0, (s, e) => s + _signedPaymentAmount(e));
+    final nextAmountPaid = round2(otherTotal + (payment.kind == 'REFUND' ? -amount : amount));
+    if (payment.kind == 'REFUND' && nextAmountPaid < 0) {
+      throw Exception('Refund exceeds balance');
+    }
 
     await db.transaction(() async {
-      await dao.updateInvoicePayment(payment.copyWith(amount: amount, paidAt: paidAt, note: drift.Value(note)));
-      await _refreshInvoicePaymentState(invoice, dao);
+      await dao.updateInvoicePayment(
+        payment.copyWith(
+          amount: round2(amount),
+          paidAt: paidAt,
+          mode: drift.Value(mode),
+          reference: drift.Value(reference),
+          note: drift.Value(note),
+        ),
+      );
+      await _refreshInvoicePaymentState(invoiceId, dao);
     });
-    _ref.invalidate(invoiceListProvider);
-    _ref.invalidate(invoicePaymentsProvider(invoiceId));
   }
 
   Future<void> voidPayment({required int invoiceId, required int paymentId}) async {
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
+    final db = ref.read(databaseProvider);
+    final dao = ref.read(invoiceDaoProvider);
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
+    _assertPaymentsAllowed(invoice);
 
     final payments = await dao.getPaymentsForInvoice(invoiceId);
-    final payment = payments.firstWhere((e) => e.id == paymentId, orElse: () => throw Exception('Payment not found'));
+    final payment = payments.firstWhere(
+      (e) => e.id == paymentId,
+      orElse: () => throw Exception('Payment not found'),
+    );
     if (payment.kind == 'VOID') throw Exception('Payment is already voided');
 
     await db.transaction(() async {
       await dao.updateInvoicePayment(payment.copyWith(kind: 'VOID'));
-      await _refreshInvoicePaymentState(invoice, dao);
+      await _refreshInvoicePaymentState(invoiceId, dao);
     });
-    _ref.invalidate(invoiceListProvider);
-    _ref.invalidate(invoicePaymentsProvider(invoiceId));
   }
 
-  Future<void> recordRefund({required int invoiceId, required double refundAmount, String? note}) async {
+  Future<void> recordRefund({
+    required int invoiceId,
+    required double refundAmount,
+    DateTime? paidAt,
+    String? mode,
+    String? reference,
+    String? note,
+  }) async {
     if (refundAmount <= 0) throw Exception('Refund amount must be greater than zero');
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
+    final db = ref.read(databaseProvider);
+    final dao = ref.read(invoiceDaoProvider);
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
+    _assertPaymentsAllowed(invoice);
     if (refundAmount > invoice.amountPaid) throw Exception('Refund amount exceeds balance');
 
     await db.transaction(() async {
       await dao.insertInvoicePayment(
         InvoicePaymentsCompanion.insert(
           invoiceId: invoiceId,
-          amount: refundAmount,
+          amount: round2(refundAmount),
           kind: const drift.Value('REFUND'),
-          paidAt: DateTime.now(),
+          paidAt: paidAt ?? DateTime.now(),
+          mode: drift.Value(mode),
+          reference: drift.Value(reference),
           note: drift.Value(note),
           createdAt: DateTime.now(),
         ),
       );
-      await _refreshInvoicePaymentState(invoice, dao);
+      await _refreshInvoicePaymentState(invoiceId, dao);
     });
-    _ref.invalidate(invoiceListProvider);
-    _ref.invalidate(invoicePaymentsProvider(invoiceId));
   }
 
   Future<void> deletePayment({required int invoiceId, required int paymentId}) async {
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
+    final db = ref.read(databaseProvider);
+    final dao = ref.read(invoiceDaoProvider);
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
+    _assertPaymentsAllowed(invoice);
 
     await db.transaction(() async {
-      if (await dao.deleteInvoicePayment(paymentId) == 0) throw Exception('Payment not found');
-      await _refreshInvoicePaymentState(invoice, dao);
-    });
-    _ref.invalidate(invoiceListProvider);
-    _ref.invalidate(invoicePaymentsProvider(invoiceId));
-  }
-
-  Future<void> updateInvoiceStatus(int invoiceId, String status) async {
-    final dao = _ref.read(invoiceDaoProvider);
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-    if (invoice.status == 'PAID' && status != 'PAID') throw Exception('Paid invoices cannot be moved to another status');
-    if (status == 'CANCELLED' && invoice.amountPaid > 0) throw Exception('Invoices with recorded payments cannot be cancelled');
-
-    await dao.updateInvoice(invoice.copyWith(status: status, updatedAt: DateTime.now()));
-    _ref.invalidate(invoiceListProvider);
-  }
-
-  Future<void> updateInvoiceTemplate(int invoiceId, int? templateId) async {
-    final dao = _ref.read(invoiceDaoProvider);
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-
-    await dao.updateInvoice(invoice.copyWith(templateId: drift.Value(templateId), updatedAt: DateTime.now()));
-    _ref.invalidate(invoiceListProvider);
-  }
-
-  Future<void> deleteInvoice(int invoiceId) async {
-    final db = _ref.read(databaseProvider);
-    final dao = _ref.read(invoiceDaoProvider);
-    final productDao = _ref.read(productDaoProvider);
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-    if (invoice.amountPaid > 0 || invoice.status == 'PAID') throw Exception('Invoices with recorded payments cannot be deleted');
-
-    final items = await dao.getItemsForInvoice(invoiceId);
-    await db.transaction(() async {
-      for (final item in items) {
-        await _applyStockChangeForInvoiceItem(productDao, productId: item.productId, quantity: item.quantity, deltaMultiplier: 1);
+      if (await dao.deleteInvoicePayment(paymentId) == 0) {
+        throw Exception('Payment not found');
       }
-      await dao.deleteInvoice(invoiceId);
+      await _refreshInvoicePaymentState(invoiceId, dao);
     });
-    _ref.invalidate(invoiceListProvider);
-    _ref.invalidate(invoicePaymentsProvider(invoiceId));
   }
 
-  Future<void> markInvoiceReminderSent(int invoiceId) async {
-    final dao = _ref.read(invoiceDaoProvider);
-    final activityDao = _ref.read(customerActivityDaoProvider);
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-
-    await activityDao.insertEvent(
-      CustomerActivityEventsCompanion.insert(
-        businessId: invoice.businessId,
-        customerId: invoice.customerId,
-        eventType: 'INVOICE_REMINDER',
-        entityType: const drift.Value('INVOICE'),
-        entityId: drift.Value(invoice.id),
-        title: 'Customer contacted about invoice',
-        note: drift.Value('Invoice ${invoice.invoiceNumber} reminder recorded'),
-        createdAt: DateTime.now(),
-      ),
-    );
-    _ref.invalidate(customerActivityProvider(invoice.customerId));
-  }
-
-  String _describeInvoiceEdit({
-    required int previousCustomerId, required int currentCustomerId,
-    required double previousTotal, required double currentTotal,
-    required DateTime? previousDueDate, required DateTime? currentDueDate,
-    required int previousItemCount, required int currentItemCount,
-  }) {
-    final parts = <String>[];
-    if (previousCustomerId != currentCustomerId) parts.add('customer changed');
-    if (previousTotal != currentTotal) parts.add('total ${previousTotal.toStringAsFixed(2)} -> ${currentTotal.toStringAsFixed(2)}');
-    if (previousDueDate != currentDueDate) parts.add('due date ${previousDueDate?.toIso8601String().split('T')[0] ?? 'none'} -> ${currentDueDate?.toIso8601String().split('T')[0] ?? 'none'}');
-    if (previousItemCount != currentItemCount) parts.add('items $previousItemCount -> $currentItemCount');
-    return parts.isEmpty ? 'Invoice details refreshed' : 'Invoice edited: ${parts.join(', ')}';
-  }
-
-  Future<void> _applyStockChangeForInvoiceItem(
-    ProductDao productDao, {
-    required int? productId, required double quantity, required double deltaMultiplier,
+  /// Records a stock movement for a linked product. The ledger owns the
+  /// balance (see [ProductDao.recordStockMovement]); nothing is clamped.
+  Future<void> _recordStockChange({
+    required int? productId,
+    required double quantityDelta,
+    required String reason,
+    required int documentId,
   }) async {
-    if (productId == null || quantity == 0) return;
+    if (productId == null || quantityDelta == 0) return;
+    final ProductDao productDao = ref.read(productDaoProvider);
     final product = await productDao.getProductById(productId);
     if (product == null || product.isService) return;
 
-    final nextStock = product.stockQuantity + (quantity * deltaMultiplier);
-    await productDao.updateProduct(product.copyWith(stockQuantity: nextStock < 0 ? 0.0 : nextStock));
+    await productDao.recordStockMovement(
+      productId: productId,
+      quantityDelta: quantityDelta,
+      reason: reason,
+      documentType: entityType,
+      documentId: documentId,
+    );
   }
 
   double _signedPaymentAmount(InvoicePayment payment) {

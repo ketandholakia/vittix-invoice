@@ -12,8 +12,14 @@ class CustomerDao extends DatabaseAccessor<AppDatabase>
   Future<List<Customer>> getCustomersForBusiness(int businessId) =>
       (select(customers)..where((t) => t.businessId.equals(businessId))).get();
 
+  Stream<List<Customer>> watchCustomersForBusiness(int businessId) =>
+      (select(customers)..where((t) => t.businessId.equals(businessId))).watch();
+
   Future<Customer?> getCustomerById(int id) =>
       (select(customers)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Stream<Customer?> watchCustomerById(int id) =>
+      (select(customers)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
   Future<int> insertCustomer(CustomersCompanion customer) =>
       into(customers).insert(customer);

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -48,6 +49,18 @@ final autoBackupEnabledProvider =
     StateNotifierProvider<AutoBackupEnabledNotifier, bool>((ref) {
       final prefs = ref.watch(sharedPreferencesProvider);
       return AutoBackupEnabledNotifier(prefs);
+    });
+
+final roundOffEnabledProvider =
+    StateNotifierProvider<RoundOffEnabledNotifier, bool>((ref) {
+      final prefs = ref.watch(sharedPreferencesProvider);
+      return RoundOffEnabledNotifier(prefs);
+    });
+
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+      final prefs = ref.watch(sharedPreferencesProvider);
+      return ThemeModeNotifier(prefs);
     });
 
 class ActiveBusinessIdNotifier extends StateNotifier<int?> {
@@ -155,5 +168,40 @@ class AutoBackupEnabledNotifier extends StateNotifier<bool> {
   void setEnabled(bool enabled) {
     state = enabled;
     _prefs.setBool(_key, enabled);
+  }
+}
+
+/// Whether document totals are rounded to the nearest rupee with a round-off
+/// line (the Indian invoice convention). On by default.
+class RoundOffEnabledNotifier extends StateNotifier<bool> {
+  final SharedPreferences _prefs;
+  static const _key = 'round_off_enabled';
+
+  RoundOffEnabledNotifier(this._prefs) : super(_prefs.getBool(_key) ?? true);
+
+  void setEnabled(bool enabled) {
+    state = enabled;
+    _prefs.setBool(_key, enabled);
+  }
+}
+
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  final SharedPreferences _prefs;
+  static const _key = 'theme_mode';
+
+  ThemeModeNotifier(this._prefs)
+    : super(_readMode(_prefs));
+
+  static ThemeMode _readMode(SharedPreferences prefs) {
+    final stored = prefs.getString(_key);
+    return ThemeMode.values.firstWhere(
+      (mode) => mode.name == stored,
+      orElse: () => ThemeMode.system,
+    );
+  }
+
+  void setMode(ThemeMode mode) {
+    state = mode;
+    _prefs.setString(_key, mode.name);
   }
 }

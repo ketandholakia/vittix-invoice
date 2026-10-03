@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/utils/formatting.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../database/app_database.dart';
 import '../../../providers/database_provider.dart';
@@ -131,32 +135,11 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
   }
 
   bool _isExpiringSoon(Quote quote) {
-    if (quote.dueDate == null || quote.status == 'CONVERTED') {
-      return false;
-    }
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final validUntil = DateTime(
-      quote.dueDate!.year,
-      quote.dueDate!.month,
-      quote.dueDate!.day,
-    );
-    final daysRemaining = validUntil.difference(today).inDays;
-    return daysRemaining >= 0 && daysRemaining <= 7;
+    return isQuoteExpiringSoon(quote);
   }
 
   bool _isExpired(Quote quote) {
-    if (quote.dueDate == null || quote.status == 'CONVERTED') {
-      return false;
-    }
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final validUntil = DateTime(
-      quote.dueDate!.year,
-      quote.dueDate!.month,
-      quote.dueDate!.day,
-    );
-    return validUntil.isBefore(today);
+    return isQuoteExpired(quote);
   }
 
   Future<void> _shareQuote(BuildContext context, Quote quote) async {
@@ -216,7 +199,6 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
   }) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final validUntil = quote.dueDate?.toLocal().toString().split(' ')[0];
     final dueDateValue = quote.dueDate == null
         ? null
         : DateTime(
@@ -240,7 +222,7 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
               ? 'You can reply to ${customer.email}.'
               : '');
     return '$opening ${quote.invoiceNumber} for ${formatMoney(quote.totalAmount, currencyCode: quote.currencyCode)}.'
-        '${validUntil != null ? ' The quote is valid until $validUntil.' : ''}'
+        '${quote.dueDate != null ? ' The quote is valid until ${formatDate(quote.dueDate!)}.' : ''}'
         '${isExpired ? ' This quote has expired.' : ''}'
         '${isExpiringSoon ? ' This quote will expire soon.' : ''}'
         '${contact.isNotEmpty ? ' $contact' : ''}'
@@ -388,28 +370,27 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
       ),
       body: quotesAsync.when(
         data: (quotes) {
-          final filteredQuotes = quotes.where((quote) {
-            final matchesQuery =
-                _query.isEmpty ||
-                quote.invoiceNumber.toLowerCase().contains(_query) ||
-                quote.status.toLowerCase().contains(_query);
-            final matchesStatus =
-                _statusFilter == 'ALL' || quote.status == _statusFilter;
-            final matchesExpiringSoon =
-                !_showExpiringSoonOnly || _isExpiringSoon(quote);
-            final matchesExpired = !_showExpiredOnly || _isExpired(quote);
-            return matchesQuery &&
-                matchesStatus &&
-                matchesExpiringSoon &&
-                matchesExpired;
-          }).toList();
+          final filteredAsync = ref.watch(
+            filteredQuoteListProvider(
+              QuoteListFilter(
+                query: _query,
+                statusFilter: _statusFilter,
+                expiringSoonOnly: _showExpiringSoonOnly,
+                expiredOnly: _showExpiredOnly,
+              ),
+            ),
+          );
+          final filteredQuotes = filteredAsync.valueOrNull;
+          if (filteredQuotes == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
           final followUpQuotes =
               quotes.where((quote) {
                 if (quote.status == 'CONVERTED' || quote.status == 'REJECTED') {
                   return false;
                 }
-                return _isExpired(quote) || _isExpiringSoon(quote);
+                return isQuoteExpired(quote) || isQuoteExpiringSoon(quote);
               }).toList()..sort((a, b) {
                 final aDate = a.dueDate ?? DateTime(9999);
                 final bDate = b.dueDate ?? DateTime(9999);
@@ -520,9 +501,7 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
                           final expiringSoon = _isExpiringSoon(quote);
                           final dueLabel = quote.dueDate == null
                               ? 'No validity date'
-                              : quote.dueDate!.toLocal().toString().split(
-                                  ' ',
-                                )[0];
+                              : formatDate(quote.dueDate!);
                           return ListTile(
                             dense: true,
                             title: Text(quote.invoiceNumber),
@@ -566,8 +545,8 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
                                 : const Icon(Icons.request_quote),
                             title: Text(quote.invoiceNumber),
                             subtitle: Text(
-                              'Date: ${quote.invoiceDate.toLocal().toString().split(' ')[0]}'
-                              '${quote.dueDate != null ? ' | Valid Until: ${quote.dueDate!.toLocal().toString().split(' ')[0]}' : ''}',
+                              'Date: ${formatDate(quote.invoiceDate)}'
+                              '${quote.dueDate != null ? ' | Valid Until: ${formatDate(quote.dueDate!)}' : ''}',
                             ),
                             onTap: () {
                               if (_isSelecting) {
@@ -594,17 +573,11 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
                                       quote.status,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: quote.status == 'CONVERTED'
-                                            ? Colors.green
-                                            : (expired
-                                                  ? Colors.red
-                                                  : (expiringSoon
-                                                        ? Colors.deepOrange
-                                                        : (quote.status ==
-                                                                  'REJECTED'
-                                                              ? Colors.red
-                                                              : Colors
-                                                                    .orange))),
+                                        color: quoteStatusColor(
+                                          quote.status,
+                                          isExpired: expired,
+                                          isExpiringSoon: expiringSoon,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -614,8 +587,10 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
                                     switch (value) {
                                       case 'open':
                                         if (!context.mounted) return;
-                                        context.push(
-                                          '/quote-preview/${quote.id}',
+                                        unawaited(
+                                          context.push(
+                                            '/quote-preview/${quote.id}',
+                                          ),
                                         );
                                         return;
                                       case 'share':
@@ -641,8 +616,10 @@ class _QuoteListScreenState extends ConsumerState<QuoteListScreen> {
                                             ),
                                           ),
                                         );
-                                        context.push(
-                                          '/quote-preview/$duplicatedId',
+                                        unawaited(
+                                          context.push(
+                                            '/quote-preview/$duplicatedId',
+                                          ),
                                         );
                                         return;
                                       case 'delete':

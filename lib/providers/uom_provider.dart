@@ -4,17 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/app_database.dart';
 import 'database_provider.dart';
 
-final uomListProvider = FutureProvider<List<Uom>>((ref) async {
+final uomListProvider = FutureProvider.autoDispose<List<Uom>>((ref) async {
   final dao = ref.watch(uomDaoProvider);
   return dao.listActiveUoms();
 });
 
-final uomCatalogProvider = FutureProvider<List<Uom>>((ref) async {
+final uomCatalogProvider = FutureProvider.autoDispose<List<Uom>>((ref) async {
   final dao = ref.watch(uomDaoProvider);
   return dao.listAllUoms();
 });
 
-final uomSeedProvider = FutureProvider<void>((ref) async {
+final uomSeedProvider = FutureProvider.autoDispose<void>((ref) async {
   final dao = ref.watch(uomDaoProvider);
 
   final seedData = [

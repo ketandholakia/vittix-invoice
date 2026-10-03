@@ -2,33 +2,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/utils/invoice_balance.dart';
 import '../database/app_database.dart';
-import 'database_provider.dart';
+import 'business_provider.dart';
+import 'customer_provider.dart';
 import 'invoice_provider.dart';
 import 'quote_provider.dart';
 import 'shared_preferences_provider.dart';
 
-final reminderCenterProvider = FutureProvider<ReminderCenterData>((ref) async {
-  final businessId = ref.watch(activeBusinessIdProvider);
-  if (businessId == null) return const ReminderCenterData();
+final reminderCenterProvider = StreamProvider.autoDispose<ReminderCenterData>(
+  (ref) async* {
+    final businessId = ref.watch(activeBusinessIdProvider);
+    if (businessId == null) {
+      yield const ReminderCenterData();
+      return;
+    }
 
-  final business = await ref
-      .watch(businessDaoProvider)
-      .getBusinessById(businessId);
-  if (business == null) return const ReminderCenterData();
+    final business = await ref.watch(businessDetailProvider(businessId).future);
+    if (business == null) {
+      yield const ReminderCenterData();
+      return;
+    }
 
-  final customers = await ref
-      .watch(customerDaoProvider)
-      .getCustomersForBusiness(businessId);
-  final customerById = {
-    for (final customer in customers) customer.id: customer,
-  };
-  final invoices = await ref
-      .watch(invoiceDaoProvider)
-      .getInvoicesForBusiness(businessId);
-  final quotes = await ref
-      .watch(quoteDaoProvider)
-      .getQuotesForBusiness(businessId);
-  final today = _dateOnly(DateTime.now());
+    final customers = await ref.watch(customerListProvider.future);
+    final customerById = {
+      for (final customer in customers) customer.id: customer,
+    };
+    final invoices = await ref.watch(invoiceListProvider.future);
+    final quotes = await ref.watch(quoteListProvider.future);
+    final today = _dateOnly(DateTime.now());
 
   final invoiceReminders =
       invoices
@@ -75,11 +75,12 @@ final reminderCenterProvider = FutureProvider<ReminderCenterData>((ref) async {
           .toList()
         ..sort((a, b) => a.daysUntilExpiry.compareTo(b.daysUntilExpiry));
 
-  return ReminderCenterData(
+  yield ReminderCenterData(
     invoiceReminders: invoiceReminders,
     quoteReminders: quoteReminders,
   );
-});
+  },
+);
 
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
 
@@ -139,11 +140,12 @@ class ReminderActions {
 
   Future<void> markInvoiceContacted(int invoiceId) async {
     await _ref.read(invoiceProvider).markInvoiceReminderSent(invoiceId);
+    // markInvoiceReminderSent only writes an activity event, so no watched
+    // table changes; the reminder center needs an explicit refresh.
     _ref.invalidate(reminderCenterProvider);
   }
 
   Future<void> markQuoteContacted(int quoteId) async {
     await _ref.read(quoteProvider).markQuoteContacted(quoteId);
-    _ref.invalidate(reminderCenterProvider);
   }
 }

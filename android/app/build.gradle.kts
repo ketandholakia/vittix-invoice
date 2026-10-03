@@ -1,8 +1,24 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        FileInputStream(keystorePropertiesFile).use { load(it) }
+    }
+}
+val releaseStoreFile = keystoreProperties["storeFile"] as? String
+val releaseKeyAlias = keystoreProperties["keyAlias"] as? String
+val releaseKeyPassword = keystoreProperties["keyPassword"] as? String
+val releaseStorePassword = keystoreProperties["storePassword"] as? String
+val hasReleaseSigning = releaseStoreFile != null && releaseKeyAlias != null &&
+    releaseKeyPassword != null && releaseStorePassword != null
 
 android {
     namespace = "com.vittix.vittix_invoice"
@@ -16,8 +32,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.vittix.vittix_invoice"
+        applicationId = "com.vittix.invoice"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
@@ -26,11 +41,33 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Sign with the release keystore from key.properties (gitignored).
+            // Never fall back to debug keys: without key.properties the
+            // release build stays unsigned instead of being debug-signed.
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                null
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

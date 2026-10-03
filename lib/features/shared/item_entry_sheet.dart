@@ -1,34 +1,179 @@
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift;
-import '../../../database/app_database.dart';
-import '../../../database/models/hsn_code_lookup.dart';
-import '../../../core/utils/gst_calculator.dart';
-import '../../hsn_lookup/hsn_search_sheet.dart';
+import '../../database/app_database.dart';
+import '../../database/models/hsn_code_lookup.dart';
+import '../../core/utils/gst_calculator.dart';
+import '../hsn_lookup/hsn_search_sheet.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/database_provider.dart';
-import '../../../providers/product_provider.dart';
-import '../../../providers/shared_preferences_provider.dart';
-import '../../../providers/uom_provider.dart';
-import '../../../core/utils/form_validators.dart';
+import '../../providers/database_provider.dart';
+import '../../providers/product_provider.dart';
+import '../../providers/shared_preferences_provider.dart';
+import '../../providers/uom_provider.dart';
+import '../../core/utils/form_validators.dart';
+import '../../core/utils/money.dart';
+import '../../core/utils/money_formatter.dart';
 
-class ItemEntrySheet extends ConsumerStatefulWidget {
-  final InvoiceItemsCompanion? existingItem;
+/// Parsed, tax-computed fields of a line item, shared by the invoice and
+/// quote item entry sheets.
+class ItemEntryData {
+  final int? productId;
+  final String name;
+  final String hsnSac;
+  final String unit;
+  final double quantity;
+  final double rate;
+  final double discountPct;
+  final double taxableAmount;
+  final double gstRate;
+  final double cgstRate;
+  final double sgstRate;
+  final double igstRate;
+  final double cessRate;
+  final double cgstAmount;
+  final double sgstAmount;
+  final double igstAmount;
+  final double cessAmount;
+  final double totalAmount;
+
+  const ItemEntryData({
+    this.productId,
+    required this.name,
+    required this.hsnSac,
+    required this.unit,
+    required this.quantity,
+    required this.rate,
+    required this.discountPct,
+    required this.taxableAmount,
+    required this.gstRate,
+    required this.cgstRate,
+    required this.sgstRate,
+    required this.igstRate,
+    required this.cessRate,
+    required this.cgstAmount,
+    required this.sgstAmount,
+    required this.igstAmount,
+    required this.cessAmount,
+    required this.totalAmount,
+  });
+
+  factory ItemEntryData.fromInvoiceItemCompanion(InvoiceItemsCompanion item) {
+    return ItemEntryData(
+      productId: item.productId.value,
+      name: item.name.value,
+      hsnSac: item.hsnSac.value,
+      unit: item.unit.value,
+      quantity: item.quantity.value,
+      rate: item.rate.value,
+      discountPct: item.discountPct.value,
+      taxableAmount: item.taxableAmount.value,
+      gstRate: item.gstRate.value,
+      cgstRate: item.cgstRate.value,
+      sgstRate: item.sgstRate.value,
+      igstRate: item.igstRate.value,
+      cessRate: item.cessRate.value,
+      cgstAmount: item.cgstAmount.value,
+      sgstAmount: item.sgstAmount.value,
+      igstAmount: item.igstAmount.value,
+      cessAmount: item.cessAmount.value,
+      totalAmount: item.totalAmount.value,
+    );
+  }
+
+  factory ItemEntryData.fromQuoteItemCompanion(QuoteItemsCompanion item) {
+    return ItemEntryData(
+      productId: item.productId.value,
+      name: item.name.value,
+      hsnSac: item.hsnSac.value,
+      unit: item.unit.value,
+      quantity: item.quantity.value,
+      rate: item.rate.value,
+      discountPct: item.discountPct.value,
+      taxableAmount: item.taxableAmount.value,
+      gstRate: item.gstRate.value,
+      cgstRate: item.cgstRate.value,
+      sgstRate: item.sgstRate.value,
+      igstRate: item.igstRate.value,
+      cessRate: item.cessRate.value,
+      cgstAmount: item.cgstAmount.value,
+      sgstAmount: item.sgstAmount.value,
+      igstAmount: item.igstAmount.value,
+      cessAmount: item.cessAmount.value,
+      totalAmount: item.totalAmount.value,
+    );
+  }
+}
+
+InvoiceItemsCompanion invoiceItemCompanionFromData(ItemEntryData data) {
+  return InvoiceItemsCompanion(
+    productId: drift.Value(data.productId),
+    name: drift.Value(data.name),
+    hsnSac: drift.Value(data.hsnSac),
+    unit: drift.Value(data.unit),
+    quantity: drift.Value(data.quantity),
+    rate: drift.Value(data.rate),
+    discountPct: drift.Value(data.discountPct),
+    taxableAmount: drift.Value(data.taxableAmount),
+    gstRate: drift.Value(data.gstRate),
+    cgstRate: drift.Value(data.cgstRate),
+    sgstRate: drift.Value(data.sgstRate),
+    igstRate: drift.Value(data.igstRate),
+    cessRate: drift.Value(data.cessRate),
+    cgstAmount: drift.Value(data.cgstAmount),
+    sgstAmount: drift.Value(data.sgstAmount),
+    igstAmount: drift.Value(data.igstAmount),
+    cessAmount: drift.Value(data.cessAmount),
+    totalAmount: drift.Value(data.totalAmount),
+  );
+}
+
+QuoteItemsCompanion quoteItemCompanionFromData(ItemEntryData data) {
+  return QuoteItemsCompanion(
+    productId: drift.Value(data.productId),
+    name: drift.Value(data.name),
+    hsnSac: drift.Value(data.hsnSac),
+    unit: drift.Value(data.unit),
+    quantity: drift.Value(data.quantity),
+    rate: drift.Value(data.rate),
+    discountPct: drift.Value(data.discountPct),
+    taxableAmount: drift.Value(data.taxableAmount),
+    gstRate: drift.Value(data.gstRate),
+    cgstRate: drift.Value(data.cgstRate),
+    sgstRate: drift.Value(data.sgstRate),
+    igstRate: drift.Value(data.igstRate),
+    cessRate: drift.Value(data.cessRate),
+    cgstAmount: drift.Value(data.cgstAmount),
+    sgstAmount: drift.Value(data.sgstAmount),
+    igstAmount: drift.Value(data.igstAmount),
+    cessAmount: drift.Value(data.cessAmount),
+    totalAmount: drift.Value(data.totalAmount),
+  );
+}
+
+/// Bottom-sheet form for adding/editing a line item. Shared by the invoice
+/// and quote create/edit forms; [buildCompanion] maps the parsed fields to
+/// the document-specific item companion type.
+class ItemEntrySheet<C> extends ConsumerStatefulWidget {
+  final ItemEntryData? existingItem;
   final bool isInterState;
   final DateTime? hsnLookupDate;
+  final String currencyCode;
+  final C Function(ItemEntryData data) buildCompanion;
 
   const ItemEntrySheet({
     super.key,
     this.existingItem,
     required this.isInterState,
     this.hsnLookupDate,
+    this.currencyCode = 'INR',
+    required this.buildCompanion,
   });
 
   @override
-  ConsumerState<ItemEntrySheet> createState() => _ItemEntrySheetState();
+  ConsumerState<ItemEntrySheet<C>> createState() => _ItemEntrySheetState<C>();
 }
 
-class _ItemEntrySheetState extends ConsumerState<ItemEntrySheet> {
+class _ItemEntrySheetState<C> extends ConsumerState<ItemEntrySheet<C>> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _nameController;
@@ -45,25 +190,25 @@ class _ItemEntrySheetState extends ConsumerState<ItemEntrySheet> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(
-      text: widget.existingItem?.name.value ?? '',
+      text: widget.existingItem?.name ?? '',
     );
     _hsnSacController = TextEditingController(
-      text: widget.existingItem?.hsnSac.value ?? '',
+      text: widget.existingItem?.hsnSac ?? '',
     );
     _qtyController = TextEditingController(
-      text: widget.existingItem?.quantity.value.toString() ?? '1',
+      text: widget.existingItem?.quantity.toString() ?? '1',
     );
     _rateController = TextEditingController(
-      text: widget.existingItem?.rate.value.toString() ?? '',
+      text: widget.existingItem?.rate.toString() ?? '',
     );
     _discountController = TextEditingController(
-      text: widget.existingItem?.discountPct.value.toString() ?? '0',
+      text: widget.existingItem?.discountPct.toString() ?? '0',
     );
     _gstRateController = TextEditingController(
-      text: widget.existingItem?.gstRate.value.toString() ?? '',
+      text: widget.existingItem?.gstRate.toString() ?? '',
     );
-    _unit = widget.existingItem?.unit.value ?? 'PCS';
-    _selectedProductId = widget.existingItem?.productId.value;
+    _unit = widget.existingItem?.unit ?? 'PCS';
+    _selectedProductId = widget.existingItem?.productId;
   }
 
   void _applyProduct(Product product) {
@@ -90,20 +235,22 @@ class _ItemEntrySheetState extends ConsumerState<ItemEntrySheet> {
 
     setState(() {
       _hsnSacController.text = selected.code;
-      if (selected.gstRate != null) {
-        _gstRateController.text = selected.gstRate!.toStringAsFixed(1);
-      }
     });
+    // Resolve through the price-aware sync so a price-banded rule (such as the
+    // Rs.2,500 garment threshold) selects the band matching this line.
+    await _syncGstRateFromHsn();
   }
 
   Future<void> _syncGstRateFromHsn() async {
     if (_hsnSacController.text.trim().isEmpty) return;
 
+    final unitPrice = double.tryParse(_rateController.text.trim());
     final lookup = await ref
         .read(hsnDaoProvider)
         .getHsnCodeByCode(
           _hsnSacController.text.trim(),
           asOf: widget.hsnLookupDate,
+          unitPrice: unitPrice,
         );
     final rate = lookup?.gstRate;
     if (rate != null) {
@@ -127,36 +274,40 @@ class _ItemEntrySheetState extends ConsumerState<ItemEntrySheet> {
         : 0.0;
 
     final gross = qty * rate;
-    final discountAmount = gross * (discount / 100);
-    final taxable = gross - discountAmount;
+    final discountAmount = round2(gross * (discount / 100));
+    final taxable = round2(gross - discountAmount);
 
+    final cessRate =
+        _selectedProduct?.cessRate ?? widget.existingItem?.cessRate ?? 0;
     final breakdown = GstCalculator.calculate(
       taxableAmount: taxable,
       gstRate: gstRate,
       isInterState: widget.isInterState,
+      cessRate: cessRate,
     );
 
-    final item = InvoiceItemsCompanion(
-      productId: drift.Value(_selectedProductId),
-      name: drift.Value(_nameController.text),
-      hsnSac: drift.Value(isGstEnabled ? _hsnSacController.text : ''),
-      unit: drift.Value(_unit),
-      quantity: drift.Value(qty),
-      rate: drift.Value(rate),
-      discountPct: drift.Value(discount),
-      taxableAmount: drift.Value(taxable),
-      gstRate: drift.Value(gstRate),
-      cgstRate: drift.Value(widget.isInterState ? 0 : gstRate / 2),
-      sgstRate: drift.Value(widget.isInterState ? 0 : gstRate / 2),
-      igstRate: drift.Value(widget.isInterState ? gstRate : 0),
-      cgstAmount: drift.Value(breakdown.cgst),
-      sgstAmount: drift.Value(breakdown.sgst),
-      igstAmount: drift.Value(breakdown.igst),
-      cessAmount: drift.Value(breakdown.cess),
-      totalAmount: drift.Value(breakdown.total),
+    final data = ItemEntryData(
+      productId: _selectedProductId,
+      name: _nameController.text,
+      hsnSac: isGstEnabled ? _hsnSacController.text : '',
+      unit: _unit,
+      quantity: qty,
+      rate: rate,
+      discountPct: discount,
+      taxableAmount: taxable,
+      gstRate: gstRate,
+      cgstRate: widget.isInterState ? 0 : gstRate / 2,
+      sgstRate: widget.isInterState ? 0 : gstRate / 2,
+      igstRate: widget.isInterState ? gstRate : 0,
+      cessRate: cessRate,
+      cgstAmount: breakdown.cgst,
+      sgstAmount: breakdown.sgst,
+      igstAmount: breakdown.igst,
+      cessAmount: breakdown.cess,
+      totalAmount: breakdown.total,
     );
 
-    Navigator.of(context).pop(item);
+    Navigator.of(context).pop(widget.buildCompanion(data));
   }
 
   @override
@@ -169,8 +320,6 @@ class _ItemEntrySheetState extends ConsumerState<ItemEntrySheet> {
     _gstRateController.dispose();
     super.dispose();
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -317,9 +466,9 @@ class _ItemEntrySheetState extends ConsumerState<ItemEntrySheet> {
                   Expanded(
                     child: TextFormField(
                       controller: _rateController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Rate *',
-                        prefixText: 'Rs. ',
+                        prefixText: currencySymbol(widget.currencyCode),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,

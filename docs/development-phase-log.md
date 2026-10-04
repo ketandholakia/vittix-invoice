@@ -349,6 +349,7 @@ A review-driven pass over the whole app. Schema moved v19  v29.
 - Fixed CI blind spot: the workflow only triggered on `main`, but the working branch is `master` — CI never ran on regular pushes. Triggers now include `master`.
 - Added a per-push **Android compile gate** job (`flutter build apk --debug`, artifact uploaded): dart-level checks cannot catch Gradle/manifest breakage, and for an Android-only product every push should prove the shipping target still compiles. The tag-triggered release job (signed AAB + APK, optional keystore secrets) is unchanged.
 - Verified the post-P41/P42 release build: `flutter build apk --release` succeeds (76.7 MB, R8 on) and `apksigner` confirms the release certificate `CN=Vittix Invoice` — the new pointycastle app-lock code path and migration rewrite do not disturb signing or shrinking. The `cupertino_icons` tree-shake notice in build output is framework noise (zero `CupertinoIcons` references in `lib/`).
+- First-ever CI run exposed a latent workflow bug from Phase 35: the release job used the `secrets` context in a step-level `if`, which GitHub's parser rejects at load time — every run died in 0 s with no jobs, invisible until now because the trigger never fired. The signing-key check moved into the script with secrets passed via `env:` (validated with `actionlint`); both jobs then went green on `master` (tests 3m24s, Android build 7m16s).
 
 ## Next Likely Phases
 

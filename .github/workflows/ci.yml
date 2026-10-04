@@ -2,13 +2,119 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  probe:
-    name: Probe
+  ci:
+    name: Analyze, drift-diff, test
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     steps:
-      - run: echo probe-ok
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Check generated code is up to date (drift/build_runner)
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          git diff --exit-code -- '*.g.dart'
+
+      - name: Static analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Tests
+        run: flutter test
+
+  android-build:
+    name: Android compile gate
+    # Android is the only shipping platform, so every push must prove the
+    # Gradle/manifest side still builds — dart-level checks alone cannot
+    # catch those breakages.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vittix-invoice-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+  release:
+    name: Release app bundle
+    needs: ci
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # The secrets context is not allowed in a step-level `if` (GitHub
+      # rejects the whole workflow file at parse time), so the check runs
+      # inside the script with the values passed through env.
+      - name: Inject signing key (if configured)
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "No signing key configured; the release build will be unsigned."
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > android/app/release-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=app/release-keystore.jks
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          storePassword=$ANDROID_STORE_PASSWORD
+          EOF
+
+      - name: Build AAB (Play)
+        run: flutter build appbundle --release
+
+      - name: Build APK (sideload)
+        run: flutter build apk --release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vittix-invoice-release
+          path: |
+            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/flutter-apk/app-release.apk

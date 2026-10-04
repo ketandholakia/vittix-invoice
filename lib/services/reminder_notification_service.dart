@@ -3,8 +3,8 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../core/utils/money_formatter.dart';
 import '../providers/reminder_provider.dart';
+import 'reminder_scheduling.dart';
 
 class ReminderNotificationService {
   ReminderNotificationService._();
@@ -115,37 +115,37 @@ class ReminderNotificationService {
     }
   }
 
-  tz.TZDateTime _scheduledAt(DateTime date, int offsetDays) {
-    final base = tz.TZDateTime(tz.local, date.year, date.month, date.day, 9);
-    return base.add(Duration(days: offsetDays));
-  }
+  tz.TZDateTime _scheduledAt(DateTime date, int offsetDays) =>
+      scheduledReminderAt(date, offsetDays);
 
-  int _notificationId(String kind, int entityId, int offsetDays) {
-    final kindBase = kind == 'invoice' ? 1000000 : 2000000;
-    return kindBase + entityId * 100 + (offsetDays + 50);
-  }
+  int _notificationId(String kind, int entityId, int offsetDays) =>
+      notificationIdFor(
+        isQuote: kind == 'quote',
+        entityId: entityId,
+        offsetDays: offsetDays,
+      );
 
-  String _invoiceTitle(InvoiceReminderItem item) {
-    return item.isOverdue
-        ? 'Invoice overdue: ${item.invoice.invoiceNumber}'
-        : 'Invoice due soon: ${item.invoice.invoiceNumber}';
-  }
+  String _invoiceTitle(InvoiceReminderItem item) => invoiceReminderTitle(
+    overdue: item.isOverdue,
+    invoiceNumber: item.invoice.invoiceNumber,
+  );
 
-  String _invoiceBody(InvoiceReminderItem item) {
-    final customer = item.customer!;
-    return '${customer.name} owes ${formatMoney(item.balanceDue, currencyCode: item.invoice.currencyCode)} '
-        'for invoice ${item.invoice.invoiceNumber}.';
-  }
+  String _invoiceBody(InvoiceReminderItem item) => invoiceReminderBody(
+    customerName: item.customer!.name,
+    balanceDue: item.balanceDue,
+    currencyCode: item.invoice.currencyCode,
+    invoiceNumber: item.invoice.invoiceNumber,
+  );
 
-  String _quoteTitle(QuoteReminderItem item) {
-    return item.isExpired
-        ? 'Quote expired: ${item.quote.invoiceNumber}'
-        : 'Quote expiring soon: ${item.quote.invoiceNumber}';
-  }
+  String _quoteTitle(QuoteReminderItem item) => quoteReminderTitle(
+    expired: item.isExpired,
+    quoteNumber: item.quote.invoiceNumber,
+  );
 
-  String _quoteBody(QuoteReminderItem item) {
-    final customer = item.customer!;
-    return '${customer.name} has quote ${item.quote.invoiceNumber} '
-        'for ${formatMoney(item.quote.totalAmount, currencyCode: item.quote.currencyCode)}.';
-  }
+  String _quoteBody(QuoteReminderItem item) => quoteReminderBody(
+    customerName: item.customer!.name,
+    totalAmount: item.quote.totalAmount,
+    currencyCode: item.quote.currencyCode,
+    quoteNumber: item.quote.invoiceNumber,
+  );
 }

@@ -9,43 +9,10 @@ import '../core/utils/money_formatter.dart';
 import '../database/app_database.dart';
 import '../database/tables/businesses.dart';
 import '../models/invoice_template_config.dart';
+import 'pdf_layout.dart' as layout;
 import 'dart:io';
 
 class PdfService {
-  static PdfPageFormat _pageFormatFor(String paperSize) {
-    switch (paperSize.toLowerCase()) {
-      case 'a5':
-        return PdfPageFormat.a5;
-      case 'thermal':
-        return const PdfPageFormat(80 * PdfPageFormat.mm, double.infinity);
-      case 'a4':
-      default:
-        return PdfPageFormat.a4;
-    }
-  }
-
-  static PdfColor _parseColor(String hexString, PdfColor fallback) {
-    if (hexString.isEmpty) return fallback;
-    try {
-      final hexCode = hexString.replaceAll('#', '');
-      if (hexCode.length == 6) {
-        return PdfColor.fromInt(int.parse(hexCode, radix: 16) | 0xFF000000);
-      } else if (hexCode.length == 8) {
-        return PdfColor.fromInt(int.parse(hexCode, radix: 16));
-      }
-    } catch (_) {}
-    return fallback;
-  }
-
-  static PdfColor _getBrandColor(Business business, InvoiceTemplateConfig config) {
-    if (config.primaryColor.isNotEmpty) {
-      return _parseColor(config.primaryColor, PdfColors.indigo);
-    }
-    return business.brandColor != null
-        ? PdfColor.fromInt(business.brandColor!)
-        : PdfColors.indigo;
-  }
-
   static pw.MemoryImage? _getLogoImage(Business business) {
     if (business.logoPath != null && File(business.logoPath!).existsSync()) {
       return pw.MemoryImage(File(business.logoPath!).readAsBytesSync());
@@ -143,7 +110,7 @@ class PdfService {
         (templateConfig?.layoutFamily ?? business.invoiceTemplate) == 'MODERN';
     final isElegant =
         (templateConfig?.layoutFamily ?? business.invoiceTemplate) == 'ELEGANT';
-    final pageFormat = _pageFormatFor(config.paperSize);
+    final pageFormat = layout.pageFormatFor(config.paperSize);
     final spacing = config.layoutSpacing;
     final theme = await _getThemeForFont(config.fontFamily);
 
@@ -265,7 +232,7 @@ class PdfService {
         (templateConfig?.layoutFamily ?? business.quoteTemplate) == 'MODERN';
     final isElegant =
         (templateConfig?.layoutFamily ?? business.quoteTemplate) == 'ELEGANT';
-    final pageFormat = _pageFormatFor(config.paperSize);
+    final pageFormat = layout.pageFormatFor(config.paperSize);
     final spacing = config.layoutSpacing;
     final theme = await _getThemeForFont(config.fontFamily);
 
@@ -378,10 +345,10 @@ class PdfService {
     bool isGstEnabled,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     final logo = _getLogoImage(business);
-    final titleSize = _headerTitleSize(config.headerDensity);
-    final subtitleSize = _headerSubtitleSize(config.headerDensity);
+    final titleSize = layout.headerTitleSize(config.headerDensity);
+    final subtitleSize = layout.headerSubtitleSize(config.headerDensity);
     return pw.Container(
       padding: pw.EdgeInsets.all(
         config.headerDensity == 'COMPACT'
@@ -457,10 +424,10 @@ class PdfService {
     bool isGstEnabled,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     final logo = _getLogoImage(business);
-    final titleSize = _headerTitleSize(config.headerDensity);
-    final subtitleSize = _headerSubtitleSize(config.headerDensity);
+    final titleSize = layout.headerTitleSize(config.headerDensity);
+    final subtitleSize = layout.headerSubtitleSize(config.headerDensity);
     return pw.Container(
       padding: pw.EdgeInsets.all(
         config.headerDensity == 'COMPACT'
@@ -592,10 +559,10 @@ class PdfService {
     bool isGstEnabled,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     final logo = _getLogoImage(business);
-    final titleSize = _headerTitleSize(config.headerDensity);
-    final gap = _headerGap(config.headerDensity);
+    final titleSize = layout.headerTitleSize(config.headerDensity);
+    final gap = layout.headerGap(config.headerDensity);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -724,10 +691,10 @@ class PdfService {
     bool isGstEnabled,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     final logo = _getLogoImage(business);
-    final titleSize = _headerTitleSize(config.headerDensity);
-    final gap = _headerGap(config.headerDensity);
+    final titleSize = layout.headerTitleSize(config.headerDensity);
+    final gap = layout.headerGap(config.headerDensity);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -773,7 +740,7 @@ class PdfService {
     bool isGstEnabled,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
 
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -819,7 +786,7 @@ class PdfService {
     InvoiceTemplateConfig config,
   ) {
     final logo = _getLogoImage(business);
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
 
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -876,7 +843,7 @@ class PdfService {
     Business business,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     final showHsn =
         isGstEnabled && config.showHsn && config.itemColumns.contains('hsn');
     final showQty = config.itemColumns.contains('qty');
@@ -915,7 +882,7 @@ class PdfService {
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: data,
-      border: _tableBorder(config),
+      border: layout.tableBorderFor(config),
       headerStyle: const pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
@@ -954,7 +921,7 @@ class PdfService {
     Business business,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     final showHsn =
         isGstEnabled && config.showHsn && config.itemColumns.contains('hsn');
     final showQty = config.itemColumns.contains('qty');
@@ -986,7 +953,7 @@ class PdfService {
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: data,
-      border: _tableBorder(config),
+      border: layout.tableBorderFor(config),
       headerStyle: const pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
@@ -1384,8 +1351,9 @@ class PdfService {
             children: [
               pw.BarcodeWidget(
                 barcode: pw.Barcode.qrCode(),
-                data: _buildUpiQrPayload(
-                  business: business,
+                data: layout.buildUpiQrPayload(
+                  businessName: business.name,
+                  upiId: business.upiId,
                   amount: quote.totalAmount,
                   invoiceNumber: quote.invoiceNumber,
                 ),
@@ -1485,8 +1453,9 @@ class PdfService {
                   pw.SizedBox(height: 4),
                   pw.BarcodeWidget(
                     barcode: pw.Barcode.qrCode(),
-                    data: _buildUpiQrPayload(
-                      business: business,
+                    data: layout.buildUpiQrPayload(
+                      businessName: business.name,
+                      upiId: business.upiId,
                       amount: invoiceBalanceDue(invoice),
                       invoiceNumber: invoice.invoiceNumber,
                     ),
@@ -1509,81 +1478,6 @@ class PdfService {
         ],
       ],
     );
-  }
-
-  static double _headerTitleSize(String density) {
-    switch (density) {
-      case 'COMPACT':
-        return 20;
-      case 'SPACIOUS':
-        return 28;
-      default:
-        return 24;
-    }
-  }
-
-  static double _headerSubtitleSize(String density) {
-    switch (density) {
-      case 'COMPACT':
-        return 9;
-      case 'SPACIOUS':
-        return 12;
-      default:
-        return 11;
-    }
-  }
-
-  static double _headerGap(String density) {
-    switch (density) {
-      case 'COMPACT':
-        return 4;
-      case 'SPACIOUS':
-        return 12;
-      default:
-        return 8;
-    }
-  }
-
-  /// Returns a [pw.TableBorder] matching the template's `tableBorderStyle`.
-  static pw.TableBorder _tableBorder(InvoiceTemplateConfig config) {
-    switch (config.tableBorderStyle) {
-      case 'ROWS_ONLY':
-        return pw.TableBorder(
-          horizontalInside: pw.BorderSide(
-            color: PdfColors.grey300,
-            width: config.borderThickness,
-          ),
-          bottom: pw.BorderSide(
-            color: PdfColors.grey300,
-            width: config.borderThickness,
-          ),
-        );
-      case 'NONE':
-        return const pw.TableBorder();
-      case 'FULL':
-      default:
-        return pw.TableBorder.all(
-          color: PdfColors.grey300,
-          width: config.borderThickness,
-        );
-    }
-  }
-
-  static String _buildUpiQrPayload({
-    required Business business,
-    required double amount,
-    required String invoiceNumber,
-  }) {
-    final upiId = business.upiId?.trim();
-    if (upiId == null || upiId.isEmpty) {
-      return '${business.name} | $invoiceNumber | ${amount.toStringAsFixed(2)}';
-    }
-
-    final pa = Uri.encodeComponent(upiId);
-    final pn = Uri.encodeComponent(business.name);
-    final tn = Uri.encodeComponent('Invoice $invoiceNumber');
-    final am = amount.toStringAsFixed(2);
-    return 'upi://pay?pa=$pa&pn=$pn&tn=$tn&am=$am&cu=INR';
   }
 
   static pw.Widget _buildDocumentNotes({String? notes, String? terms}) {
@@ -1614,9 +1508,9 @@ class PdfService {
     DateTime date,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     final logo = _getLogoImage(business);
-    final titleSize = _headerTitleSize(config.headerDensity);
+    final titleSize = layout.headerTitleSize(config.headerDensity);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -1681,7 +1575,7 @@ class PdfService {
     bool isGstEnabled,
     InvoiceTemplateConfig config,
   ) {
-    final brandColor = _getBrandColor(business, config);
+    final brandColor = layout.brandColorFor(business, config);
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(vertical: 16),
       child: pw.Row(

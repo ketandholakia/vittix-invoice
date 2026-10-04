@@ -6,6 +6,16 @@ All notable changes to Vittix Invoice are documented here. The format follows
 
 ## [Unreleased] — checkpoint of Phases 32–40 (2026-10-04)
 
+### Fixed — October 2026 test pass (Phase 44)
+- Thermal (80 mm roll) PDF templates no longer crash the render: the
+  unbounded roll height asserted inside the PDF layout engine; thermal now
+  renders on a tall finite page.
+- Nextcloud restore failures now distinguish a broken server listing from an
+  empty backup folder instead of always reporting "no backup found".
+- First automated coverage for the PDF template pipeline, Google Drive
+  backup, Nextcloud round trip, and reminder scheduling; the 3,900-line
+  billing test monolith is split into 14 domain files (192 tests total).
+
 ### Fixed — October 2026 hardening pass (Phases 41-42)
 - Platform policy: Android is the only supported platform, declared in the
   README; non-Android scaffolding is unmaintained.

@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart' as xml;
+import '../core/utils/app_diagnostics.dart';
 import '../database/app_database.dart';
 import '../providers/nextcloud_provider.dart';
 import 'database_backup_service.dart';
@@ -15,14 +18,22 @@ class NextcloudUploadResult {
 }
 
 class NextcloudService {
-  NextcloudService._();
+  /// The [client] seam exists for tests; production always uses the
+  /// [instance] singleton with a real client.
+  NextcloudService._([http.Client? client]) : _client = client ?? http.Client();
 
   static final NextcloudService instance = NextcloudService._();
+
+  /// Builds a service over a scripted client; production code uses
+  /// [instance].
+  @visibleForTesting
+  NextcloudService.forTests(http.Client client) : this._(client);
+
   static const _backupFolder = 'VittixInvoiceBackups';
 
   /// Single client reused for every request. Creating a client per request
   /// leaked a connection pool each time.
-  final http.Client _client = http.Client();
+  final http.Client _client;
 
   String _buildAuthHeader(NextcloudConfig config) {
     final credentials = '${config.username}:${config.password}';
@@ -163,7 +174,20 @@ class NextcloudService {
     }
 
     final responseBody = await response.stream.bytesToString();
-    final latestFileName = _parseLatestFileFromPropfind(responseBody, folderUrl.path);
+    final String? latestFileName;
+    try {
+      latestFileName = _parseLatestFileFromPropfind(responseBody, folderUrl.path);
+    } on Exception catch (error, stackTrace) {
+      reportNonFatal(
+        error,
+        stackTrace,
+        context: 'nextcloud backup listing parse',
+      );
+      throw StateError(
+        'Could not read the backup listing from Nextcloud. '
+        'Check the server URL and sign in again.',
+      );
+    }
     
     if (latestFileName == null) {
       throw StateError('No cloud backup found on Nextcloud');
@@ -187,37 +211,40 @@ class NextcloudService {
     );
   }
 
+  /// Returns the newest `.json` backup file name in the listing, or null when
+  /// the folder parsed cleanly but holds no backups.
+  ///
+  /// A response that cannot be parsed at all throws instead of masquerading
+  /// as an empty folder — "No cloud backup found" used to hide server errors,
+  /// proxy HTML login pages, and XML shape changes from the user.
   String? _parseLatestFileFromPropfind(String xmlString, String basePath) {
-    try {
-      final document = xml.XmlDocument.parse(xmlString);
-      final responses = document.findAllElements('d:response');
-      
-      String? latestFile;
-      DateTime? latestDate;
+    final document = xml.XmlDocument.parse(xmlString);
+    final responses = document.findAllElements('d:response');
 
-      for (final resp in responses) {
-        final href = resp.findElements('d:href').firstOrNull?.innerText;
-        if (href == null || href.endsWith('/')) continue; // Skip directories
+    String? latestFile;
+    DateTime? latestDate;
 
-        final propstat = resp.findElements('d:propstat').firstOrNull;
-        final prop = propstat?.findElements('d:prop').firstOrNull;
-        final getlastmodified = prop?.findElements('d:getlastmodified').firstOrNull?.innerText;
+    for (final resp in responses) {
+      final href = resp.findElements('d:href').firstOrNull?.innerText;
+      if (href == null || href.endsWith('/')) continue; // Skip directories
 
-        if (href.isNotEmpty && getlastmodified != null) {
-          final fileName = Uri.decodeComponent(href.split('/').last);
-          if (fileName.endsWith('.json')) {
-            // WebDAV uses RFC 1123 date format
-            final date = HttpDate.parse(getlastmodified);
-            if (latestDate == null || date.isAfter(latestDate)) {
-              latestDate = date;
-              latestFile = fileName;
-            }
+      final propstat = resp.findElements('d:propstat').firstOrNull;
+      final prop = propstat?.findElements('d:prop').firstOrNull;
+      final getlastmodified =
+          prop?.findElements('d:getlastmodified').firstOrNull?.innerText;
+
+      if (href.isNotEmpty && getlastmodified != null) {
+        final fileName = Uri.decodeComponent(href.split('/').last);
+        if (fileName.endsWith('.json')) {
+          // WebDAV uses RFC 1123 date format
+          final date = HttpDate.parse(getlastmodified);
+          if (latestDate == null || date.isAfter(latestDate)) {
+            latestDate = date;
+            latestFile = fileName;
           }
         }
       }
-      return latestFile;
-    } catch (e) {
-      return null;
     }
+    return latestFile;
   }
 }

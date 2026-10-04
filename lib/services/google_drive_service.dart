@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -26,15 +27,24 @@ class DriveUploadResult {
 }
 
 class GoogleDriveService {
-  GoogleDriveService._();
+  /// The [testApi] seam exists for tests: a `DriveApi` backed by a fake HTTP
+  /// client exercises upload/list/restore without Google Sign-In. Production
+  /// always uses the [instance] singleton, which signs in for real.
+  GoogleDriveService._([drive.DriveApi? testApi]) : _testApi = testApi;
 
   static final GoogleDriveService instance = GoogleDriveService._();
+
+  /// Builds a service over a scripted Drive API; production code uses
+  /// [instance], which signs in for real.
+  @visibleForTesting
+  GoogleDriveService.forTests(drive.DriveApi api) : this._(api);
 
   static const List<String> _driveScopes = [
     drive.DriveApi.driveAppdataScope,
     drive.DriveApi.driveFileScope,
   ];
 
+  final drive.DriveApi? _testApi;
   bool _initialized = false;
 
   Future<void> _ensureInitialized() async {
@@ -209,6 +219,7 @@ class GoogleDriveService {
   }
 
   Future<drive.DriveApi> _driveApi() async {
+    if (_testApi != null) return _testApi;
     await _ensureInitialized();
     final account = await currentAccount() ?? await signIn();
     final headers = await account.authorizationClient.authorizationHeaders(

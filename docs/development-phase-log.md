@@ -361,6 +361,15 @@ A review-driven pass over the whole app. Schema moved v19  v29.
 - Split `test/billing_logic_test.dart` (3,932 lines, 38 groups) into 14 domain files (`gst`, `numbering`, `backup`, `statements`, `invoices`, `quotes`, `stock`, `recurrence`, `money`, `catalogs`, `settings`, `pdf_fonts`, `gstr1`, `providers`) — group moves only, plus `dart fix` mechanical cleanups.
 - The audit's zero-coverage list (pdf layout, Google Drive, Nextcloud round trip, reminder scheduling) is now empty. Verified: `flutter analyze --fatal-infos` clean; 192/192 tests pass.
 
+## Phase 45: Codebase Health — Splits And Decoupling
+
+- Split the four remaining monoliths into same-library `part` files (pure moves; no name, import, or call-site changes): `pdf_service.dart` 1,631 -> 273 lines (fonts/theme, classic, modern, elegant, and shared builder parts); `reports_screen.dart` 1,472 -> 584 (export/filter helpers and the operational-report loader became extensions on the state class, plus a widgets part); `settings_screen.dart` 1,186 -> 969 (dialogs/helpers out; the 920-line build stays by design — its sections share a dozen watched locals and P46/P47 will rework those sections); `template_manager_screen.dart` 1,105 -> 152 (tabs, thumbnails, preview builders).
+- Decoupled the document services from Riverpod: `DocumentServiceBase`, `InvoiceService`, `QuoteService`, and `RecurringInvoiceService` now take the database and DAOs via constructor injection and hold no `Ref`; the providers assemble them. Quote conversion now uses an injected `InvoiceService` instead of reading the provider mid-transaction. Services are plain-unit-testable with an in-memory database.
+- Nextcloud hardening: every WebDAV call got a timeout (30 s control, 120 s for upload/download) and one retry on transient `SocketException`/`TimeoutException`, with the retry reported to diagnostics.
+- Reminder sync: the three provider listeners now debounce (500 ms) and a content signature skips no-op emissions, so any watched invoices/quotes row change no longer triggers a full cancel-and-reschedule of every scheduled notification; failed syncs reset the signature so a later emission retries.
+- Removed the dead commented-out workmanager block from `main.dart`.
+- Verified: `flutter analyze --fatal-infos` clean; 192/192 tests pass.
+
 ## Next Likely Phases
 
 1. Platform completion for chosen ship targets (iOS Google Sign-In config, macOS keychain entitlement, Linux plugin registrants) and integration tests in CI.

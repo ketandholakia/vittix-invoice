@@ -1,18 +1,37 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../database/app_database.dart';
+import '../database/daos/business_dao.dart';
 import '../database/daos/invoice_dao.dart';
 import '../database/daos/product_dao.dart';
-import '../providers/database_provider.dart';
 import '../core/utils/invoice_number.dart';
 import '../core/utils/money.dart';
 import 'document_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/database_provider.dart';
 
-final invoiceServiceProvider = Provider<InvoiceService>(InvoiceService.new);
+final invoiceServiceProvider = Provider<InvoiceService>((ref) {
+  return InvoiceService(
+    db: ref.watch(databaseProvider),
+    activityDao: ref.watch(customerActivityDaoProvider),
+    invoiceDao: ref.watch(invoiceDaoProvider),
+    businessDao: ref.watch(businessDaoProvider),
+    productDao: ref.watch(productDaoProvider),
+  );
+});
 
 class InvoiceService
     extends DocumentServiceBase<Invoice, InvoiceItem, InvoicesCompanion, InvoiceItemsCompanion> {
-  InvoiceService(super.ref);
+  InvoiceService({
+    required super.db,
+    required super.activityDao,
+    required this.invoiceDao,
+    required this.businessDao,
+    required this.productDao,
+  });
+
+  final InvoiceDao invoiceDao;
+  final BusinessDao businessDao;
+  final ProductDao productDao;
 
   @override
   String get entityType => 'INVOICE';
@@ -39,15 +58,15 @@ class InvoiceService
   String contactNote(String number) => 'Invoice $number reminder recorded';
 
   @override
-  Future<Invoice?> getDocument(int id) => ref.read(invoiceDaoProvider).getInvoiceById(id);
+  Future<Invoice?> getDocument(int id) => invoiceDao.getInvoiceById(id);
 
   @override
   Future<List<InvoiceItem>> getItems(int documentId) =>
-      ref.read(invoiceDaoProvider).getItemsForInvoice(documentId);
+      invoiceDao.getItemsForInvoice(documentId);
 
   @override
   Future<Business?> getBusiness(int businessId) =>
-      ref.read(businessDaoProvider).getBusinessById(businessId);
+      businessDao.getBusinessById(businessId);
 
   @override
   String seriesFormatOf(Business? business) => InvoiceNumberGenerator.normalizeFormat(
@@ -66,7 +85,7 @@ class InvoiceService
     required InvoicesCompanion companion,
     required String format,
     required DateTime date,
-  }) => ref.read(invoiceDaoProvider).insertInvoiceWithGeneratedNumber(
+  }) => invoiceDao.insertInvoiceWithGeneratedNumber(
     invoice: companion,
     format: format,
     date: date,
@@ -76,21 +95,21 @@ class InvoiceService
   Future<void> insertItemForDocument({
     required int documentId,
     required InvoiceItemsCompanion item,
-  }) => ref.read(invoiceDaoProvider).insertInvoiceItem(
+  }) => invoiceDao.insertInvoiceItem(
     item.copyWith(invoiceId: drift.Value(documentId)),
   );
 
   @override
   Future<void> deleteItems(int documentId) =>
-      ref.read(invoiceDaoProvider).deleteItemsForInvoice(documentId);
+      invoiceDao.deleteItemsForInvoice(documentId);
 
   @override
   Future<void> deleteDocumentRow(int documentId) =>
-      ref.read(invoiceDaoProvider).deleteInvoice(documentId);
+      invoiceDao.deleteInvoice(documentId);
 
   @override
   Future<bool> updateDocument(Invoice document) =>
-      ref.read(invoiceDaoProvider).updateInvoice(document);
+      invoiceDao.updateInvoice(document);
 
   @override
   Invoice buildUpdatedDocument(Invoice existing, InvoicesCompanion companion) {
@@ -297,7 +316,7 @@ class InvoiceService
     // A credit note returns goods, so stock goes back up; invoices and debit
     // notes take stock out.
     final document =
-        await ref.read(invoiceDaoProvider).getInvoiceById(documentId);
+        await invoiceDao.getInvoiceById(documentId);
     final returnsToStock = document?.invoiceType == creditNoteType;
 
     await _recordStockChange(
@@ -315,7 +334,7 @@ class InvoiceService
     required InvoiceItem item,
   }) async {
     final document =
-        await ref.read(invoiceDaoProvider).getInvoiceById(documentId);
+        await invoiceDao.getInvoiceById(documentId);
     final returnedToStock = document?.invoiceType == creditNoteType;
 
     await _recordStockChange(
@@ -378,7 +397,7 @@ class InvoiceService
       _createAdjustmentNote(invoiceId, debitNoteType);
 
   Future<int> _createAdjustmentNote(int invoiceId, String noteType) async {
-    final dao = ref.read(invoiceDaoProvider);
+    final dao = invoiceDao;
     final source = await dao.getInvoiceById(invoiceId);
     if (source == null) throw Exception('Invoice not found');
     if (source.invoiceType == creditNoteType ||
@@ -486,8 +505,7 @@ class InvoiceService
     String? note,
   }) async {
     if (paymentAmount <= 0) throw Exception('Payment amount must be greater than zero');
-    final db = ref.read(databaseProvider);
-    final dao = ref.read(invoiceDaoProvider);
+    final dao = invoiceDao;
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
     _assertPaymentsAllowed(invoice);
@@ -519,8 +537,7 @@ class InvoiceService
     String? note,
   }) async {
     if (amount <= 0) throw Exception('Payment amount must be greater than zero');
-    final db = ref.read(databaseProvider);
-    final dao = ref.read(invoiceDaoProvider);
+    final dao = invoiceDao;
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
     _assertPaymentsAllowed(invoice);
@@ -555,8 +572,7 @@ class InvoiceService
   }
 
   Future<void> voidPayment({required int invoiceId, required int paymentId}) async {
-    final db = ref.read(databaseProvider);
-    final dao = ref.read(invoiceDaoProvider);
+    final dao = invoiceDao;
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
     _assertPaymentsAllowed(invoice);
@@ -583,8 +599,7 @@ class InvoiceService
     String? note,
   }) async {
     if (refundAmount <= 0) throw Exception('Refund amount must be greater than zero');
-    final db = ref.read(databaseProvider);
-    final dao = ref.read(invoiceDaoProvider);
+    final dao = invoiceDao;
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
     _assertPaymentsAllowed(invoice);
@@ -608,8 +623,7 @@ class InvoiceService
   }
 
   Future<void> deletePayment({required int invoiceId, required int paymentId}) async {
-    final db = ref.read(databaseProvider);
-    final dao = ref.read(invoiceDaoProvider);
+    final dao = invoiceDao;
     final invoice = await dao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
     _assertPaymentsAllowed(invoice);
@@ -631,7 +645,6 @@ class InvoiceService
     required int documentId,
   }) async {
     if (productId == null || quantityDelta == 0) return;
-    final ProductDao productDao = ref.read(productDaoProvider);
     final product = await productDao.getProductById(productId);
     if (product == null || product.isService) return;
 

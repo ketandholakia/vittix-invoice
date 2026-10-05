@@ -1,16 +1,39 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../database/app_database.dart';
-import '../providers/database_provider.dart';
+import '../database/daos/business_dao.dart';
+import '../database/daos/quote_dao.dart';
 import '../core/utils/invoice_number.dart';
 import 'document_service.dart';
 import 'invoice_service.dart';
+import '../providers/database_provider.dart';
 
-final quoteServiceProvider = Provider<QuoteService>(QuoteService.new);
+final quoteServiceProvider = Provider<QuoteService>((ref) {
+  return QuoteService(
+    db: ref.watch(databaseProvider),
+    activityDao: ref.watch(customerActivityDaoProvider),
+    quoteDao: ref.watch(quoteDaoProvider),
+    businessDao: ref.watch(businessDaoProvider),
+    invoiceService: ref.watch(invoiceServiceProvider),
+  );
+});
 
 class QuoteService
     extends DocumentServiceBase<Quote, QuoteItem, QuotesCompanion, QuoteItemsCompanion> {
-  QuoteService(super.ref);
+  QuoteService({
+    required super.db,
+    required super.activityDao,
+    required this.quoteDao,
+    required this.businessDao,
+    required this.invoiceService,
+  });
+
+  final QuoteDao quoteDao;
+  final BusinessDao businessDao;
+
+  /// Used by quote conversion to run the invoice create flow (and its stock
+  /// side effects) through the shared document core.
+  final InvoiceService invoiceService;
 
   @override
   String get entityType => 'QUOTE';
@@ -37,15 +60,15 @@ class QuoteService
   String contactNote(String number) => 'Quote $number follow-up recorded';
 
   @override
-  Future<Quote?> getDocument(int id) => ref.read(quoteDaoProvider).getQuoteById(id);
+  Future<Quote?> getDocument(int id) => quoteDao.getQuoteById(id);
 
   @override
   Future<List<QuoteItem>> getItems(int documentId) =>
-      ref.read(quoteDaoProvider).getItemsForQuote(documentId);
+      quoteDao.getItemsForQuote(documentId);
 
   @override
   Future<Business?> getBusiness(int businessId) =>
-      ref.read(businessDaoProvider).getBusinessById(businessId);
+      businessDao.getBusinessById(businessId);
 
   @override
   String seriesFormatOf(Business? business) => InvoiceNumberGenerator.normalizeFormat(
@@ -64,7 +87,7 @@ class QuoteService
     required QuotesCompanion companion,
     required String format,
     required DateTime date,
-  }) => ref.read(quoteDaoProvider).insertQuoteWithGeneratedNumber(
+  }) => quoteDao.insertQuoteWithGeneratedNumber(
     quote: companion,
     format: format,
     date: date,
@@ -74,21 +97,21 @@ class QuoteService
   Future<void> insertItemForDocument({
     required int documentId,
     required QuoteItemsCompanion item,
-  }) => ref.read(quoteDaoProvider).insertQuoteItem(
+  }) => quoteDao.insertQuoteItem(
     item.copyWith(quoteId: drift.Value(documentId)),
   );
 
   @override
   Future<void> deleteItems(int documentId) =>
-      ref.read(quoteDaoProvider).deleteItemsForQuote(documentId);
+      quoteDao.deleteItemsForQuote(documentId);
 
   @override
   Future<void> deleteDocumentRow(int documentId) =>
-      ref.read(quoteDaoProvider).deleteQuote(documentId);
+      quoteDao.deleteQuote(documentId);
 
   @override
   Future<bool> updateDocument(Quote document) =>
-      ref.read(quoteDaoProvider).updateQuote(document);
+      quoteDao.updateQuote(document);
 
   @override
   Quote buildUpdatedDocument(Quote existing, QuotesCompanion companion) {
@@ -295,8 +318,6 @@ class QuoteService
   Future<void> markQuoteContacted(int quoteId) => markContacted(quoteId);
 
   Future<int> convertToInvoice(int quoteId) async {
-    final db = ref.read(databaseProvider);
-    final quoteDao = ref.read(quoteDaoProvider);
     final quote = await quoteDao.getQuoteById(quoteId);
     if (quote == null) throw Exception('Quote not found');
     if (quote.status == 'CONVERTED') {
@@ -346,9 +367,10 @@ class QuoteService
         .toList();
 
     final invoiceId = await db.transaction(() async {
-      final createdId = await ref
-          .read(invoiceServiceProvider)
-          .createInvoiceWithItems(invoiceCompanion, invoiceItems);
+      final createdId = await invoiceService.createInvoiceWithItems(
+        invoiceCompanion,
+        invoiceItems,
+      );
       await quoteDao.updateQuote(quote.copyWith(status: 'CONVERTED'));
       return createdId;
     });

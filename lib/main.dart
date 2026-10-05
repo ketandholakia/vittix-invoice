@@ -11,31 +11,6 @@ import 'providers/uom_provider.dart';
 import 'services/google_drive_service.dart';
 import 'services/reminder_notification_service.dart';
 import 'dart:async';
-// import 'package:workmanager/workmanager.dart';
-
-/*
-@pragma('vm:entry-point')
-void callbackDispatcher() {
-  WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().executeTask((task, inputData) async {
-    try {
-      if (task == 'syncToDrive') {
-        final prefs = await SharedPreferences.getInstance();
-        if (prefs.getBool('auto_backup_enabled') == true) {
-          // We can't use GoogleSignIn in a background isolate because it requires an Activity.
-          // This causes the app to crash natively when the task triggers.
-          // A proper background backup would require a different authentication approach.
-          print('Background backup triggered, but GoogleSignIn requires foreground.');
-        }
-      }
-      return Future.value(true);
-    } catch (e, stack) {
-      print('Background task error: $e\n$stack');
-      return Future.value(false);
-    }
-  });
-}
-*/
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

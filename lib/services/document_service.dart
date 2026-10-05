@@ -1,7 +1,6 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../database/app_database.dart';
-import '../providers/database_provider.dart';
+import '../database/daos/customer_activity_dao.dart';
 import '../core/utils/document_edit_summary.dart';
 
 /// Typed accessor snapshot of a document row, so the shared flows can read
@@ -22,9 +21,12 @@ typedef DocumentInfo = ({
 /// [D] is the document row type, [IR] the item row type, [C] the document
 /// companion type and [IC] the item companion type.
 abstract class DocumentServiceBase<D, IR, C, IC> {
-  final Ref ref;
+  /// DAOs are constructor-injected: services carry no Riverpod [Ref], so
+  /// every flow here is unit-testable with an in-memory database.
+  final AppDatabase db;
+  final CustomerActivityDao activityDao;
 
-  DocumentServiceBase(this.ref);
+  DocumentServiceBase({required this.db, required this.activityDao});
 
   // ---- identity & labels ----
 
@@ -105,7 +107,6 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
     required List<IC> items,
     String? formatOverride,
   }) async {
-    final db = ref.read(databaseProvider);
     final documentId = await db.transaction(() async {
       final business = await getBusiness(businessIdOfCompanion(companion));
       final format = formatOverride ?? seriesFormatOf(business);
@@ -125,7 +126,6 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
   }
 
   Future<int> duplicate(int documentId) async {
-    final db = ref.read(databaseProvider);
     final source = await getDocument(documentId);
     if (source == null) throw Exception('$docNoun not found');
     final sourceItems = await getItems(documentId);
@@ -153,8 +153,6 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
 
   Future<void> updateWithItems(D existingDocument, C companion, List<IC> items) async {
     validateEdit(existingDocument);
-    final db = ref.read(databaseProvider);
-    final activityDao = ref.read(customerActivityDaoProvider);
     final documentId = infoOf(existingDocument).id;
     final previousItems = await getItems(documentId);
 
@@ -221,7 +219,6 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
   }
 
   Future<void> delete(int documentId) async {
-    final db = ref.read(databaseProvider);
     final document = await getDocument(documentId);
     if (document == null) throw Exception('$docNoun not found');
     validateDelete(document);
@@ -236,7 +233,6 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
   }
 
   Future<void> markContacted(int documentId) async {
-    final activityDao = ref.read(customerActivityDaoProvider);
     final document = await getDocument(documentId);
     if (document == null) throw Exception('$docNoun not found');
     final info = infoOf(document);

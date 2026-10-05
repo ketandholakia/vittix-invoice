@@ -26,9 +26,13 @@ final invoiceProvider = Provider<InvoiceService>((ref) {
   return ref.watch(invoiceServiceProvider);
 });
 
-final recurringInvoiceProvider = Provider<RecurringInvoiceService>(
-  RecurringInvoiceService.new,
-);
+final recurringInvoiceProvider = Provider<RecurringInvoiceService>((ref) {
+  return RecurringInvoiceService(
+    invoiceDao: ref.watch(invoiceDaoProvider),
+    recurringDao: ref.watch(recurringInvoiceDaoProvider),
+    invoiceService: ref.watch(invoiceProvider),
+  );
+});
 
 /// The active recurring schedule for an invoice, if there is one.
 final invoiceRecurrenceProvider =

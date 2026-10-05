@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -34,6 +35,27 @@ class NextcloudService {
   /// Single client reused for every request. Creating a client per request
   /// leaked a connection pool each time.
   final http.Client _client;
+
+  static const _controlTimeout = Duration(seconds: 30);
+  static const _dataTimeout = Duration(seconds: 120);
+
+  /// Runs [action], retrying once on transient network failures (connection
+  /// drops, timeouts). Requests are rebuilt by the closure, so retrying never
+  /// re-sends a consumed body.
+  Future<T> _withRetry<T>(
+    Future<T> Function() action, {
+    required String context,
+  }) async {
+    try {
+      return await action();
+    } on SocketException catch (error, stackTrace) {
+      reportNonFatal(error, stackTrace, context: 'nextcloud $context (retrying)');
+      return action();
+    } on TimeoutException catch (error, stackTrace) {
+      reportNonFatal(error, stackTrace, context: 'nextcloud $context (retrying)');
+      return action();
+    }
+  }
 
   String _buildAuthHeader(NextcloudConfig config) {
     final credentials = '${config.username}:${config.password}';
@@ -89,10 +111,15 @@ class NextcloudService {
     final baseUrl = buildBaseUrl(config);
     final folderUrl = Uri.parse('$baseUrl$_backupFolder');
     
-    final response = await _client.send(
-      http.Request('PROPFIND', folderUrl)
-        ..headers['Authorization'] = _buildAuthHeader(config)
-        ..headers['Depth'] = '0',
+    final response = await _withRetry(
+      () => _client
+          .send(
+            http.Request('PROPFIND', folderUrl)
+              ..headers['Authorization'] = _buildAuthHeader(config)
+              ..headers['Depth'] = '0',
+          )
+          .timeout(_controlTimeout),
+      context: 'folder probe',
     );
 
     if (response.statusCode == 404) {
@@ -128,11 +155,16 @@ class NextcloudService {
     final baseUrl = buildBaseUrl(config);
     final fileUrl = Uri.parse('$baseUrl$_backupFolder/$fileName');
 
-    final response = await _client.send(
-      http.Request('PUT', fileUrl)
-        ..headers['Authorization'] = _buildAuthHeader(config)
-        ..headers['Content-Type'] = 'application/json'
-        ..bodyBytes = utf8.encode(backupJson),
+    final response = await _withRetry(
+      () => _client
+          .send(
+            http.Request('PUT', fileUrl)
+              ..headers['Authorization'] = _buildAuthHeader(config)
+              ..headers['Content-Type'] = 'application/json'
+              ..bodyBytes = utf8.encode(backupJson),
+          )
+          .timeout(_dataTimeout),
+      context: 'backup upload',
     );
 
     if (response.statusCode >= 400) {
@@ -161,12 +193,17 @@ class NextcloudService {
   </d:prop>
 </d:propfind>''';
 
-    final response = await _client.send(
-      http.Request('PROPFIND', folderUrl)
-        ..headers['Authorization'] = _buildAuthHeader(config)
-        ..headers['Depth'] = '1'
-        ..headers['Content-Type'] = 'application/xml'
-        ..body = propfindBody,
+    final response = await _withRetry(
+      () => _client
+          .send(
+            http.Request('PROPFIND', folderUrl)
+              ..headers['Authorization'] = _buildAuthHeader(config)
+              ..headers['Depth'] = '1'
+              ..headers['Content-Type'] = 'application/xml'
+              ..body = propfindBody,
+          )
+          .timeout(_controlTimeout),
+      context: 'backup listing',
     );
 
     if (response.statusCode >= 400) {
@@ -194,9 +231,11 @@ class NextcloudService {
     }
 
     final fileUrl = Uri.parse('$baseUrl$_backupFolder/$latestFileName');
-    final getResponse = await _client.get(
-      fileUrl,
-      headers: {'Authorization': _buildAuthHeader(config)},
+    final getResponse = await _withRetry(
+      () => _client
+          .get(fileUrl, headers: {'Authorization': _buildAuthHeader(config)})
+          .timeout(_dataTimeout),
+      context: 'backup download',
     );
 
     if (getResponse.statusCode >= 400) {

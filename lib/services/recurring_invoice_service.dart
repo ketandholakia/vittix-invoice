@@ -1,20 +1,25 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart' show DateUtils;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/utils/recurrence.dart';
 import '../database/app_database.dart';
+import '../database/daos/invoice_dao.dart';
 import '../database/daos/recurring_invoice_dao.dart';
-import '../providers/database_provider.dart';
-import '../providers/invoice_provider.dart';
+import 'invoice_service.dart';
 
 /// Schedules that repeat an issued invoice as a fresh draft.
 class RecurringInvoiceService {
-  final Ref _ref;
+  final InvoiceDao invoiceDao;
+  final RecurringInvoiceDao _recurringDao;
+  final InvoiceService invoiceService;
 
-  RecurringInvoiceService(this._ref);
+  RecurringInvoiceService({
+    required this.invoiceDao,
+    required this._recurringDao,
+    required this.invoiceService,
+  });
 
-  RecurringInvoiceDao get _dao => _ref.read(recurringInvoiceDaoProvider);
+  RecurringInvoiceDao get _dao => _recurringDao;
 
   Future<List<RecurringInvoice>> listForBusiness(int businessId) =>
       _dao.getForBusiness(businessId);
@@ -29,9 +34,7 @@ class RecurringInvoiceService {
     required RecurrenceFrequency frequency,
     DateTime? firstRunDate,
   }) async {
-    final invoice = await _ref
-        .read(invoiceDaoProvider)
-        .getInvoiceById(invoiceId);
+    final invoice = await invoiceDao.getInvoiceById(invoiceId);
     if (invoice == null) throw Exception('Invoice not found');
     if (invoice.status == 'DRAFT') {
       throw Exception('Issue the invoice before making it recurring');
@@ -71,7 +74,6 @@ class RecurringInvoiceService {
 
     var generated = 0;
     for (final recurrence in due) {
-      final invoiceDao = _ref.read(invoiceDaoProvider);
       final source = await invoiceDao.getInvoiceById(recurrence.sourceInvoiceId);
       if (source == null) {
         // The source is gone; a schedule without a source can never run.
@@ -119,7 +121,7 @@ class RecurringInvoiceService {
         updatedAt: stamp,
       ).copyWith(currencyCode: Value(source.currencyCode));
 
-      final invoiceService = _ref.read(invoiceProvider);
+      // The injected invoice service performs the draft generation.
       await invoiceService.createInvoiceWithItems(
         companion,
         [

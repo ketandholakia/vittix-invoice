@@ -6,6 +6,12 @@ All notable changes to Vittix Invoice are documented here. The format follows
 
 ## [Unreleased] — checkpoint of Phases 32–40 (2026-10-04)
 
+### Changed — October 2026 refactor pass (Phase 45)
+- The PDF, reports, settings, and template-manager files are split into
+  navigable parts; services no longer depend on Riverpod internals; Nextcloud
+  calls have timeouts and a retry; reminder re-syncs are debounced and skip
+  no-op work.
+
 ### Fixed — October 2026 test pass (Phase 44)
 - Thermal (80 mm roll) PDF templates no longer crash the render: the
   unbounded roll height asserted inside the PDF layout engine; thermal now

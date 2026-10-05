@@ -226,6 +226,12 @@ class VittixInvoiceApp extends ConsumerStatefulWidget {
 
 class _VittixInvoiceAppState extends ConsumerState<VittixInvoiceApp>
     with WidgetsBindingObserver {
+  // Reminder re-syncs fire on every invoices/quotes stream emission; the
+  // debounce coalesces bursts and the signature skip turns no-op emissions
+  // (any watched row change) into zero platform-channel work.
+  Timer? _reminderSyncDebounce;
+  String? _lastReminderSignature;
+
   @override
   void initState() {
     super.initState();
@@ -234,8 +240,68 @@ class _VittixInvoiceAppState extends ConsumerState<VittixInvoiceApp>
 
   @override
   void dispose() {
+    _reminderSyncDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _scheduleReminderSync({
+    required ReminderCenterData data,
+    required List<int> offsets,
+    required bool enabled,
+  }) {
+    _reminderSyncDebounce?.cancel();
+    _reminderSyncDebounce = Timer(const Duration(milliseconds: 500), () {
+      unawaited(
+        _syncReminders(data: data, offsets: offsets, enabled: enabled),
+      );
+    });
+  }
+
+  String _reminderSignature(
+    ReminderCenterData data,
+    bool enabled,
+    List<int> offsets,
+  ) {
+    final buffer = StringBuffer('e:$enabled;o:${offsets.join(',')}');
+    for (final item in data.invoiceReminders) {
+      buffer.write(
+        '|i:${item.invoice.id}:${item.invoice.dueDate?.millisecondsSinceEpoch}:'
+        '${item.daysUntilDue}:${item.balanceDue.toStringAsFixed(2)}:'
+        '${item.invoice.currencyCode}',
+      );
+    }
+    for (final item in data.quoteReminders) {
+      buffer.write(
+        '|q:${item.quote.id}:${item.quote.dueDate?.millisecondsSinceEpoch}:'
+        '${item.daysUntilExpiry}:${item.quote.totalAmount.toStringAsFixed(2)}:'
+        '${item.quote.currencyCode}',
+      );
+    }
+    return buffer.toString();
+  }
+
+  Future<void> _syncReminders({
+    required ReminderCenterData data,
+    required List<int> offsets,
+    required bool enabled,
+  }) async {
+    final signature = _reminderSignature(data, enabled, offsets);
+    if (signature == _lastReminderSignature) return;
+    _lastReminderSignature = signature;
+    try {
+      await ReminderNotificationService.instance.syncReminders(
+        data: data,
+        offsets: offsets,
+        enabled: enabled,
+      );
+    } catch (error, stackTrace) {
+      // Allow a later emission to retry after a failed sync.
+      _lastReminderSignature = null;
+      // Swallow platform-channel failures; reminders remain disabled safely, but
+      // the failure stays visible to diagnostics.
+      reportNonFatal(error, stackTrace, context: 'while syncing reminders');
+    }
   }
 
   @override
@@ -257,29 +323,29 @@ class _VittixInvoiceAppState extends ConsumerState<VittixInvoiceApp>
 
     ref.listen(reminderCenterProvider, (previous, next) {
       next.whenData((data) {
-        unawaited(_syncReminders(
+        _scheduleReminderSync(
           data: data,
           offsets: ref.read(reminderNotificationOffsetsProvider),
           enabled: ref.read(reminderNotificationsEnabledProvider),
-        ));
+        );
       });
     });
     ref.listen(reminderNotificationsEnabledProvider, (previous, next) {
       reminderDataAsync.whenData((data) {
-        unawaited(_syncReminders(
+        _scheduleReminderSync(
           data: data,
           offsets: reminderOffsets,
           enabled: next,
-        ));
+        );
       });
     });
     ref.listen(reminderNotificationOffsetsProvider, (previous, next) {
       reminderDataAsync.whenData((data) {
-        unawaited(_syncReminders(
+        _scheduleReminderSync(
           data: data,
           offsets: next,
           enabled: remindersEnabled,
-        ));
+        );
       });
     });
 
@@ -307,20 +373,3 @@ class _VittixInvoiceAppState extends ConsumerState<VittixInvoiceApp>
 
 /// Notification plugin failures (e.g., missing platform support) must never
 /// break the app UI, so reminder sync runs defensively off the build path.
-Future<void> _syncReminders({
-  required ReminderCenterData data,
-  required List<int> offsets,
-  required bool enabled,
-}) async {
-  try {
-    await ReminderNotificationService.instance.syncReminders(
-      data: data,
-      offsets: offsets,
-      enabled: enabled,
-    );
-  } catch (error, stackTrace) {
-    // Swallow platform-channel failures; reminders remain disabled safely, but
-    // the failure stays visible to diagnostics.
-    reportNonFatal(error, stackTrace, context: 'while syncing reminders');
-  }
-}

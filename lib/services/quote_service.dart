@@ -71,7 +71,8 @@ class QuoteService
       businessDao.getBusinessById(businessId);
 
   @override
-  String seriesFormatOf(Business? business) => InvoiceNumberGenerator.normalizeFormat(
+  @override
+  String seriesFormatOf(Business? business, QuotesCompanion companion) => InvoiceNumberGenerator.normalizeFormat(
     business?.quoteSeriesFormat,
     fallback: InvoiceNumberGenerator.defaultQuoteFormat,
   );

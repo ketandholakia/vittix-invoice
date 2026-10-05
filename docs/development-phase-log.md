@@ -378,6 +378,14 @@ A review-driven pass over the whole app. Schema moved v19  v29.
 - The roadmap's customer/product filters are served by the breakdown tables (per-customer and per-product rows over the selected date range); a further dropdown filter was judged redundant for the current screen.
 - Verified: `flutter analyze --fatal-infos` clean; 200/200 tests pass.
 
+## Phase 47: Composition Scheme And Bill Of Supply As First-Class Documents
+
+- Billing mode is now derived per business (`lib/core/utils/billing_mode.dart`): a regular registered dealer charges GST when the global GST toggle is on; composition-scheme and unregistered dealers never collect tax and issue Bills of Supply instead. The invoice/quote forms, invoice preview, and PDF share flows read this effective mode, so a composition business gets the no-tax capture path end to end.
+- Bills of Supply run on their own numbering series: `businesses.billOfSupplySeriesFormat` (schema v31, default `BOS-{FY}-{SEQ4}`) with a Bill of Supply Series Format field on the Document Numbering screen. The shared document service's format seam now receives the document companion, and `InvoiceService` routes `BILL_OF_SUPPLY` companions to the BOS format — BOS documents never consume tax-invoice sequence numbers (test: interleaved creates produce INV-2627-0001/0002 and BOS-2627-0001/0002).
+- The invoice PDF prints the statutory composition declaration ("Composition taxable person, not eligible to collect taxes on supplies") on bills of supply issued by composition-scheme businesses.
+- GSTR-1 exclusion: bills of supply are skipped in every GSTR-1 section (B2B, B2CS, EXP/SEZ, CDNR inputs, HSN summary) even when they carry a GSTIN — composition filers report through GSTR-4, not GSTR-1. The pre-export validation already ignored them.
+- Tests: billing-mode matrix, series separation via the document service, GSTR-1 exclusion, and the v31 migration column landing with its default (207 total, analyzer clean).
+
 ## Next Likely Phases
 
 1. Platform completion for chosen ship targets (iOS Google Sign-In config, macOS keychain entitlement, Linux plugin registrants) and integration tests in CI.

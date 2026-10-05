@@ -54,7 +54,7 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
 
   Future<Business?> getBusiness(int businessId);
 
-  String seriesFormatOf(Business? business);
+  String seriesFormatOf(Business? business, C companion);
 
   DateTime dateOf(C companion);
 
@@ -109,7 +109,7 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
   }) async {
     final documentId = await db.transaction(() async {
       final business = await getBusiness(businessIdOfCompanion(companion));
-      final format = formatOverride ?? seriesFormatOf(business);
+      final format = formatOverride ?? seriesFormatOf(business, companion);
       final createdId = await insertWithGeneratedNumber(
         companion: companion,
         format: format,
@@ -133,10 +133,12 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
 
     final duplicatedId = await db.transaction(() async {
       final business = await getBusiness(infoOf(source).businessId);
-      final format = seriesFormatOf(business);
+      final duplicated =
+          duplicatedCompanion(source: source, duplicateDate: duplicateDate);
+      final format = seriesFormatOf(business, duplicated);
 
       final createdId = await insertWithGeneratedNumber(
-        companion: duplicatedCompanion(source: source, duplicateDate: duplicateDate),
+        companion: duplicated,
         format: format,
         date: duplicateDate,
       );

@@ -280,6 +280,74 @@ void main() {
       // total: all 501 invoices at 100 taxable each.
       expect(flat, contains('27|18.0|50100.00|4509.00|4509.00'));
     });
+    test('bills of supply never appear in any GSTR-1 section', () async {
+      final database = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+
+      await database.into(database.businesses).insert(
+            BusinessesCompanion.insert(
+              name: 'B',
+              gstin: '27AAPFU0939F1ZV',
+              address: 'a',
+              city: 'b',
+              stateCode: 27,
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+      final registeredId = await database.into(database.customers).insert(
+            CustomersCompanion.insert(
+              businessId: 1,
+              name: 'Registered',
+              gstin: const drift.Value('27AAPFU0939F1ZV'),
+              stateCode: const drift.Value(27),
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+
+      // A bill of supply from a composition dealer can carry a GSTIN and a
+      // taxable amount - it still must not reach B2B, B2CS or the HSN table.
+      final bosId = await database.into(database.invoices).insert(
+            InvoicesCompanion.insert(
+              businessId: 1,
+              customerId: registeredId,
+              invoiceNumber: 'BOS-2627-0001',
+              invoiceDate: DateTime(2026, 6, 30),
+              invoiceType: 'BILL_OF_SUPPLY',
+              supplyType: 'B2C',
+              placeOfSupply: 27,
+              subtotal: 100,
+              taxableAmount: 100,
+              totalAmount: 100,
+              status: const drift.Value('SENT'),
+              createdAt: DateTime(2026, 6, 30),
+              updatedAt: DateTime(2026, 6, 30),
+            ),
+          );
+      await database.into(database.invoiceItems).insert(
+            InvoiceItemsCompanion.insert(
+              invoiceId: bosId,
+              name: 'Goods',
+              hsnSac: '8479',
+              unit: 'PCS',
+              quantity: 1,
+              rate: 100,
+              taxableAmount: 100,
+              gstRate: 0,
+              totalAmount: 100,
+            ),
+          );
+
+      final rows = buildGstr1Rows(
+        customers: await database.select(database.customers).get(),
+        invoices: await database.select(database.invoices).get(),
+        items: await database.select(database.invoiceItems).get(),
+      );
+      final flat = rows.map((row) => row.join('|')).join('\n');
+
+      expect(flat, isNot(contains('BOS-2627-0001')));
+      expect(flat, isNot(contains('8479')));
+    });
+
   });
 
   group('Gstr1Validation', () {

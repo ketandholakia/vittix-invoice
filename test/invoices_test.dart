@@ -121,6 +121,77 @@ void main() {
       },
     );
 
+    test('bills of supply run on their own BOS series, not the invoice one',
+      () async {
+        final notifier = container.read(invoiceProvider);
+        final invoiceDate = DateTime(2026, 6, 30);
+        final items = [
+          InvoiceItemsCompanion.insert(
+            invoiceId: 0,
+            name: 'Item',
+            hsnSac: '9983',
+            unit: 'NOS',
+            quantity: 1,
+            rate: 100,
+            taxableAmount: 100,
+            gstRate: 0,
+            totalAmount: 100,
+          ),
+        ];
+
+        final taxInvoice = InvoicesCompanion.insert(
+          businessId: 1,
+          customerId: 1,
+          invoiceNumber: 'PENDING',
+          invoiceDate: invoiceDate,
+          invoiceType: 'TAX_INVOICE',
+          supplyType: 'B2B',
+          placeOfSupply: 27,
+          subtotal: 100,
+          taxableAmount: 100,
+          totalAmount: 100,
+          createdAt: invoiceDate,
+          updatedAt: invoiceDate,
+        );
+        final billOfSupply = InvoicesCompanion.insert(
+          businessId: 1,
+          customerId: 1,
+          invoiceNumber: 'PENDING',
+          invoiceDate: invoiceDate,
+          invoiceType: 'BILL_OF_SUPPLY',
+          supplyType: 'B2C',
+          placeOfSupply: 27,
+          subtotal: 100,
+          taxableAmount: 100,
+          totalAmount: 100,
+          createdAt: invoiceDate,
+          updatedAt: invoiceDate,
+        );
+
+        final a = await notifier.createInvoiceWithItems(taxInvoice, items);
+        final b = await notifier.createInvoiceWithItems(billOfSupply, items);
+        final c = await notifier.createInvoiceWithItems(taxInvoice, items);
+        final d = await notifier.createInvoiceWithItems(billOfSupply, items);
+
+        expect(
+          (await database.invoiceDao.getInvoiceById(a))!.invoiceNumber,
+          'INV-2627-0001',
+        );
+        expect(
+          (await database.invoiceDao.getInvoiceById(b))!.invoiceNumber,
+          'BOS-2627-0001',
+        );
+        expect(
+          (await database.invoiceDao.getInvoiceById(c))!.invoiceNumber,
+          'INV-2627-0002',
+        );
+        expect(
+          (await database.invoiceDao.getInvoiceById(d))!.invoiceNumber,
+          'BOS-2627-0002',
+        );
+      },
+    );
+
     test('rolls back invoice insert when an item insert fails', () async {
       final notifier = container.read(invoiceProvider);
       final invoiceDate = DateTime(2026, 6, 30);

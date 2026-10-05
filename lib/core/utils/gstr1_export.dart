@@ -1,12 +1,15 @@
 import '../../database/app_database.dart';
 import 'invoice_status.dart';
+import 'invoice_type.dart';
 
 /// Builds a GSTR-1 style, sectioned summary an accountant can work from:
 /// B2B invoice rows, a B2CS (unregistered) consolidation, an EXP/SEZ section
 /// for export supplies, CDNR credit/debit note rows, and an HSN-wise summary.
 ///
 /// Returns rows ready for CSV sharing. Draft and cancelled documents are
-/// excluded, and credit notes reduce the HSN totals.
+/// excluded, credit notes reduce the HSN totals, and Bills of Supply
+/// (exempt / composition supplies) never appear — composition filers report
+/// through GSTR-4, not GSTR-1.
 List<List<String>> buildGstr1Rows({
   required List<Customer> customers,
   required List<Invoice> invoices,
@@ -52,6 +55,8 @@ List<List<String>> buildGstr1Rows({
   for (final invoice in counted) {
     if (isAdjustmentNote(invoice.invoiceType)) continue;
     if (isForeignSupply(invoice)) continue;
+    // Bills of Supply (exempt/composition supplies) never appear in GSTR-1.
+    if (invoice.invoiceType == billOfSupplyType) continue;
     final gstin = gstinOf(invoice);
     if (gstin == null) continue;
     rows.add([
@@ -84,6 +89,7 @@ List<List<String>> buildGstr1Rows({
   for (final invoice in counted) {
     if (isAdjustmentNote(invoice.invoiceType)) continue;
     if (isForeignSupply(invoice)) continue;
+    if (invoice.invoiceType == billOfSupplyType) continue;
     if (gstinOf(invoice) != null) continue;
     final tax =
         invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
@@ -130,6 +136,7 @@ List<List<String>> buildGstr1Rows({
   ]);
   for (final invoice in counted) {
     if (isAdjustmentNote(invoice.invoiceType)) continue;
+    if (invoice.invoiceType == billOfSupplyType) continue;
     if (!isForeignSupply(invoice)) continue;
     final category = invoice.supplyType == 'SEZ' ? 'SEZ' : 'EXP';
     final payment = invoice.exportWithLut ? 'WOPAY' : 'WPAY';
@@ -195,6 +202,7 @@ List<List<String>> buildGstr1Rows({
   rows.add(['HSN/SAC', 'UQC', 'Taxable', 'CGST', 'SGST', 'IGST', 'Cess']);
   final hsn = <String, List<double>>{};
   for (final invoice in counted) {
+    if (invoice.invoiceType == billOfSupplyType) continue;
     final sign = invoice.invoiceType == 'CREDIT_NOTE' ? -1 : 1;
     for (final item in itemsByInvoice[invoice.id] ?? const <InvoiceItem>[]) {
       final code = item.hsnSac.trim().isEmpty

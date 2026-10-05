@@ -20,6 +20,7 @@ class _DocumentNumberingScreenState
   late final TextEditingController _quoteController;
   late final TextEditingController _creditNoteController;
   late final TextEditingController _debitNoteController;
+  late final TextEditingController _billOfSupplyController;
   bool _initialized = false;
   bool _saving = false;
 
@@ -30,6 +31,7 @@ class _DocumentNumberingScreenState
     _quoteController = TextEditingController();
     _creditNoteController = TextEditingController();
     _debitNoteController = TextEditingController();
+    _billOfSupplyController = TextEditingController();
   }
 
   @override
@@ -38,6 +40,7 @@ class _DocumentNumberingScreenState
     _quoteController.dispose();
     _creditNoteController.dispose();
     _debitNoteController.dispose();
+    _billOfSupplyController.dispose();
     super.dispose();
   }
 
@@ -59,6 +62,7 @@ class _DocumentNumberingScreenState
             _quoteController.text = business.quoteSeriesFormat;
             _creditNoteController.text = business.creditNoteSeriesFormat;
             _debitNoteController.text = business.debitNoteSeriesFormat;
+            _billOfSupplyController.text = business.billOfSupplySeriesFormat;
             _initialized = true;
           }
 
@@ -77,6 +81,10 @@ class _DocumentNumberingScreenState
           final debitNoteFormat = InvoiceNumberGenerator.normalizeFormat(
             _debitNoteController.text,
             fallback: InvoiceNumberGenerator.defaultDebitNoteFormat,
+          );
+          final billOfSupplyFormat = InvoiceNumberGenerator.normalizeFormat(
+            _billOfSupplyController.text,
+            fallback: InvoiceNumberGenerator.defaultBillOfSupplyFormat,
           );
 
           return Form(
@@ -147,6 +155,22 @@ class _DocumentNumberingScreenState
                   'Example: ${InvoiceNumberGenerator.samplePreview(debitNoteFormat, now)}',
                 ),
                 const SizedBox(height: 24),
+                TextFormField(
+                  controller: _billOfSupplyController,
+                  decoration: const InputDecoration(
+                    labelText: 'Bill of Supply Series Format',
+                    border: OutlineInputBorder(),
+                    helperText:
+                        'Used for composition-scheme and exempt supplies.',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateFormat,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Example: ${InvoiceNumberGenerator.samplePreview(billOfSupplyFormat, now)}',
+                ),
+                const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _saving
                       ? null
@@ -156,6 +180,7 @@ class _DocumentNumberingScreenState
                               quoteSeriesFormat: quoteFormat,
                               creditNoteSeriesFormat: creditNoteFormat,
                               debitNoteSeriesFormat: debitNoteFormat,
+                              billOfSupplySeriesFormat: billOfSupplyFormat,
                             ),
                           ),
                   child: _saving

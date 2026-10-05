@@ -67,6 +67,7 @@ void main() {
       quoteSeriesFormat: 'QT-{FY}-{SEQ4}',
       creditNoteSeriesFormat: 'CN-{FY}-{SEQ4}',
       debitNoteSeriesFormat: 'DN-{FY}-{SEQ4}',
+billOfSupplySeriesFormat: 'BOS-{FY}-{SEQ4}',
       isActive: true,
       createdAt: DateTime(2026, 1, 1),
       brandColor: brandColor,

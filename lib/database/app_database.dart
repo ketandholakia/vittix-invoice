@@ -75,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => 31;
 
   @override
   MigrationStrategy get migration {
@@ -311,6 +311,13 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 30) {
           await _addColumnIfMissing(m, products, products.reorderLevel);
+        }
+        if (from < 31) {
+          await _addColumnIfMissing(
+            m,
+            businesses,
+            businesses.billOfSupplySeriesFormat,
+          );
         }
       },
       beforeOpen: (details) async {

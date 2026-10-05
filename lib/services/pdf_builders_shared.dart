@@ -76,6 +76,19 @@ pw.Widget _buildSupplyDeclaration(String supplyType, bool underLut) {
     child: pw.Text(declaration, style: const pw.TextStyle(fontSize: 9)),
   );
 }
+/// The statutory line every composition dealer must print on a bill of
+/// supply: they pay GST out of pocket and cannot collect it from the buyer.
+pw.Widget _buildCompositionDeclaration() {
+  return pw.Container(
+    width: double.infinity,
+    padding: const pw.EdgeInsets.all(6),
+    decoration: pw.BoxDecoration(
+      border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+    ),
+    child: pw.Text(compositionDeclaration, style: const pw.TextStyle(fontSize: 9)),
+  );
+}
+
 pw.Widget _buildHsnSummary(
   List<InvoiceItem> items,
   bool isIgst,

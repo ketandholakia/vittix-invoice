@@ -233,6 +233,8 @@ void main() {
     final business = await database.select(database.businesses).getSingle();
     // v24 column lands with its default.
     expect(business.creditNoteSeriesFormat, 'CN-{FY}-{SEQ4}');
+    // v31 adds the Bill of Supply series with its default.
+    expect(business.billOfSupplySeriesFormat, 'BOS-{FY}-{SEQ4}');
 
     final product = await database.select(database.products).getSingle();
     // v30 column lands with its default; the v7-era stock value survives.

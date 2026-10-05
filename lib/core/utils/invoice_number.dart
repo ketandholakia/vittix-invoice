@@ -3,6 +3,7 @@ class InvoiceNumberGenerator {
   static const defaultQuoteFormat = 'QT-{FY}-{SEQ4}';
   static const defaultCreditNoteFormat = 'CN-{FY}-{SEQ4}';
   static const defaultDebitNoteFormat = 'DN-{FY}-{SEQ4}';
+  static const defaultBillOfSupplyFormat = 'BOS-{FY}-{SEQ4}';
 
   static String financialYear(DateTime date) {
     final startYear = date.month >= 4 ? date.year : date.year - 1;

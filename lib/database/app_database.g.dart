@@ -257,6 +257,18 @@ class $BusinessesTable extends Businesses
         requiredDuringInsert: false,
         defaultValue: const Constant('DN-{FY}-{SEQ4}'),
       );
+  static const VerificationMeta _billOfSupplySeriesFormatMeta =
+      const VerificationMeta('billOfSupplySeriesFormat');
+  @override
+  late final GeneratedColumn<String> billOfSupplySeriesFormat =
+      GeneratedColumn<String>(
+        'bill_of_supply_series_format',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('BOS-{FY}-{SEQ4}'),
+      );
   static const VerificationMeta _defaultInvoiceTemplateIdMeta =
       const VerificationMeta('defaultInvoiceTemplateId');
   @override
@@ -340,6 +352,7 @@ class $BusinessesTable extends Businesses
     quoteSeriesFormat,
     creditNoteSeriesFormat,
     debitNoteSeriesFormat,
+    billOfSupplySeriesFormat,
     defaultInvoiceTemplateId,
     defaultQuoteTemplateId,
     brandColor,
@@ -521,6 +534,15 @@ class $BusinessesTable extends Businesses
         ),
       );
     }
+    if (data.containsKey('bill_of_supply_series_format')) {
+      context.handle(
+        _billOfSupplySeriesFormatMeta,
+        billOfSupplySeriesFormat.isAcceptableOrUnknown(
+          data['bill_of_supply_series_format']!,
+          _billOfSupplySeriesFormatMeta,
+        ),
+      );
+    }
     if (data.containsKey('default_invoice_template_id')) {
       context.handle(
         _defaultInvoiceTemplateIdMeta,
@@ -662,6 +684,10 @@ class $BusinessesTable extends Businesses
         DriftSqlType.string,
         data['${effectivePrefix}debit_note_series_format'],
       )!,
+      billOfSupplySeriesFormat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bill_of_supply_series_format'],
+      )!,
       defaultInvoiceTemplateId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}default_invoice_template_id'],
@@ -718,6 +744,10 @@ class Business extends DataClass implements Insertable<Business> {
   final String quoteSeriesFormat;
   final String creditNoteSeriesFormat;
   final String debitNoteSeriesFormat;
+
+  /// Bills of Supply (composition / unregistered / exempt supplies) get their
+  /// own series so tax invoices and BOS documents never share numbering.
+  final String billOfSupplySeriesFormat;
   final int? defaultInvoiceTemplateId;
   final int? defaultQuoteTemplateId;
   final int? brandColor;
@@ -747,6 +777,7 @@ class Business extends DataClass implements Insertable<Business> {
     required this.quoteSeriesFormat,
     required this.creditNoteSeriesFormat,
     required this.debitNoteSeriesFormat,
+    required this.billOfSupplySeriesFormat,
     this.defaultInvoiceTemplateId,
     this.defaultQuoteTemplateId,
     this.brandColor,
@@ -801,6 +832,9 @@ class Business extends DataClass implements Insertable<Business> {
     map['quote_series_format'] = Variable<String>(quoteSeriesFormat);
     map['credit_note_series_format'] = Variable<String>(creditNoteSeriesFormat);
     map['debit_note_series_format'] = Variable<String>(debitNoteSeriesFormat);
+    map['bill_of_supply_series_format'] = Variable<String>(
+      billOfSupplySeriesFormat,
+    );
     if (!nullToAbsent || defaultInvoiceTemplateId != null) {
       map['default_invoice_template_id'] = Variable<int>(
         defaultInvoiceTemplateId,
@@ -858,6 +892,7 @@ class Business extends DataClass implements Insertable<Business> {
       quoteSeriesFormat: Value(quoteSeriesFormat),
       creditNoteSeriesFormat: Value(creditNoteSeriesFormat),
       debitNoteSeriesFormat: Value(debitNoteSeriesFormat),
+      billOfSupplySeriesFormat: Value(billOfSupplySeriesFormat),
       defaultInvoiceTemplateId: defaultInvoiceTemplateId == null && nullToAbsent
           ? const Value.absent()
           : Value(defaultInvoiceTemplateId),
@@ -909,6 +944,9 @@ class Business extends DataClass implements Insertable<Business> {
       debitNoteSeriesFormat: serializer.fromJson<String>(
         json['debitNoteSeriesFormat'],
       ),
+      billOfSupplySeriesFormat: serializer.fromJson<String>(
+        json['billOfSupplySeriesFormat'],
+      ),
       defaultInvoiceTemplateId: serializer.fromJson<int?>(
         json['defaultInvoiceTemplateId'],
       ),
@@ -951,6 +989,9 @@ class Business extends DataClass implements Insertable<Business> {
         creditNoteSeriesFormat,
       ),
       'debitNoteSeriesFormat': serializer.toJson<String>(debitNoteSeriesFormat),
+      'billOfSupplySeriesFormat': serializer.toJson<String>(
+        billOfSupplySeriesFormat,
+      ),
       'defaultInvoiceTemplateId': serializer.toJson<int?>(
         defaultInvoiceTemplateId,
       ),
@@ -985,6 +1026,7 @@ class Business extends DataClass implements Insertable<Business> {
     String? quoteSeriesFormat,
     String? creditNoteSeriesFormat,
     String? debitNoteSeriesFormat,
+    String? billOfSupplySeriesFormat,
     Value<int?> defaultInvoiceTemplateId = const Value.absent(),
     Value<int?> defaultQuoteTemplateId = const Value.absent(),
     Value<int?> brandColor = const Value.absent(),
@@ -1015,6 +1057,8 @@ class Business extends DataClass implements Insertable<Business> {
     creditNoteSeriesFormat:
         creditNoteSeriesFormat ?? this.creditNoteSeriesFormat,
     debitNoteSeriesFormat: debitNoteSeriesFormat ?? this.debitNoteSeriesFormat,
+    billOfSupplySeriesFormat:
+        billOfSupplySeriesFormat ?? this.billOfSupplySeriesFormat,
     defaultInvoiceTemplateId: defaultInvoiceTemplateId.present
         ? defaultInvoiceTemplateId.value
         : this.defaultInvoiceTemplateId,
@@ -1068,6 +1112,9 @@ class Business extends DataClass implements Insertable<Business> {
       debitNoteSeriesFormat: data.debitNoteSeriesFormat.present
           ? data.debitNoteSeriesFormat.value
           : this.debitNoteSeriesFormat,
+      billOfSupplySeriesFormat: data.billOfSupplySeriesFormat.present
+          ? data.billOfSupplySeriesFormat.value
+          : this.billOfSupplySeriesFormat,
       defaultInvoiceTemplateId: data.defaultInvoiceTemplateId.present
           ? data.defaultInvoiceTemplateId.value
           : this.defaultInvoiceTemplateId,
@@ -1108,6 +1155,7 @@ class Business extends DataClass implements Insertable<Business> {
           ..write('quoteSeriesFormat: $quoteSeriesFormat, ')
           ..write('creditNoteSeriesFormat: $creditNoteSeriesFormat, ')
           ..write('debitNoteSeriesFormat: $debitNoteSeriesFormat, ')
+          ..write('billOfSupplySeriesFormat: $billOfSupplySeriesFormat, ')
           ..write('defaultInvoiceTemplateId: $defaultInvoiceTemplateId, ')
           ..write('defaultQuoteTemplateId: $defaultQuoteTemplateId, ')
           ..write('brandColor: $brandColor, ')
@@ -1142,6 +1190,7 @@ class Business extends DataClass implements Insertable<Business> {
     quoteSeriesFormat,
     creditNoteSeriesFormat,
     debitNoteSeriesFormat,
+    billOfSupplySeriesFormat,
     defaultInvoiceTemplateId,
     defaultQuoteTemplateId,
     brandColor,
@@ -1175,6 +1224,7 @@ class Business extends DataClass implements Insertable<Business> {
           other.quoteSeriesFormat == this.quoteSeriesFormat &&
           other.creditNoteSeriesFormat == this.creditNoteSeriesFormat &&
           other.debitNoteSeriesFormat == this.debitNoteSeriesFormat &&
+          other.billOfSupplySeriesFormat == this.billOfSupplySeriesFormat &&
           other.defaultInvoiceTemplateId == this.defaultInvoiceTemplateId &&
           other.defaultQuoteTemplateId == this.defaultQuoteTemplateId &&
           other.brandColor == this.brandColor &&
@@ -1206,6 +1256,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
   final Value<String> quoteSeriesFormat;
   final Value<String> creditNoteSeriesFormat;
   final Value<String> debitNoteSeriesFormat;
+  final Value<String> billOfSupplySeriesFormat;
   final Value<int?> defaultInvoiceTemplateId;
   final Value<int?> defaultQuoteTemplateId;
   final Value<int?> brandColor;
@@ -1235,6 +1286,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.quoteSeriesFormat = const Value.absent(),
     this.creditNoteSeriesFormat = const Value.absent(),
     this.debitNoteSeriesFormat = const Value.absent(),
+    this.billOfSupplySeriesFormat = const Value.absent(),
     this.defaultInvoiceTemplateId = const Value.absent(),
     this.defaultQuoteTemplateId = const Value.absent(),
     this.brandColor = const Value.absent(),
@@ -1265,6 +1317,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.quoteSeriesFormat = const Value.absent(),
     this.creditNoteSeriesFormat = const Value.absent(),
     this.debitNoteSeriesFormat = const Value.absent(),
+    this.billOfSupplySeriesFormat = const Value.absent(),
     this.defaultInvoiceTemplateId = const Value.absent(),
     this.defaultQuoteTemplateId = const Value.absent(),
     this.brandColor = const Value.absent(),
@@ -1300,6 +1353,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Expression<String>? quoteSeriesFormat,
     Expression<String>? creditNoteSeriesFormat,
     Expression<String>? debitNoteSeriesFormat,
+    Expression<String>? billOfSupplySeriesFormat,
     Expression<int>? defaultInvoiceTemplateId,
     Expression<int>? defaultQuoteTemplateId,
     Expression<int>? brandColor,
@@ -1333,6 +1387,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
         'credit_note_series_format': creditNoteSeriesFormat,
       if (debitNoteSeriesFormat != null)
         'debit_note_series_format': debitNoteSeriesFormat,
+      if (billOfSupplySeriesFormat != null)
+        'bill_of_supply_series_format': billOfSupplySeriesFormat,
       if (defaultInvoiceTemplateId != null)
         'default_invoice_template_id': defaultInvoiceTemplateId,
       if (defaultQuoteTemplateId != null)
@@ -1367,6 +1423,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Value<String>? quoteSeriesFormat,
     Value<String>? creditNoteSeriesFormat,
     Value<String>? debitNoteSeriesFormat,
+    Value<String>? billOfSupplySeriesFormat,
     Value<int?>? defaultInvoiceTemplateId,
     Value<int?>? defaultQuoteTemplateId,
     Value<int?>? brandColor,
@@ -1399,6 +1456,8 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
           creditNoteSeriesFormat ?? this.creditNoteSeriesFormat,
       debitNoteSeriesFormat:
           debitNoteSeriesFormat ?? this.debitNoteSeriesFormat,
+      billOfSupplySeriesFormat:
+          billOfSupplySeriesFormat ?? this.billOfSupplySeriesFormat,
       defaultInvoiceTemplateId:
           defaultInvoiceTemplateId ?? this.defaultInvoiceTemplateId,
       defaultQuoteTemplateId:
@@ -1489,6 +1548,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
         debitNoteSeriesFormat.value,
       );
     }
+    if (billOfSupplySeriesFormat.present) {
+      map['bill_of_supply_series_format'] = Variable<String>(
+        billOfSupplySeriesFormat.value,
+      );
+    }
     if (defaultInvoiceTemplateId.present) {
       map['default_invoice_template_id'] = Variable<int>(
         defaultInvoiceTemplateId.value,
@@ -1537,6 +1601,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
           ..write('quoteSeriesFormat: $quoteSeriesFormat, ')
           ..write('creditNoteSeriesFormat: $creditNoteSeriesFormat, ')
           ..write('debitNoteSeriesFormat: $debitNoteSeriesFormat, ')
+          ..write('billOfSupplySeriesFormat: $billOfSupplySeriesFormat, ')
           ..write('defaultInvoiceTemplateId: $defaultInvoiceTemplateId, ')
           ..write('defaultQuoteTemplateId: $defaultQuoteTemplateId, ')
           ..write('brandColor: $brandColor, ')
@@ -14048,6 +14113,7 @@ typedef $$BusinessesTableCreateCompanionBuilder =
       Value<String> quoteSeriesFormat,
       Value<String> creditNoteSeriesFormat,
       Value<String> debitNoteSeriesFormat,
+      Value<String> billOfSupplySeriesFormat,
       Value<int?> defaultInvoiceTemplateId,
       Value<int?> defaultQuoteTemplateId,
       Value<int?> brandColor,
@@ -14079,6 +14145,7 @@ typedef $$BusinessesTableUpdateCompanionBuilder =
       Value<String> quoteSeriesFormat,
       Value<String> creditNoteSeriesFormat,
       Value<String> debitNoteSeriesFormat,
+      Value<String> billOfSupplySeriesFormat,
       Value<int?> defaultInvoiceTemplateId,
       Value<int?> defaultQuoteTemplateId,
       Value<int?> brandColor,
@@ -14375,6 +14442,11 @@ class $$BusinessesTableFilterComposer
 
   ColumnFilters<String> get debitNoteSeriesFormat => $composableBuilder(
     column: $table.debitNoteSeriesFormat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get billOfSupplySeriesFormat => $composableBuilder(
+    column: $table.billOfSupplySeriesFormat,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14729,6 +14801,11 @@ class $$BusinessesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get billOfSupplySeriesFormat => $composableBuilder(
+    column: $table.billOfSupplySeriesFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get defaultInvoiceTemplateId => $composableBuilder(
     column: $table.defaultInvoiceTemplateId,
     builder: (column) => ColumnOrderings(column),
@@ -14849,6 +14926,11 @@ class $$BusinessesTableAnnotationComposer
 
   GeneratedColumn<String> get debitNoteSeriesFormat => $composableBuilder(
     column: $table.debitNoteSeriesFormat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get billOfSupplySeriesFormat => $composableBuilder(
+    column: $table.billOfSupplySeriesFormat,
     builder: (column) => column,
   );
 
@@ -15137,6 +15219,7 @@ class $$BusinessesTableTableManager
                 Value<String> quoteSeriesFormat = const Value.absent(),
                 Value<String> creditNoteSeriesFormat = const Value.absent(),
                 Value<String> debitNoteSeriesFormat = const Value.absent(),
+                Value<String> billOfSupplySeriesFormat = const Value.absent(),
                 Value<int?> defaultInvoiceTemplateId = const Value.absent(),
                 Value<int?> defaultQuoteTemplateId = const Value.absent(),
                 Value<int?> brandColor = const Value.absent(),
@@ -15166,6 +15249,7 @@ class $$BusinessesTableTableManager
                 quoteSeriesFormat: quoteSeriesFormat,
                 creditNoteSeriesFormat: creditNoteSeriesFormat,
                 debitNoteSeriesFormat: debitNoteSeriesFormat,
+                billOfSupplySeriesFormat: billOfSupplySeriesFormat,
                 defaultInvoiceTemplateId: defaultInvoiceTemplateId,
                 defaultQuoteTemplateId: defaultQuoteTemplateId,
                 brandColor: brandColor,
@@ -15197,6 +15281,7 @@ class $$BusinessesTableTableManager
                 Value<String> quoteSeriesFormat = const Value.absent(),
                 Value<String> creditNoteSeriesFormat = const Value.absent(),
                 Value<String> debitNoteSeriesFormat = const Value.absent(),
+                Value<String> billOfSupplySeriesFormat = const Value.absent(),
                 Value<int?> defaultInvoiceTemplateId = const Value.absent(),
                 Value<int?> defaultQuoteTemplateId = const Value.absent(),
                 Value<int?> brandColor = const Value.absent(),
@@ -15226,6 +15311,7 @@ class $$BusinessesTableTableManager
                 quoteSeriesFormat: quoteSeriesFormat,
                 creditNoteSeriesFormat: creditNoteSeriesFormat,
                 debitNoteSeriesFormat: debitNoteSeriesFormat,
+                billOfSupplySeriesFormat: billOfSupplySeriesFormat,
                 defaultInvoiceTemplateId: defaultInvoiceTemplateId,
                 defaultQuoteTemplateId: defaultQuoteTemplateId,
                 brandColor: brandColor,

@@ -35,6 +35,11 @@ class Businesses extends Table {
       text().withDefault(const Constant('CN-{FY}-{SEQ4}'))();
   TextColumn get debitNoteSeriesFormat =>
       text().withDefault(const Constant('DN-{FY}-{SEQ4}'))();
+
+  /// Bills of Supply (composition / unregistered / exempt supplies) get their
+  /// own series so tax invoices and BOS documents never share numbering.
+  TextColumn get billOfSupplySeriesFormat =>
+      text().withDefault(const Constant('BOS-{FY}-{SEQ4}'))();
   IntColumn get defaultInvoiceTemplateId => integer().nullable()();
   IntColumn get defaultQuoteTemplateId => integer().nullable()();
   IntColumn get brandColor => integer().nullable()();

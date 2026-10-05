@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../../../core/utils/formatting.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../core/utils/invoice_balance.dart';
+import '../../../core/utils/billing_mode.dart';
 import '../../../core/utils/invoice_status.dart';
 import '../../../core/utils/recurrence.dart';
 import '../../../database/app_database.dart';
@@ -458,9 +459,12 @@ class _InvoicePreviewBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isGstEnabled = ref.watch(isGstEnabledProvider);
     final showBankDetails = ref.watch(printBankDetailsOnInvoiceProvider);
     final businessAsync = ref.watch(businessDetailProvider(invoice.businessId));
+    final isGstEnabled = chargesGstForBusiness(
+      businessAsync.valueOrNull?.businessType,
+      gstFeaturesEnabled: ref.watch(isGstEnabledProvider),
+    );
     final customerAsync = ref.watch(customerDetailProvider(invoice.customerId));
     final itemsAsync = ref.watch(invoiceItemsProvider(invoice.id));
     final paymentsAsync = ref.watch(invoicePaymentsProvider(invoiceId));
@@ -802,7 +806,10 @@ Future<void> _shareInvoiceDriveLink(
     final items = await ref
         .read(invoiceDaoProvider)
         .getItemsForInvoice(invoice.id);
-    final isGstEnabled = ref.read(isGstEnabledProvider);
+    final isGstEnabled = chargesGstForBusiness(
+      business?.businessType,
+      gstFeaturesEnabled: ref.read(isGstEnabledProvider),
+    );
     final showBankDetails = ref.read(printBankDetailsOnInvoiceProvider);
     if (business == null || customer == null) {
       throw Exception('Invoice data is incomplete');

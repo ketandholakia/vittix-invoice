@@ -4,6 +4,7 @@ import '../database/daos/business_dao.dart';
 import '../database/daos/invoice_dao.dart';
 import '../database/daos/product_dao.dart';
 import '../core/utils/invoice_number.dart';
+import '../core/utils/invoice_type.dart';
 import '../core/utils/money.dart';
 import 'document_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,10 +70,17 @@ class InvoiceService
       businessDao.getBusinessById(businessId);
 
   @override
-  String seriesFormatOf(Business? business) => InvoiceNumberGenerator.normalizeFormat(
-    business?.invoiceSeriesFormat,
-    fallback: InvoiceNumberGenerator.defaultInvoiceFormat,
-  );
+  String seriesFormatOf(Business? business, InvoicesCompanion companion) {
+    // Bills of Supply (composition / unregistered / exempt supplies) run on
+    // their own series so they never consume tax-invoice sequence numbers.
+    final isBos = companion.invoiceType.value == billOfSupplyType;
+    return InvoiceNumberGenerator.normalizeFormat(
+      isBos ? business?.billOfSupplySeriesFormat : business?.invoiceSeriesFormat,
+      fallback: isBos
+          ? InvoiceNumberGenerator.defaultBillOfSupplyFormat
+          : InvoiceNumberGenerator.defaultInvoiceFormat,
+    );
+  }
 
   @override
   DateTime dateOf(InvoicesCompanion companion) => companion.invoiceDate.value;

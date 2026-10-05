@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/utils/invoice_balance.dart';
+import '../../../core/utils/billing_mode.dart';
 import '../../../core/utils/formatting.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money_formatter.dart';
@@ -166,7 +167,10 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       final items = await ref
           .read(invoiceDaoProvider)
           .getItemsForInvoice(invoice.id);
-      final isGstEnabled = ref.read(isGstEnabledProvider);
+      final isGstEnabled = chargesGstForBusiness(
+        business?.businessType,
+        gstFeaturesEnabled: ref.read(isGstEnabledProvider),
+      );
       final showBankDetails = ref.read(printBankDetailsOnInvoiceProvider);
 
       if (business == null || customer == null) {

@@ -325,6 +325,7 @@ Future<Uint8List> _buildTemplateThumbnail({
       quoteSeriesFormat: 'QT-{FY}-{SEQ4}',
       creditNoteSeriesFormat: 'CN-{FY}-{SEQ4}',
       debitNoteSeriesFormat: 'DN-{FY}-{SEQ4}',
+billOfSupplySeriesFormat: 'BOS-{FY}-{SEQ4}',
       defaultInvoiceTemplateId: null,
       defaultQuoteTemplateId: null,
       brandColor: _previewBrandColor(config.primaryColor),

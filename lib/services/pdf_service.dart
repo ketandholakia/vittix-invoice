@@ -8,6 +8,8 @@ import '../core/utils/invoice_balance.dart';
 import '../core/utils/money_formatter.dart';
 import '../database/app_database.dart';
 import '../database/tables/businesses.dart';
+import '../core/utils/billing_mode.dart';
+import '../core/utils/invoice_type.dart';
 import '../models/invoice_template_config.dart';
 import 'pdf_layout.dart' as layout;
 import 'dart:io';
@@ -114,6 +116,11 @@ class PdfService {
                 invoice.supplyType,
                 invoice.exportWithLut,
               ),
+            ],
+            if (invoice.invoiceType == billOfSupplyType &&
+                business.businessType == BusinessType.compositionScheme) ...[
+              pw.SizedBox(height: spacing / 2),
+              _buildCompositionDeclaration(),
             ],
             pw.SizedBox(height: spacing),
             _buildItemsTable(

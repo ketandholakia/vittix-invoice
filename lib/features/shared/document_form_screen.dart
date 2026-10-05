@@ -7,6 +7,7 @@ import '../../providers/customer_provider.dart';
 import '../../providers/shared_preferences_provider.dart';
 import '../../core/utils/document_totals.dart';
 import '../../core/utils/formatting.dart';
+import '../../core/utils/billing_mode.dart';
 import '../../core/utils/gst_supply.dart';
 import '../../core/utils/money.dart';
 
@@ -303,7 +304,12 @@ abstract class DocumentFormScreenState<W extends ConsumerStatefulWidget, D, C, I
       return;
     }
 
-    final isGstEnabled = ref.read(isGstEnabledProvider);
+    // Composition-scheme and unregistered businesses bill without tax even
+    // when GST features are globally enabled.
+    final isGstEnabled = chargesGstForBusiness(
+      activeBusiness.businessType,
+      gstFeaturesEnabled: ref.read(isGstEnabledProvider),
+    );
     final currencyCode = activeBusiness.currencyCode;
     _updateSupplyType(activeBusiness, selectedCustomer, isGstEnabled);
 
@@ -408,7 +414,10 @@ abstract class DocumentFormScreenState<W extends ConsumerStatefulWidget, D, C, I
         data: (customers) {
           final activeBusiness = activeBusinessAsync.valueOrNull;
           final currencyCode = activeBusiness?.currencyCode ?? 'INR';
-          final isGstEnabled = ref.watch(isGstEnabledProvider);
+          final isGstEnabled = chargesGstForBusiness(
+            activeBusiness?.businessType,
+            gstFeaturesEnabled: ref.watch(isGstEnabledProvider),
+          );
 
           return Column(
             children: [

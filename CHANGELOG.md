@@ -6,6 +6,14 @@ All notable changes to Vittix Invoice are documented here. The format follows
 
 ## [Unreleased] — checkpoint of Phases 32–40 (2026-10-04)
 
+### Added — Composition scheme & Bill of Supply (Phase 47)
+- Per-business billing mode: composition-scheme and unregistered dealers
+  issue Bills of Supply with no tax collection (with the statutory
+  declaration printed), while regular dealers keep tax invoices.
+- Bills of Supply run on their own configurable numbering series
+  (`BOS-{FY}-{SEQ4}` by default, editable in Document Numbering) and never
+  appear in the GSTR-1 export; schema v31.
+
 ### Added — Profit & margin report (Phase 46)
 - New Reports section: revenue (taxable, GST excluded) against COGS from
   product purchase prices, with per-invoice/customer/product breakdowns,

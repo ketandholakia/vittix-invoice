@@ -370,6 +370,14 @@ A review-driven pass over the whole app. Schema moved v19  v29.
 - Removed the dead commented-out workmanager block from `main.dart`.
 - Verified: `flutter analyze --fatal-infos` clean; 192/192 tests pass.
 
+## Phase 46: Profit And Margin Reporting
+
+- New pure computation module `lib/core/utils/margin_report.dart`: revenue is the taxable amount (GST excluded), COGS is line quantity times the product's `purchasePrice`, credit notes reverse both revenue and COGS, and every boundary is `round2`-ed so totals reconcile with the invoice taxable amounts to the paise. Lines whose product has no purchase price contribute revenue but zero COGS and are counted explicitly, so the report can say the margin is an upper bound rather than silently assuming zero cost. Per-invoice, per-customer, and per-product breakdowns are aggregated in the same pass.
+- Reports screen gained a **Profit & Margin** section (new `reports_screen_margin.dart` part): totals tiles with margin percent and a negative-margin callout, top-5 customers and products with revenue/COGS detail, a "no purchase price" notice with per-row markers, and a sectioned CSV export (totals, invoices, customers, products). It reads the full book through the uncapped `getInvoicesForBusinessBetween` DAO path — the 500-row UI window providers are used only as refresh signals, never as data.
+- Tests (`test/margin_test.dart`): margin math, GST-excluded revenue, missing-cost-basis flagging (product and service lines), negative margins, credit-note reversal (revenue, COGS, and netted product quantity), draft/cancelled exclusion, paise reconciliation, and cross-invoice customer/product aggregation.
+- The roadmap's customer/product filters are served by the breakdown tables (per-customer and per-product rows over the selected date range); a further dropdown filter was judged redundant for the current screen.
+- Verified: `flutter analyze --fatal-infos` clean; 200/200 tests pass.
+
 ## Next Likely Phases
 
 1. Platform completion for chosen ship targets (iOS Google Sign-In config, macOS keychain entitlement, Linux plugin registrants) and integration tests in CI.

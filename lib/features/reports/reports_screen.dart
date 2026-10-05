@@ -5,6 +5,7 @@ import '../../core/utils/formatting.dart';
 import '../../core/utils/gstr1_export.dart';
 import '../../core/utils/gstr1_validation.dart';
 import '../../core/utils/invoice_balance.dart';
+import '../../core/utils/margin_report.dart';
 import '../../core/utils/stock_status.dart';
 import '../../core/utils/invoice_status.dart';
 import '../../database/app_database.dart';
@@ -18,6 +19,7 @@ import '../../services/share_service.dart';
 import 'customer_statement_report.dart';
 
 part 'reports_screen_exports.dart';
+part 'reports_screen_margin.dart';
 part 'reports_screen_data.dart';
 part 'reports_screen_widgets.dart';
 
@@ -537,6 +539,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             : 'Export GSTR-1 Summary',
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  _MarginSection(
+                    range: _selectedRange,
+                    currencyCode: activeBusiness?.currencyCode ?? 'INR',
                   ),
                   const SizedBox(height: 16),
                   Row(

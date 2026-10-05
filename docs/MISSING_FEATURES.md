@@ -26,12 +26,9 @@ Do not re-plan the following as missing work: receivables aging, empty states, r
 - Add template and backup flows to automated regression coverage.
 - Add import/deduplication workflows for customers, products, HSN codes, and UOMs if bulk onboarding becomes a priority.
 
-### Phase 36: Profit And Margin Reporting
+### Phase 36: Profit And Margin Reporting - done (Phase 46)
 
-- Add margin reporting once purchase cost or inventory purchase records exist.
-- Support per-invoice and per-customer profitability breakdowns.
-- Add filters for date range, customer, and product/category.
-- Add tests for margin math and negative-margin scenarios.
+- Margin report shipped: revenue (taxable, GST excluded) minus COGS from `products.purchasePrice`, per-invoice/customer/product breakdowns, date-range filter, CSV export, explicit no-cost-basis flagging, negative-margin handling. See `development-phase-log.md` Phase 46.
 
 ## Known Technical Risks
 

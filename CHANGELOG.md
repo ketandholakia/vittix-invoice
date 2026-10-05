@@ -6,6 +6,13 @@ All notable changes to Vittix Invoice are documented here. The format follows
 
 ## [Unreleased] — checkpoint of Phases 32–40 (2026-10-04)
 
+### Added — Profit & margin report (Phase 46)
+- New Reports section: revenue (taxable, GST excluded) against COGS from
+  product purchase prices, with per-invoice/customer/product breakdowns,
+  margin percent, CSV export, and explicit flagging of lines whose product
+  has no purchase price. Credit notes reverse revenue and COGS; drafts and
+  cancelled documents are excluded; totals reconcile to the paise.
+
 ### Changed — October 2026 refactor pass (Phase 45)
 - The PDF, reports, settings, and template-manager files are split into
   navigable parts; services no longer depend on Riverpod internals; Nextcloud

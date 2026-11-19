@@ -99,6 +99,7 @@ void main() {
           );
 
       final rows = buildGstr1Rows(
+        businessStateCode: 27,
         customers: await database.select(database.customers).get(),
         invoices: await database.select(database.invoices).get(),
         items: await database.select(database.invoiceItems).get(),
@@ -196,6 +197,7 @@ void main() {
       );
 
       final rows = buildGstr1Rows(
+        businessStateCode: 27,
         customers: await database.select(database.customers).get(),
         invoices: await database.select(database.invoices).get(),
         items: const [],
@@ -261,6 +263,26 @@ void main() {
             ),
           );
         }
+        // B2CS aggregates rate-wise from the line items, so the bulk export
+        // must carry one item per document.
+        for (var i = 1; i <= 501; i++) {
+          batch.insert(
+            database.invoiceItems,
+            InvoiceItemsCompanion.insert(
+              invoiceId: i,
+              name: 'Service',
+              hsnSac: '9983',
+              unit: 'NOS',
+              quantity: 1,
+              rate: 100,
+              taxableAmount: 100,
+              gstRate: 18,
+              cgstAmount: const drift.Value(9),
+              sgstAmount: const drift.Value(9),
+              totalAmount: 118,
+            ),
+          );
+        }
       });
 
       final inRange = await database.invoiceDao.getInvoicesForBusinessBetween(
@@ -271,14 +293,18 @@ void main() {
       expect(inRange.length, 501);
 
       final rows = buildGstr1Rows(
+        businessStateCode: 27,
         customers: await database.select(database.customers).get(),
         invoices: inRange,
-        items: const [],
+        items: await database.invoiceDao.getItemsForInvoices(
+          inRange.map((invoice) => invoice.id).toList(),
+        ),
       );
       final flat = rows.map((row) => row.join('|')).join('\n');
-      // B2CS consolidates rows, so completeness is proven by the bucket
-      // total: all 501 invoices at 100 taxable each.
-      expect(flat, contains('27|18.0|50100.00|4509.00|4509.00'));
+      // B2CS consolidates rows rate-wise from the line items, so
+      // completeness is proven by the bucket total: all 501 invoices at 100
+      // taxable each.
+      expect(flat, contains('27|18|50100.00|4509.00|4509.00'));
     });
     test('bills of supply never appear in any GSTR-1 section', () async {
       final database = AppDatabase.forTesting(NativeDatabase.memory());
@@ -338,6 +364,7 @@ void main() {
           );
 
       final rows = buildGstr1Rows(
+        businessStateCode: 27,
         customers: await database.select(database.customers).get(),
         invoices: await database.select(database.invoices).get(),
         items: await database.select(database.invoiceItems).get(),
@@ -348,6 +375,336 @@ void main() {
       expect(flat, isNot(contains('8479')));
     });
 
+  });
+
+  group('Gstr1Sections', () {
+    late AppDatabase database;
+
+    setUp(() async {
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+      await database.into(database.businesses).insert(
+            BusinessesCompanion.insert(
+              name: 'B',
+              gstin: '27AAPFU0939F1ZV',
+              address: 'a',
+              city: 'Mumbai',
+              stateCode: 27,
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+    });
+
+    Future<int> insertCustomer({String? gstin, String name = 'C'}) =>
+        database.into(database.customers).insert(
+              CustomersCompanion.insert(
+                businessId: 1,
+                name: name,
+                gstin: drift.Value(gstin),
+                createdAt: DateTime(2026, 6, 30),
+              ),
+            );
+
+    Future<int> insertInvoice({
+      required int customerId,
+      required String number,
+      String type = 'TAX_INVOICE',
+      String supplyType = 'B2C',
+      int placeOfSupply = 27,
+      double taxable = 100,
+      double cgst = 0,
+      double sgst = 0,
+      double igst = 0,
+      double total = 100,
+      double tdsAmount = 0,
+      String status = 'SENT',
+      int? referenceInvoiceId,
+    }) =>
+        database.into(database.invoices).insert(
+              InvoicesCompanion.insert(
+                businessId: 1,
+                customerId: customerId,
+                invoiceNumber: number,
+                invoiceDate: DateTime(2026, 6, 30),
+                invoiceType: type,
+                supplyType: supplyType,
+                placeOfSupply: placeOfSupply,
+                subtotal: taxable,
+                taxableAmount: taxable,
+                cgstAmount: drift.Value(cgst),
+                sgstAmount: drift.Value(sgst),
+                igstAmount: drift.Value(igst),
+                totalAmount: total,
+                tdsAmount: drift.Value(tdsAmount),
+                referenceInvoiceId: drift.Value(referenceInvoiceId),
+                status: drift.Value(status),
+                createdAt: DateTime(2026, 6, 30),
+                updatedAt: DateTime(2026, 6, 30),
+              ),
+            );
+
+    Future<void> insertItem(
+      int invoiceId, {
+      double taxable = 100,
+      double gstRate = 18,
+      double cgst = 9,
+      double sgst = 0,
+      double igst = 0,
+    }) =>
+        database.into(database.invoiceItems).insert(
+              InvoiceItemsCompanion.insert(
+                invoiceId: invoiceId,
+                name: 'Service',
+                hsnSac: '9983',
+                unit: 'NOS',
+                quantity: 1,
+                rate: taxable,
+                taxableAmount: taxable,
+                gstRate: gstRate,
+                cgstAmount: drift.Value(cgst),
+                sgstAmount: drift.Value(sgst),
+                igstAmount: drift.Value(igst),
+                totalAmount: taxable + cgst + sgst + igst,
+              ),
+            );
+
+    Future<String> export() async {
+      final rows = buildGstr1Rows(
+        businessStateCode: 27,
+        customers: await database.select(database.customers).get(),
+        invoices: await database.select(database.invoices).get(),
+        items: await database.select(database.invoiceItems).get(),
+      );
+      return rows.map((row) => row.join('|')).join('\n');
+    }
+
+    String section(String flat, String name) => flat
+        .split('Section|$name')
+        .last
+        .split(RegExp(r'Section\|[A-Za-z /]+'))
+        .first;
+
+    test('a mixed 5%/18% invoice reports rate-wise buckets in B2CS',
+        () async {
+      final walkIn = await insertCustomer(name: 'Walk-in');
+      final invoice = await insertInvoice(
+        customerId: walkIn,
+        number: 'INV-2627-0001',
+        taxable: 200,
+        cgst: 23,
+        sgst: 23,
+        total: 246,
+      );
+      await insertItem(invoice, taxable: 100, gstRate: 5, cgst: 2.5, sgst: 2.5);
+      await insertItem(invoice, taxable: 100, gstRate: 18, cgst: 9, sgst: 9);
+
+      final flat = await export();
+      final b2cs = section(flat, 'B2CS');
+
+      // One bucket per rate, straight from the lines — never a blended rate.
+      expect(b2cs, contains('27|5|100.00|2.50|2.50|0.00|0.00'));
+      expect(b2cs, contains('27|18|100.00|9.00|9.00|0.00|0.00'));
+      expect(b2cs, isNot(contains('11.5')));
+    });
+
+    test('credit notes net into B2CS and debit notes add back', () async {
+      final walkIn = await insertCustomer(name: 'Walk-in');
+      final invoice = await insertInvoice(
+        customerId: walkIn,
+        number: 'INV-2627-0001',
+        cgst: 9,
+        sgst: 9,
+        total: 118,
+      );
+      await insertItem(invoice);
+      final creditNote = await insertInvoice(
+        customerId: walkIn,
+        number: 'CN-2627-0001',
+        type: 'CREDIT_NOTE',
+        referenceInvoiceId: invoice,
+        cgst: 9,
+        sgst: 9,
+        total: 118,
+      );
+      await insertItem(creditNote);
+      final debitNote = await insertInvoice(
+        customerId: walkIn,
+        number: 'DN-2627-0001',
+        type: 'DEBIT_NOTE',
+        referenceInvoiceId: invoice,
+        taxable: 50,
+        cgst: 4.5,
+        sgst: 4.5,
+        total: 59,
+      );
+      await insertItem(
+        debitNote,
+        taxable: 50,
+        cgst: 4.5,
+        sgst: 4.5,
+      );
+
+      final flat = await export();
+      final b2cs = section(flat, 'B2CS');
+
+      // 100 - 100 (credit) + 50 (debit) taxable, and likewise the tax.
+      expect(b2cs, contains('27|18|50.00|4.50|4.50|0.00|0.00'));
+    });
+
+    test('registered-recipient notes go to CDNR, not B2CS', () async {
+      final registered = await insertCustomer(
+        gstin: '24AAPFU0939F1Z2',
+        name: 'Registered',
+      );
+      final invoice = await insertInvoice(
+        customerId: registered,
+        number: 'INV-2627-0001',
+        supplyType: 'B2B',
+        cgst: 9,
+        sgst: 9,
+        total: 118,
+      );
+      await insertItem(invoice);
+      final creditNote = await insertInvoice(
+        customerId: registered,
+        number: 'CN-2627-0001',
+        type: 'CREDIT_NOTE',
+        supplyType: 'B2B',
+        referenceInvoiceId: invoice,
+        cgst: 9,
+        sgst: 9,
+        total: 118,
+      );
+      await insertItem(creditNote);
+
+      final flat = await export();
+      final b2cs = section(flat, 'B2CS');
+
+      expect(b2cs, isNot(contains('100.00')));
+      expect(flat, contains('CN-2627-0001'));
+    });
+
+    test('large inter-state supplies to unregistered recipients go to B2CL, '
+        'not B2CS', () async {
+      final outOfState = await insertCustomer(name: 'Out-of-state');
+      await insertInvoice(
+        customerId: outOfState,
+        number: 'INV-2627-0001',
+        placeOfSupply: 24,
+        taxable: 300000,
+        igst: 54000,
+        total: 354000,
+      );
+      final small = await insertInvoice(
+        customerId: outOfState,
+        number: 'INV-2627-0002',
+        placeOfSupply: 24,
+        taxable: 200000,
+        igst: 36000,
+        total: 236000,
+      );
+      await insertItem(small, taxable: 200000, cgst: 0, igst: 36000);
+
+      final flat = await export();
+      final b2cl = section(flat, 'B2CL');
+      final b2cs = section(flat, 'B2CS');
+
+      expect(b2cl, contains('INV-2627-0001'));
+      expect(b2cl, contains('354000.00'));
+      expect(b2cl, contains('24'));
+      // Below the threshold it stays consolidated, rate-wise.
+      expect(b2cs, contains('24|18|200000.00|0.00|0.00|36000.00|0.00'));
+      expect(b2cs, isNot(contains('INV-2627-0001')));
+    });
+
+    test('notes to unregistered recipients above the threshold go to CDNUR',
+        () async {
+      final outOfState = await insertCustomer(name: 'Out-of-state');
+      final invoice = await insertInvoice(
+        customerId: outOfState,
+        number: 'INV-2627-0001',
+        placeOfSupply: 24,
+        taxable: 300000,
+        igst: 54000,
+        total: 354000,
+      );
+      await insertItem(invoice, taxable: 300000, cgst: 0, igst: 54000);
+      final creditNote = await insertInvoice(
+        customerId: outOfState,
+        number: 'CN-2627-0001',
+        type: 'CREDIT_NOTE',
+        placeOfSupply: 24,
+        referenceInvoiceId: invoice,
+        taxable: 260000,
+        igst: 46800,
+        total: 306800,
+      );
+      await insertItem(creditNote, taxable: 260000, cgst: 0, igst: 46800);
+
+      final flat = await export();
+      final cdnur = section(flat, 'CDNUR');
+      final b2cs = section(flat, 'B2CS');
+
+      expect(cdnur, contains('CN-2627-0001'));
+      expect(cdnur, contains('306800.00'));
+      // The large note must not leak into the consolidated section.
+      expect(b2cs, isNot(contains('260000')));
+    });
+
+    test('cancelled invoices appear only in documents issued', () async {
+      final walkIn = await insertCustomer(name: 'Walk-in');
+      await insertInvoice(
+        customerId: walkIn,
+        number: 'INV-2627-0001',
+        cgst: 9,
+        sgst: 9,
+        total: 118,
+      );
+      await insertItem(
+        (await database.select(database.invoices).get()).first.id,
+      );
+      await insertInvoice(
+        customerId: walkIn,
+        number: 'INV-2627-0002',
+        cgst: 9,
+        sgst: 9,
+        total: 118,
+        status: 'CANCELLED',
+      );
+
+      final flat = await export();
+      final documents = section(flat, 'Documents issued');
+
+      expect(documents, contains('TAX_INVOICE|INV-2627-0001|INV-2627-0002|2|1'));
+      final b2cs = section(flat, 'B2CS');
+      expect(b2cs, isNot(contains('INV-2627-0002')));
+    });
+
+    test('B2B and CDNR report the gross invoice value, not net of TDS',
+        () async {
+      final registered = await insertCustomer(
+        gstin: '24AAPFU0939F1Z2',
+        name: 'Registered',
+      );
+      await insertInvoice(
+        customerId: registered,
+        number: 'INV-2627-0001',
+        supplyType: 'B2B',
+        taxable: 1000,
+        igst: 180,
+        total: 1060,
+        tdsAmount: 20,
+      );
+      final invoiceId =
+          (await database.select(database.invoices).get()).single.id;
+      await insertItem(invoiceId, taxable: 1000, cgst: 0, igst: 180);
+
+      final flat = await export();
+      final b2b = section(flat, 'B2B');
+
+      // Gross = totalAmount (1060, net of TDS) + tdsAmount (20) = 1080.
+      expect(b2b, contains('1080.00|1000.00'));
+    });
   });
 
   group('Gstr1Validation', () {

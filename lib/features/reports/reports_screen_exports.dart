@@ -138,6 +138,9 @@ extension _ReportsExports on _ReportsScreenState {
       final items = await invoiceDao.getItemsForInvoices(
         invoices.map((invoice) => invoice.id).toList(),
       );
+      final business =
+          await ref.read(businessDaoProvider).getBusinessById(businessId);
+      if (business == null) return;
 
       final issues = validateInvoicesForGstr1(
         customers: customers,
@@ -156,6 +159,7 @@ extension _ReportsExports on _ReportsScreenState {
         customers: customers,
         invoices: invoices,
         items: items,
+        businessStateCode: business.stateCode,
       );
 
       await ShareService.shareCsv(

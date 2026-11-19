@@ -66,6 +66,21 @@ class _DocumentNumberingScreenState
             _initialized = true;
           }
 
+          // Formats stored before the GST numbering rules existed keep
+          // working — they only surface as a warning here.
+          final legacyWarnings = [
+            ('Invoice', business.invoiceSeriesFormat),
+            ('Quote', business.quoteSeriesFormat),
+            ('Credit note', business.creditNoteSeriesFormat),
+            ('Debit note', business.debitNoteSeriesFormat),
+            ('Bill of Supply', business.billOfSupplySeriesFormat),
+          ]
+              .map(
+                (entry) => (entry.$1, InvoiceNumberGenerator.validateFormat(entry.$2)),
+              )
+              .where((entry) => entry.$2 != null)
+              .toList();
+
           final invoiceFormat = InvoiceNumberGenerator.normalizeFormat(
             _invoiceController.text,
             fallback: InvoiceNumberGenerator.defaultInvoiceFormat,
@@ -97,6 +112,40 @@ class _DocumentNumberingScreenState
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 16),
+                if (legacyWarnings.isNotEmpty)
+                  Card(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Saved formats predating the GST numbering rules',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'They keep working, but new numbers should move '
+                            'to a compliant format.',
+                          ),
+                          for (final warning in legacyWarnings)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text('${warning.$1}: "${warning.$2}"'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (legacyWarnings.isNotEmpty) const SizedBox(height: 16),
                 _TokenHelpCard(now: now),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -203,16 +252,8 @@ class _DocumentNumberingScreenState
     );
   }
 
-  String? _validateFormat(String? value) {
-    final normalized = InvoiceNumberGenerator.normalizeFormat(
-      value,
-      fallback: InvoiceNumberGenerator.defaultInvoiceFormat,
-    );
-    if (!normalized.contains('{SEQ')) {
-      return 'Format must include a sequence token like {SEQ4}.';
-    }
-    return null;
-  }
+  String? _validateFormat(String? value) =>
+      InvoiceNumberGenerator.validateFormat(value ?? '');
 
   Future<void> _save(Business updatedBusiness) async {
     if (!_formKey.currentState!.validate()) return;
@@ -274,9 +315,8 @@ class _TokenHelpCard extends StatelessWidget {
             const SizedBox(height: 8),
             const Text('Example formats:'),
             const Text('INV-{FY}-{SEQ4}'),
-            const Text('INV/{YYYY}/{MM}/{SEQ4}'),
-            const Text('QT-{MON}-{YY}-{SEQ3}'),
-            const Text('SALE-{YYYY}-{MM}-A-{SEQ4}-X'),
+            const Text('INV/{FY}/{SEQ4}'),
+            const Text('QT-{MON}-{FY}-{SEQ3}'),
           ],
         ),
       ),

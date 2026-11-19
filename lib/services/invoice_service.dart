@@ -3,6 +3,7 @@ import '../database/app_database.dart';
 import '../database/daos/business_dao.dart';
 import '../database/daos/invoice_dao.dart';
 import '../database/daos/product_dao.dart';
+import '../database/document_sequence_allocator.dart';
 import '../core/utils/invoice_number.dart';
 import '../core/utils/invoice_type.dart';
 import '../core/utils/money.dart';
@@ -306,6 +307,64 @@ class InvoiceService
     }
     if (document.amountPaid > 0) {
       throw Exception('Invoices with recorded payments cannot be deleted');
+    }
+  }
+
+  /// A draft may be deleted only while it is the latest number of its series
+  /// (business + document type + financial year + format); deleting it then
+  /// rewinds the counter so the number is issued again. Older drafts must be
+  /// cancelled instead — a hole in the middle of a GST series is a compliance
+  /// problem. Credit notes, debit notes and Bills of Supply run their own
+  /// series formats, so the same rule covers them all.
+  @override
+  Future<void> prepareDelete(Invoice document) async {
+    final business = await getBusiness(document.businessId);
+    final fallback = switch (document.invoiceType) {
+      billOfSupplyType => InvoiceNumberGenerator.defaultBillOfSupplyFormat,
+      creditNoteType => InvoiceNumberGenerator.defaultCreditNoteFormat,
+      debitNoteType => InvoiceNumberGenerator.defaultDebitNoteFormat,
+      _ => InvoiceNumberGenerator.defaultInvoiceFormat,
+    };
+    final storedFormat = switch (document.invoiceType) {
+      billOfSupplyType => business?.billOfSupplySeriesFormat,
+      creditNoteType => business?.creditNoteSeriesFormat,
+      debitNoteType => business?.debitNoteSeriesFormat,
+      _ => business?.invoiceSeriesFormat,
+    };
+    final format = InvoiceNumberGenerator.normalizeFormat(
+      storedFormat,
+      fallback: fallback,
+    );
+
+    final allocator = DocumentSequenceAllocator(db);
+    final fiscalYear =
+        InvoiceNumberGenerator.financialYear(document.invoiceDate);
+    final current = await allocator.currentSequence(
+      businessId: document.businessId,
+      docType: DocumentSequenceAllocator.invoiceDocType,
+      fiscalYear: fiscalYear,
+      format: format,
+    );
+    final sequence = InvoiceNumberGenerator.extractSequenceFromFormat(
+      document.invoiceNumber,
+      format,
+      document.invoiceDate,
+    );
+
+    if (sequence != current) {
+      throw Exception(
+        'This draft is not the latest number. Cancel it instead of deleting '
+        'so the series stays consecutive.',
+      );
+    }
+    if (current > 0) {
+      await allocator.setSequence(
+        businessId: document.businessId,
+        docType: DocumentSequenceAllocator.invoiceDocType,
+        format: format,
+        date: document.invoiceDate,
+        sequence: current - 1,
+      );
     }
   }
 

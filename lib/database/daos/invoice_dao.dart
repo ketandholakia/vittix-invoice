@@ -9,6 +9,11 @@ import '../../core/utils/invoice_number.dart';
 
 part 'invoice_dao.g.dart';
 
+/// The only insert failure that means "generated number already exists":
+/// SQLITE_CONSTRAINT_UNIQUE. Any other SQLite error is a real fault and must
+/// surface instead of being mistaken for a numbering collision and retried.
+const _sqliteConstraintUnique = 2067;
+
 @DriftAccessor(tables: [Invoices, InvoiceItems, InvoicePayments])
 class InvoiceDao extends DatabaseAccessor<AppDatabase> with _$InvoiceDaoMixin {
   InvoiceDao(super.db);
@@ -130,7 +135,9 @@ class InvoiceDao extends DatabaseAccessor<AppDatabase> with _$InvoiceDaoMixin {
   /// run this inside a transaction. If the allocated number collides with a
   /// legacy number created before counters existed (or under an older
   /// format), the counter is resynced from the stored documents and the
-  /// insert is retried once.
+  /// insert is retried once. The resync stores the number it actually used
+  /// (`max + 1`) so the counter and the book stay in lock-step and the next
+  /// insert succeeds on its first attempt.
   Future<int> insertInvoiceWithGeneratedNumber({
     required InvoicesCompanion invoice,
     required String format,
@@ -152,25 +159,27 @@ class InvoiceDao extends DatabaseAccessor<AppDatabase> with _$InvoiceDaoMixin {
           ),
         ),
       );
-    } on SqliteException {
+    } on SqliteException catch (e) {
+      if (e.extendedResultCode != _sqliteConstraintUnique) rethrow;
       final maxSequence = await _scanMaxSequence(
         businessId: businessId,
         format: format,
         date: date,
       );
+      final retriedSequence = maxSequence + 1;
       await allocator.setSequence(
         businessId: businessId,
         docType: DocumentSequenceAllocator.invoiceDocType,
         format: format,
         date: date,
-        sequence: maxSequence,
+        sequence: retriedSequence,
       );
       return into(invoices).insert(
         invoice.copyWith(
           invoiceNumber: Value(
             InvoiceNumberGenerator.generateFromFormat(
               format,
-              maxSequence + 1,
+              retriedSequence,
               date,
             ),
           ),

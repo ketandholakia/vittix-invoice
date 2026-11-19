@@ -92,6 +92,11 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
 
   void validateDelete(D document);
 
+  /// Document-specific preparation before the row is removed, run inside the
+  /// delete transaction (after [validateDelete]). Invoices use it to enforce
+  /// latest-number-only deletion and rewind the series counter.
+  Future<void> prepareDelete(D document) async {}
+
   /// Throws when [document] may not be edited in its current lifecycle state
   /// (for example a paid, cancelled or converted document).
   void validateEdit(D document);
@@ -227,6 +232,7 @@ abstract class DocumentServiceBase<D, IR, C, IC> {
 
     final items = await getItems(documentId);
     await db.transaction(() async {
+      await prepareDelete(document);
       for (final item in items) {
         await reverseItemEffects(documentId: documentId, item: item);
       }

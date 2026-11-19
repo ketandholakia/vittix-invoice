@@ -65,6 +65,65 @@ class InvoiceNumberGenerator {
     return generateFromFormat(format, 1, date);
   }
 
+  /// Month used by [validateFormat] for length sampling: September has the
+  /// longest month name and the widest 2-digit day, so a format that passes
+  /// here passes all year.
+  static final _validationSampleDate = DateTime(2026, 9, 30);
+
+  /// Sequence used by [validateFormat] for worst-case width sampling.
+  static const _validationSampleSequence = 123456;
+
+  /// GST Rule 46 caps invoice numbers at 16 characters.
+  static const maxInvoiceNumberLength = 16;
+
+  /// Validates a series format against the GST numbering rules. Returns null
+  /// when the format is usable, or a human-readable reason it is not:
+  ///
+  /// - at least one sequence token (`{SEQ}`…`{SEQ6}`) is required,
+  /// - at least one of `{FY}` / `{YYYY}` is required so the series never
+  ///   repeats across financial years,
+  /// - a 6-digit sample must fit within [maxInvoiceNumberLength],
+  /// - only letters, digits, `-` and `/` may appear outside the tokens.
+  ///
+  /// A blank format is valid — it falls back to the built-in default.
+  static String? validateFormat(String format) {
+    final trimmed = format.trim();
+    if (trimmed.isEmpty) return null;
+
+    final tokenPattern = RegExp(
+      r'\{(FY|YYYY|YY|MM|M|DD|MON|MONTH|SEQ6|SEQ5|SEQ4|SEQ3|SEQ2|SEQ)\}',
+    );
+    final tokens = tokenPattern.allMatches(trimmed).map((m) => m.group(0)!);
+
+    if (!tokens.any((token) => token.startsWith('{SEQ'))) {
+      return 'Format must include a sequence token like {SEQ4}.';
+    }
+    final hasYearAnchor = tokens.any(
+      (token) => token == '{FY}' || token == '{YYYY}',
+    );
+    if (!hasYearAnchor) {
+      return 'Format must include {FY} or {YYYY} so numbers do not repeat '
+          'across financial years.';
+    }
+
+    final residual = trimmed.replaceAll(tokenPattern, '');
+    if (RegExp(r'[^A-Za-z0-9/-]').hasMatch(residual)) {
+      return 'Only letters, digits, hyphens and slashes may appear outside '
+          'the tokens.';
+    }
+
+    final sample = generateFromFormat(
+      trimmed,
+      _validationSampleSequence,
+      _validationSampleDate,
+    );
+    if (sample.length > maxInvoiceNumberLength) {
+      return 'Generated numbers would be ${sample.length} characters — the '
+          'maximum is $maxInvoiceNumberLength (GST Rule 46).';
+    }
+    return null;
+  }
+
   static String generate(String prefix, int lastNumber, DateTime date) {
     return generateFromFormat('$prefix-{FY}-{SEQ4}', lastNumber + 1, date);
   }

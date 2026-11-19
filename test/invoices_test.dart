@@ -1452,4 +1452,116 @@ void main() {
       expect(stored?.status, 'SENT');
     });
   });
+
+  group('DraftDeletionSeriesGap', () {
+    late AppDatabase database;
+    late ProviderContainer container;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({'active_business_id': 1});
+      final sharedPreferences = await SharedPreferences.getInstance();
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+      );
+
+      await database.into(database.businesses).insert(
+            BusinessesCompanion.insert(
+              name: 'Test Business',
+              gstin: '27AAPFU0939F1ZV',
+              address: 'Address',
+              city: 'Mumbai',
+              stateCode: 27,
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+
+      await database.into(database.customers).insert(
+            CustomersCompanion.insert(
+              businessId: 1,
+              name: 'Test Customer',
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    Future<int> createDraft() {
+      final invoiceDate = DateTime(2026, 6, 30);
+      return container.read(invoiceProvider).createInvoiceWithItems(
+        InvoicesCompanion.insert(
+          businessId: 1,
+          customerId: 1,
+          invoiceNumber: 'PENDING',
+          invoiceDate: invoiceDate,
+          invoiceType: 'TAX_INVOICE',
+          supplyType: 'B2B',
+          placeOfSupply: 27,
+          subtotal: 100,
+          taxableAmount: 100,
+          totalAmount: 118,
+          amountInWords: const drift.Value('One Hundred Eighteen Rupees Only'),
+          createdAt: invoiceDate,
+          updatedAt: invoiceDate,
+        ),
+        const [],
+      );
+    }
+
+    test('only the latest draft number can be deleted; the counter rewinds',
+        () async {
+      final notifier = container.read(invoiceProvider);
+      final a = await createDraft();
+      final b = await createDraft();
+      final c = await createDraft();
+
+      // Deleting a middle draft would leave a permanent gap.
+      await expectLater(
+        notifier.deleteInvoice(b),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('not the latest number'),
+          ),
+        ),
+      );
+      expect(await database.invoiceDao.getInvoiceById(b), isNotNull);
+
+      // The latest draft can go, and the next create reuses its number.
+      await notifier.deleteInvoice(c);
+      expect(await database.invoiceDao.getInvoiceById(c), isNull);
+
+      final nextId = await createDraft();
+      final next = await database.invoiceDao.getInvoiceById(nextId);
+      expect(next?.invoiceNumber, 'INV-2627-0003');
+
+      // With C gone, B is the latest remaining number again, so A still
+      // cannot be deleted.
+      expect(await database.invoiceDao.getInvoiceById(a), isNotNull);
+      await expectLater(
+        notifier.deleteInvoice(a),
+        throwsA(isA<Exception>()),
+      );
+
+      // Deleting B and the recreation rewinds the counter to A, which may
+      // now be deleted; the next number starts the series at A again.
+      await notifier.deleteInvoice(nextId);
+      await notifier.deleteInvoice(b);
+      await notifier.deleteInvoice(a);
+      final reopenedId = await createDraft();
+      expect(
+        (await database.invoiceDao.getInvoiceById(reopenedId))?.invoiceNumber,
+        'INV-2627-0001',
+      );
+    });
+  });
 }

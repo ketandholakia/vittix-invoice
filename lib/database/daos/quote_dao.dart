@@ -8,6 +8,11 @@ import '../../core/utils/invoice_number.dart';
 
 part 'quote_dao.g.dart';
 
+/// The only insert failure that means "generated number already exists":
+/// SQLITE_CONSTRAINT_UNIQUE. Any other SQLite error is a real fault and must
+/// surface instead of being mistaken for a numbering collision and retried.
+const _sqliteConstraintUnique = 2067;
+
 @DriftAccessor(tables: [Quotes, QuoteItems])
 class QuoteDao extends DatabaseAccessor<AppDatabase> with _$QuoteDaoMixin {
   QuoteDao(super.db);
@@ -53,7 +58,9 @@ class QuoteDao extends DatabaseAccessor<AppDatabase> with _$QuoteDaoMixin {
   /// Allocates the next sequence from the per-business counter and inserts
   /// the quote with a generated number in one atomic unit. Callers must run
   /// this inside a transaction. Handles collisions with legacy numbers the
-  /// same way as [InvoiceDao.insertInvoiceWithGeneratedNumber].
+  /// same way as [InvoiceDao.insertInvoiceWithGeneratedNumber]: only unique
+  /// violations trigger the resync, and the counter is left pointing at the
+  /// number actually used.
   Future<int> insertQuoteWithGeneratedNumber({
     required QuotesCompanion quote,
     required String format,
@@ -75,25 +82,27 @@ class QuoteDao extends DatabaseAccessor<AppDatabase> with _$QuoteDaoMixin {
           ),
         ),
       );
-    } on SqliteException {
+    } on SqliteException catch (e) {
+      if (e.extendedResultCode != _sqliteConstraintUnique) rethrow;
       final maxSequence = await _scanMaxSequence(
         businessId: businessId,
         format: format,
         date: date,
       );
+      final retriedSequence = maxSequence + 1;
       await allocator.setSequence(
         businessId: businessId,
         docType: DocumentSequenceAllocator.quoteDocType,
         format: format,
         date: date,
-        sequence: maxSequence,
+        sequence: retriedSequence,
       );
       return into(quotes).insert(
         quote.copyWith(
           invoiceNumber: Value(
             InvoiceNumberGenerator.generateFromFormat(
               format,
-              maxSequence + 1,
+              retriedSequence,
               date,
             ),
           ),

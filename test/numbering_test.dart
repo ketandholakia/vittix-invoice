@@ -1,10 +1,15 @@
 
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vittix_invoice/core/utils/invoice_number.dart';
 import 'package:vittix_invoice/database/app_database.dart';
 import 'package:vittix_invoice/database/document_sequence_allocator.dart';
+import 'package:vittix_invoice/providers/business_provider.dart';
+import 'package:vittix_invoice/providers/database_provider.dart';
+import 'package:vittix_invoice/providers/shared_preferences_provider.dart';
 
 void main() {
   group('InvoiceNumberGenerator', () {
@@ -111,6 +116,101 @@ void main() {
         (await database.invoiceDao.getInvoiceById(id))!.invoiceNumber,
         'INV-2627-0002',
       );
+    });
+
+    test('resyncs the counter to the number it actually used after a legacy '
+        'collision', () async {
+      final date = DateTime(2026, 6, 30);
+      // Legacy books: a stale 0001 plus the real high-water mark 0007, and
+      // no counter row yet.
+      await database.into(database.invoices).insert(
+        invoiceAt(date).copyWith(
+          invoiceNumber: const drift.Value('INV-2627-0001'),
+        ),
+      );
+      await database.into(database.invoices).insert(
+        invoiceAt(date).copyWith(
+          invoiceNumber: const drift.Value('INV-2627-0007'),
+        ),
+      );
+
+      final firstId = await database.transaction(
+        () => database.invoiceDao.insertInvoiceWithGeneratedNumber(
+          invoice: invoiceAt(date),
+          format: 'INV-{FY}-{SEQ4}',
+          date: date,
+        ),
+      );
+      expect(
+        (await database.invoiceDao.getInvoiceById(firstId))!.invoiceNumber,
+        'INV-2627-0008',
+      );
+
+      // The counter must now equal the number just used (8), so the next
+      // insert succeeds on its first attempt — exactly one failed insert in
+      // total across the run.
+      final counterAfterFirst = await database
+          .select(database.documentSequences)
+          .getSingle();
+      expect(counterAfterFirst.sequence, 8);
+
+      final secondId = await database.transaction(
+        () => database.invoiceDao.insertInvoiceWithGeneratedNumber(
+          invoice: invoiceAt(date),
+          format: 'INV-{FY}-{SEQ4}',
+          date: date,
+        ),
+      );
+      expect(
+        (await database.invoiceDao.getInvoiceById(secondId))!.invoiceNumber,
+        'INV-2627-0009',
+      );
+
+      final counterAfterSecond = await database
+          .select(database.documentSequences)
+          .getSingle();
+      expect(counterAfterSecond.sequence, 9);
+    });
+
+    test('quote numbering also advances the counter after a resync', () async {
+      final date = DateTime(2026, 6, 30);
+      await database.into(database.quotes).insert(
+        quoteAt(date).copyWith(
+          invoiceNumber: const drift.Value('QT-2627-0001'),
+        ),
+      );
+      await database.into(database.quotes).insert(
+        quoteAt(date).copyWith(
+          invoiceNumber: const drift.Value('QT-2627-0007'),
+        ),
+      );
+
+      final firstId = await database.transaction(
+        () => database.quoteDao.insertQuoteWithGeneratedNumber(
+          quote: quoteAt(date),
+          format: 'QT-{FY}-{SEQ4}',
+          date: date,
+        ),
+      );
+      expect(
+        (await database.quoteDao.getQuoteById(firstId))!.invoiceNumber,
+        'QT-2627-0008',
+      );
+      final secondId = await database.transaction(
+        () => database.quoteDao.insertQuoteWithGeneratedNumber(
+          quote: quoteAt(date),
+          format: 'QT-{FY}-{SEQ4}',
+          date: date,
+        ),
+      );
+      expect(
+        (await database.quoteDao.getQuoteById(secondId))!.invoiceNumber,
+        'QT-2627-0009',
+      );
+
+      final counter =
+          await database.select(database.documentSequences).getSingle();
+      expect(counter.sequence, 9);
     });
 
     test('keeps separate counters per financial year for backdated documents',
@@ -413,6 +513,132 @@ void main() {
           fallback: 'INV-{FY}-{SEQ4}',
         ),
         'CUSTOM-{SEQ3}',
+      );
+    });
+  });
+
+  group('InvoiceNumberGenerator.validateFormat', () {
+    String? error(String format) => InvoiceNumberGenerator.validateFormat(format);
+
+    test('accepts the defaults and compliant custom formats', () {
+      expect(error(InvoiceNumberGenerator.defaultInvoiceFormat), isNull);
+      expect(error(InvoiceNumberGenerator.defaultQuoteFormat), isNull);
+      expect(error(InvoiceNumberGenerator.defaultCreditNoteFormat), isNull);
+      expect(error(InvoiceNumberGenerator.defaultBillOfSupplyFormat), isNull);
+      expect(error('QT-{FY}-{SEQ5}'), isNull);
+      expect(error('INV-{YYYY}-{SEQ6}'), isNull);
+      // Blank falls back to the default series, so it is fine.
+      expect(error(''), isNull);
+      expect(error('   '), isNull);
+    });
+
+    test('requires a sequence token', () {
+      expect(error('INV-{FY}'), isNotNull);
+      expect(error('INV-{FY}-A'), isNotNull);
+    });
+
+    test('requires a financial-year anchor so series never repeat', () {
+      expect(error('INV-{SEQ4}'), isNotNull);
+      expect(error('INV-{MM}-{SEQ4}'), isNotNull);
+      expect(error('QT-{MON}-{YY}-{SEQ3}'), isNotNull);
+      // {YYYY} is an equally unambiguous anchor.
+      expect(error('INV-{YYYY}-{SEQ4}'), isNull);
+    });
+
+    test('rejects numbers longer than 16 characters (GST Rule 46)', () {
+      expect(error('INV/{YYYY}/{MM}/{SEQ4}'), isNotNull);
+      expect(error('SALE-{YYYY}-{MM}-A-{SEQ4}-X'), isNotNull);
+      expect(error('QT-{MON}-{FY}-{SEQ3}'), isNotNull);
+      // 'INV/2627-123456' is exactly 16 characters, so it fits.
+      expect(error('INV/{FY}-{SEQ6}'), isNull);
+    });
+
+    test('rejects punctuation outside tokens', () {
+      expect(error('INV_{FY}_{SEQ4}'), isNotNull);
+      expect(error('INV-{FY}-{SEQ4}!'), isNotNull);
+      expect(error('INV {FY} {SEQ4}'), isNotNull);
+      // Letters, digits, hyphen and slash are fine.
+      expect(error('A9/{FY}-{SEQ4}'), isNull);
+    });
+
+    test('rejects unknown tokens as stray characters', () {
+      expect(error('INV-{FY}-{SEQ4}-{XYZ}'), isNotNull);
+    });
+  });
+
+  group('BusinessSeriesFormatValidation (save-time)', () {
+    late AppDatabase database;
+    late ProviderContainer container;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({'active_business_id': 1});
+      final sharedPreferences = await SharedPreferences.getInstance();
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+      );
+
+      // A business saved before the GST numbering rules existed: its format
+      // no longer passes validation but must keep working.
+      await database.into(database.businesses).insert(
+        BusinessesCompanion.insert(
+          name: 'Legacy Business',
+          gstin: '27AAPFU0939F1ZV',
+          address: 'Address',
+          city: 'Mumbai',
+          stateCode: 27,
+          createdAt: DateTime(2026, 6, 30),
+        ).copyWith(
+          invoiceSeriesFormat: const drift.Value('INV/{YYYY}/{MM}/{SEQ4}'),
+        ),
+      );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    test('saving without changing a legacy format is allowed', () async {
+      final notifier = container.read(businessProvider);
+      final stored = await database.select(database.businesses).getSingle();
+
+      await notifier.updateBusiness(stored.copyWith(name: 'Renamed'));
+
+      final reloaded = await database.select(database.businesses).getSingle();
+      expect(reloaded.name, 'Renamed');
+      expect(reloaded.invoiceSeriesFormat, 'INV/{YYYY}/{MM}/{SEQ4}');
+    });
+
+    test('changing a format to an invalid one is rejected at save time',
+        () async {
+      final notifier = container.read(businessProvider);
+      final stored = await database.select(database.businesses).getSingle();
+
+      await expectLater(
+        notifier.updateBusiness(
+          stored.copyWith(invoiceSeriesFormat: 'INV-{SEQ4}'),
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        (await database.select(database.businesses).getSingle())
+            .invoiceSeriesFormat,
+        'INV/{YYYY}/{MM}/{SEQ4}',
+      );
+
+      // A compliant change goes through.
+      await notifier.updateBusiness(
+        stored.copyWith(invoiceSeriesFormat: 'INV-{FY}-{SEQ4}'),
+      );
+      expect(
+        (await database.select(database.businesses).getSingle())
+            .invoiceSeriesFormat,
+        'INV-{FY}-{SEQ4}',
       );
     });
   });

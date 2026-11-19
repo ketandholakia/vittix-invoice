@@ -49,6 +49,30 @@ class DocumentSequenceAllocator {
     return result.read<int>('sequence');
   }
 
+  /// Reads the stored counter for a series without allocating (0 when the
+  /// series has no counter row yet).
+  Future<int> currentSequence({
+    required int businessId,
+    required String docType,
+    required String fiscalYear,
+    required String format,
+  }) async {
+    final result = await db
+        .customSelect(
+          'SELECT sequence FROM document_sequences '
+          'WHERE business_id = ? AND doc_type = ? AND fiscal_year = ? '
+          'AND format = ?',
+          variables: [
+            Variable(businessId),
+            Variable(docType),
+            Variable(fiscalYear),
+            Variable(format),
+          ],
+        )
+        .getSingleOrNull();
+    return result?.read<int>('sequence') ?? 0;
+  }
+
   /// Sets the counter to a known value (used after a legacy-collision resync
   /// and by the v19 backfill).
   Future<void> setSequence({

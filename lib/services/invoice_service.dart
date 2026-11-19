@@ -4,6 +4,7 @@ import '../database/daos/business_dao.dart';
 import '../database/daos/invoice_dao.dart';
 import '../database/daos/product_dao.dart';
 import '../database/document_sequence_allocator.dart';
+import '../core/utils/due_dates.dart';
 import '../core/utils/invoice_number.dart';
 import '../core/utils/invoice_type.dart';
 import '../core/utils/money.dart';
@@ -180,6 +181,13 @@ class InvoiceService
     required Invoice source,
     required DateTime duplicateDate,
   }) {
+    // Keep the source's payment term (invoice date -> due date in days)
+    // rather than its literal due date, which belongs to the old document.
+    final dueDate = dueDateForCopy(
+      sourceInvoiceDate: source.invoiceDate,
+      sourceDueDate: source.dueDate,
+      newInvoiceDate: duplicateDate,
+    );
     return InvoicesCompanion.insert(
       businessId: source.businessId,
       customerId: source.customerId,
@@ -192,7 +200,7 @@ class InvoiceService
       taxableAmount: source.taxableAmount,
       totalAmount: source.totalAmount,
       roundOffAmount: drift.Value(source.roundOffAmount),
-      dueDate: drift.Value(source.dueDate),
+      dueDate: drift.Value(dueDate),
       isIgst: drift.Value(source.isIgst),
       reverseCharge: drift.Value(source.reverseCharge),
       shipToName: drift.Value(source.shipToName),

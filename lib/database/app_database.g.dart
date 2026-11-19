@@ -13495,6 +13495,18 @@ class $RecurringInvoicesTable extends RecurringInvoices
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _anchorDayMeta = const VerificationMeta(
+    'anchorDay',
+  );
+  @override
+  late final GeneratedColumn<int> anchorDay = GeneratedColumn<int>(
+    'anchor_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -13528,6 +13540,7 @@ class $RecurringInvoicesTable extends RecurringInvoices
     sourceInvoiceId,
     frequency,
     nextRunDate,
+    anchorDay,
     isActive,
     createdAt,
   ];
@@ -13582,6 +13595,12 @@ class $RecurringInvoicesTable extends RecurringInvoices
     } else if (isInserting) {
       context.missing(_nextRunDateMeta);
     }
+    if (data.containsKey('anchor_day')) {
+      context.handle(
+        _anchorDayMeta,
+        anchorDay.isAcceptableOrUnknown(data['anchor_day']!, _anchorDayMeta),
+      );
+    }
     if (data.containsKey('is_active')) {
       context.handle(
         _isActiveMeta,
@@ -13625,6 +13644,10 @@ class $RecurringInvoicesTable extends RecurringInvoices
         DriftSqlType.dateTime,
         data['${effectivePrefix}next_run_date'],
       )!,
+      anchorDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anchor_day'],
+      )!,
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -13653,6 +13676,13 @@ class RecurringInvoice extends DataClass
 
   /// The next date a draft should be generated for.
   final DateTime nextRunDate;
+
+  /// Day of month of the schedule's first run. Month-based steps land on
+  /// this day (clamped to the month's length) so a 31st-anchored schedule
+  /// never drifts after a short month clamps it. 0 marks rows created
+  /// before the column existed (v31 and earlier) — they advance from the
+  /// current date instead.
+  final int anchorDay;
   final bool isActive;
   final DateTime createdAt;
   const RecurringInvoice({
@@ -13661,6 +13691,7 @@ class RecurringInvoice extends DataClass
     required this.sourceInvoiceId,
     required this.frequency,
     required this.nextRunDate,
+    required this.anchorDay,
     required this.isActive,
     required this.createdAt,
   });
@@ -13672,6 +13703,7 @@ class RecurringInvoice extends DataClass
     map['source_invoice_id'] = Variable<int>(sourceInvoiceId);
     map['frequency'] = Variable<String>(frequency);
     map['next_run_date'] = Variable<DateTime>(nextRunDate);
+    map['anchor_day'] = Variable<int>(anchorDay);
     map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -13684,6 +13716,7 @@ class RecurringInvoice extends DataClass
       sourceInvoiceId: Value(sourceInvoiceId),
       frequency: Value(frequency),
       nextRunDate: Value(nextRunDate),
+      anchorDay: Value(anchorDay),
       isActive: Value(isActive),
       createdAt: Value(createdAt),
     );
@@ -13700,6 +13733,7 @@ class RecurringInvoice extends DataClass
       sourceInvoiceId: serializer.fromJson<int>(json['sourceInvoiceId']),
       frequency: serializer.fromJson<String>(json['frequency']),
       nextRunDate: serializer.fromJson<DateTime>(json['nextRunDate']),
+      anchorDay: serializer.fromJson<int>(json['anchorDay']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -13713,6 +13747,7 @@ class RecurringInvoice extends DataClass
       'sourceInvoiceId': serializer.toJson<int>(sourceInvoiceId),
       'frequency': serializer.toJson<String>(frequency),
       'nextRunDate': serializer.toJson<DateTime>(nextRunDate),
+      'anchorDay': serializer.toJson<int>(anchorDay),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -13724,6 +13759,7 @@ class RecurringInvoice extends DataClass
     int? sourceInvoiceId,
     String? frequency,
     DateTime? nextRunDate,
+    int? anchorDay,
     bool? isActive,
     DateTime? createdAt,
   }) => RecurringInvoice(
@@ -13732,6 +13768,7 @@ class RecurringInvoice extends DataClass
     sourceInvoiceId: sourceInvoiceId ?? this.sourceInvoiceId,
     frequency: frequency ?? this.frequency,
     nextRunDate: nextRunDate ?? this.nextRunDate,
+    anchorDay: anchorDay ?? this.anchorDay,
     isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -13748,6 +13785,7 @@ class RecurringInvoice extends DataClass
       nextRunDate: data.nextRunDate.present
           ? data.nextRunDate.value
           : this.nextRunDate,
+      anchorDay: data.anchorDay.present ? data.anchorDay.value : this.anchorDay,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -13761,6 +13799,7 @@ class RecurringInvoice extends DataClass
           ..write('sourceInvoiceId: $sourceInvoiceId, ')
           ..write('frequency: $frequency, ')
           ..write('nextRunDate: $nextRunDate, ')
+          ..write('anchorDay: $anchorDay, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -13774,6 +13813,7 @@ class RecurringInvoice extends DataClass
     sourceInvoiceId,
     frequency,
     nextRunDate,
+    anchorDay,
     isActive,
     createdAt,
   );
@@ -13786,6 +13826,7 @@ class RecurringInvoice extends DataClass
           other.sourceInvoiceId == this.sourceInvoiceId &&
           other.frequency == this.frequency &&
           other.nextRunDate == this.nextRunDate &&
+          other.anchorDay == this.anchorDay &&
           other.isActive == this.isActive &&
           other.createdAt == this.createdAt);
 }
@@ -13796,6 +13837,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
   final Value<int> sourceInvoiceId;
   final Value<String> frequency;
   final Value<DateTime> nextRunDate;
+  final Value<int> anchorDay;
   final Value<bool> isActive;
   final Value<DateTime> createdAt;
   const RecurringInvoicesCompanion({
@@ -13804,6 +13846,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
     this.sourceInvoiceId = const Value.absent(),
     this.frequency = const Value.absent(),
     this.nextRunDate = const Value.absent(),
+    this.anchorDay = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -13813,6 +13856,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
     required int sourceInvoiceId,
     this.frequency = const Value.absent(),
     required DateTime nextRunDate,
+    this.anchorDay = const Value.absent(),
     this.isActive = const Value.absent(),
     required DateTime createdAt,
   }) : businessId = Value(businessId),
@@ -13825,6 +13869,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
     Expression<int>? sourceInvoiceId,
     Expression<String>? frequency,
     Expression<DateTime>? nextRunDate,
+    Expression<int>? anchorDay,
     Expression<bool>? isActive,
     Expression<DateTime>? createdAt,
   }) {
@@ -13834,6 +13879,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
       if (sourceInvoiceId != null) 'source_invoice_id': sourceInvoiceId,
       if (frequency != null) 'frequency': frequency,
       if (nextRunDate != null) 'next_run_date': nextRunDate,
+      if (anchorDay != null) 'anchor_day': anchorDay,
       if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -13845,6 +13891,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
     Value<int>? sourceInvoiceId,
     Value<String>? frequency,
     Value<DateTime>? nextRunDate,
+    Value<int>? anchorDay,
     Value<bool>? isActive,
     Value<DateTime>? createdAt,
   }) {
@@ -13854,6 +13901,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
       sourceInvoiceId: sourceInvoiceId ?? this.sourceInvoiceId,
       frequency: frequency ?? this.frequency,
       nextRunDate: nextRunDate ?? this.nextRunDate,
+      anchorDay: anchorDay ?? this.anchorDay,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -13877,6 +13925,9 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
     if (nextRunDate.present) {
       map['next_run_date'] = Variable<DateTime>(nextRunDate.value);
     }
+    if (anchorDay.present) {
+      map['anchor_day'] = Variable<int>(anchorDay.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -13894,6 +13945,7 @@ class RecurringInvoicesCompanion extends UpdateCompanion<RecurringInvoice> {
           ..write('sourceInvoiceId: $sourceInvoiceId, ')
           ..write('frequency: $frequency, ')
           ..write('nextRunDate: $nextRunDate, ')
+          ..write('anchorDay: $anchorDay, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -23766,6 +23818,7 @@ typedef $$RecurringInvoicesTableCreateCompanionBuilder =
       required int sourceInvoiceId,
       Value<String> frequency,
       required DateTime nextRunDate,
+      Value<int> anchorDay,
       Value<bool> isActive,
       required DateTime createdAt,
     });
@@ -23776,6 +23829,7 @@ typedef $$RecurringInvoicesTableUpdateCompanionBuilder =
       Value<int> sourceInvoiceId,
       Value<String> frequency,
       Value<DateTime> nextRunDate,
+      Value<int> anchorDay,
       Value<bool> isActive,
       Value<DateTime> createdAt,
     });
@@ -23849,6 +23903,11 @@ class $$RecurringInvoicesTableFilterComposer
 
   ColumnFilters<DateTime> get nextRunDate => $composableBuilder(
     column: $table.nextRunDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23933,6 +23992,11 @@ class $$RecurringInvoicesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -24009,6 +24073,9 @@ class $$RecurringInvoicesTableAnnotationComposer
     column: $table.nextRunDate,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get anchorDay =>
+      $composableBuilder(column: $table.anchorDay, builder: (column) => column);
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -24101,6 +24168,7 @@ class $$RecurringInvoicesTableTableManager
                 Value<int> sourceInvoiceId = const Value.absent(),
                 Value<String> frequency = const Value.absent(),
                 Value<DateTime> nextRunDate = const Value.absent(),
+                Value<int> anchorDay = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => RecurringInvoicesCompanion(
@@ -24109,6 +24177,7 @@ class $$RecurringInvoicesTableTableManager
                 sourceInvoiceId: sourceInvoiceId,
                 frequency: frequency,
                 nextRunDate: nextRunDate,
+                anchorDay: anchorDay,
                 isActive: isActive,
                 createdAt: createdAt,
               ),
@@ -24119,6 +24188,7 @@ class $$RecurringInvoicesTableTableManager
                 required int sourceInvoiceId,
                 Value<String> frequency = const Value.absent(),
                 required DateTime nextRunDate,
+                Value<int> anchorDay = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 required DateTime createdAt,
               }) => RecurringInvoicesCompanion.insert(
@@ -24127,6 +24197,7 @@ class $$RecurringInvoicesTableTableManager
                 sourceInvoiceId: sourceInvoiceId,
                 frequency: frequency,
                 nextRunDate: nextRunDate,
+                anchorDay: anchorDay,
                 isActive: isActive,
                 createdAt: createdAt,
               ),

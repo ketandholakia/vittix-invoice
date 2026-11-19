@@ -16,6 +16,14 @@ class RecurringInvoices extends Table {
 
   /// The next date a draft should be generated for.
   DateTimeColumn get nextRunDate => dateTime()();
+
+  /// Day of month of the schedule's first run. Month-based steps land on
+  /// this day (clamped to the month's length) so a 31st-anchored schedule
+  /// never drifts after a short month clamps it. 0 marks rows created
+  /// before the column existed (v31 and earlier) — they advance from the
+  /// current date instead.
+  IntColumn get anchorDay => integer().withDefault(const Constant(0))();
+
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime()();
 }

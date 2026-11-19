@@ -31,6 +31,8 @@ final recurringInvoiceProvider = Provider<RecurringInvoiceService>((ref) {
     invoiceDao: ref.watch(invoiceDaoProvider),
     recurringDao: ref.watch(recurringInvoiceDaoProvider),
     invoiceService: ref.watch(invoiceProvider),
+    // Generated drafts follow the same round-off preference the form uses.
+    applyRoundOff: ref.watch(roundOffEnabledProvider),
   );
 });
 

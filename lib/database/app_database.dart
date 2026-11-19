@@ -75,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 32;
 
   @override
   MigrationStrategy get migration {
@@ -317,6 +317,18 @@ class AppDatabase extends _$AppDatabase {
             m,
             businesses,
             businesses.billOfSupplySeriesFormat,
+          );
+        }
+        if (from < 32) {
+          await _addColumnIfMissing(m, recurringInvoices, recurringInvoices.anchorDay);
+          // Backfill the anchor from the stored next run date. Existing
+          // schedules advance from that date today, so anchoring on it
+          // preserves their cadence exactly; month-end schedules that have
+          // already been clamped stay clamped instead of jumping.
+          await customStatement(
+            "UPDATE recurring_invoices SET anchor_day = "
+            "CAST(strftime('%d', next_run_date, 'unixepoch') AS INTEGER) "
+            "WHERE anchor_day = 0",
           );
         }
       },

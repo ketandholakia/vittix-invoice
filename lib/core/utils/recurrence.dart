@@ -58,6 +58,40 @@ DateTime nextRunOnOrAfter(DateTime from, DateTime today, String frequency) {
   return next;
 }
 
+/// Advances [date] by one [frequency] step while keeping the schedule's
+/// [anchorDay] (day of month of the first run).
+///
+/// Month-based steps land on the anchor day clamped to the target month's
+/// length, so a schedule anchored on the 31st clamps to 28/29 February but
+/// recovers to the 31st in March instead of drifting to the 28th forever.
+/// [anchorDay] of 0 (pre-migration rows and weekly schedules) falls back to
+/// plain [advanceByFrequency].
+DateTime advanceFromAnchor(DateTime date, String frequency, int anchorDay) {
+  if (anchorDay <= 0 || anchorDay > 31) {
+    return advanceByFrequency(date, frequency);
+  }
+  switch (frequency) {
+    case 'WEEKLY':
+      return date.add(const Duration(days: 7));
+    case 'QUARTERLY':
+      return _addMonthsOnAnchor(date, 3, anchorDay);
+    case 'YEARLY':
+      return _addMonthsOnAnchor(date, 12, anchorDay);
+    case 'MONTHLY':
+    default:
+      return _addMonthsOnAnchor(date, 1, anchorDay);
+  }
+}
+
+DateTime _addMonthsOnAnchor(DateTime date, int months, int anchorDay) {
+  final targetMonth = date.month + months;
+  final year = date.year + ((targetMonth - 1) ~/ 12);
+  final month = ((targetMonth - 1) % 12) + 1;
+  final lastDayOfMonth = DateTime(year, month + 1, 0).day;
+  final day = anchorDay.clamp(1, lastDayOfMonth);
+  return DateTime(year, month, day);
+}
+
 DateTime _addMonths(DateTime date, int months) {
   final targetMonth = date.month + months;
   final year = date.year + ((targetMonth - 1) ~/ 12);

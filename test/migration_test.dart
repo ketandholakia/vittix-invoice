@@ -472,4 +472,129 @@ void main() {
     final movements = await database.select(database.stockMovements).get();
     expect(movements, isEmpty);
   });
+
+  test('migrates a v31 database: recurring schedules gain an anchor day',
+      () async {
+    final january312026 =
+        DateTime.utc(2026, 1, 31).millisecondsSinceEpoch ~/ 1000;
+
+    final file = buildLegacyDatabase(
+      'v31',
+      [
+        // v31 businesses carry every column through the Bill of Supply series.
+        '''
+        CREATE TABLE businesses (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          gstin TEXT NOT NULL,
+          pan TEXT NULL,
+          business_type INTEGER NOT NULL DEFAULT 0,
+          address TEXT NOT NULL,
+          city TEXT NOT NULL,
+          state_code INTEGER NOT NULL,
+          pincode TEXT NULL,
+          phone TEXT NULL,
+          email TEXT NULL,
+          logo_path TEXT NULL,
+          bank_name TEXT NULL,
+          bank_account TEXT NULL,
+          bank_ifsc TEXT NULL,
+          upi_id TEXT NULL,
+          currency_code TEXT NOT NULL DEFAULT 'INR',
+          invoice_template TEXT NOT NULL DEFAULT 'CLASSIC',
+          quote_template TEXT NOT NULL DEFAULT 'CLASSIC',
+          invoice_series_format TEXT NOT NULL DEFAULT 'INV-{FY}-{SEQ4}',
+          quote_series_format TEXT NOT NULL DEFAULT 'QT-{FY}-{SEQ4}',
+          credit_note_series_format TEXT NOT NULL DEFAULT 'CN-{FY}-{SEQ4}',
+          debit_note_series_format TEXT NOT NULL DEFAULT 'DN-{FY}-{SEQ4}',
+          bill_of_supply_series_format TEXT NOT NULL DEFAULT 'BOS-{FY}-{SEQ4}',
+          default_invoice_template_id INTEGER NULL,
+          default_quote_template_id INTEGER NULL,
+          brand_color INTEGER NULL,
+          is_active INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        )''',
+        createCustomers,
+        '''
+        CREATE TABLE invoices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          business_id INTEGER NOT NULL REFERENCES businesses (id),
+          customer_id INTEGER NOT NULL REFERENCES customers (id),
+          invoice_number TEXT NOT NULL,
+          currency_code TEXT NOT NULL DEFAULT 'INR',
+          invoice_date INTEGER NOT NULL,
+          due_date INTEGER NULL,
+          invoice_type TEXT NOT NULL,
+          supply_type TEXT NOT NULL,
+          place_of_supply INTEGER NOT NULL,
+          subtotal REAL NOT NULL,
+          discount_amount REAL NOT NULL DEFAULT 0.0,
+          taxable_amount REAL NOT NULL,
+          cgst_amount REAL NOT NULL DEFAULT 0.0,
+          sgst_amount REAL NOT NULL DEFAULT 0.0,
+          igst_amount REAL NOT NULL DEFAULT 0.0,
+          cess_amount REAL NOT NULL DEFAULT 0.0,
+          total_amount REAL NOT NULL,
+          round_off_amount REAL NOT NULL DEFAULT 0.0,
+          amount_paid REAL NOT NULL DEFAULT 0.0,
+          amount_in_words TEXT NULL,
+          notes TEXT NULL,
+          terms TEXT NULL,
+          status TEXT NOT NULL DEFAULT 'DRAFT',
+          is_igst INTEGER NOT NULL DEFAULT 0,
+          template_id INTEGER NULL,
+          reference_invoice_id INTEGER NULL,
+          reverse_charge INTEGER NOT NULL DEFAULT 0,
+          ship_to_name TEXT NULL,
+          ship_to_address TEXT NULL,
+          ship_to_city TEXT NULL,
+          export_with_lut INTEGER NOT NULL DEFAULT 0,
+          tds_section TEXT NULL,
+          tds_rate REAL NOT NULL DEFAULT 0.0,
+          tds_amount REAL NOT NULL DEFAULT 0.0,
+          tcs_section TEXT NULL,
+          tcs_rate REAL NOT NULL DEFAULT 0.0,
+          tcs_amount REAL NOT NULL DEFAULT 0.0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )''',
+        // v31 recurring schedules: no anchor_day column yet (v32).
+        '''
+        CREATE TABLE recurring_invoices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          business_id INTEGER NOT NULL REFERENCES businesses (id),
+          source_invoice_id INTEGER NOT NULL REFERENCES invoices (id),
+          frequency TEXT NOT NULL DEFAULT 'MONTHLY',
+          next_run_date INTEGER NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL
+        )''',
+        'CREATE INDEX IF NOT EXISTS idx_recurring_invoices_source '
+            'ON recurring_invoices (source_invoice_id)',
+        "INSERT INTO businesses (name, gstin, address, city, state_code, "
+            "created_at) VALUES ('B', '27AAPFU0939F1ZV', 'a', 'b', 27, "
+            '$june2026)',
+        "INSERT INTO customers (business_id, name, created_at) "
+            "VALUES (1, 'C', $june2026)",
+        "INSERT INTO invoices (business_id, customer_id, invoice_number, "
+            'invoice_date, invoice_type, supply_type, place_of_supply, '
+            'subtotal, taxable_amount, total_amount, status, is_igst, '
+            'created_at, updated_at) VALUES (1, 1, '
+            "'INV-2627-0001', $june2026, 'TAX_INVOICE', 'B2B', 27, 100.0, "
+            "100.0, 100.0, 'SENT', 0, $june2026, $june2026)",
+        'INSERT INTO recurring_invoices (business_id, source_invoice_id, '
+            'frequency, next_run_date, is_active, created_at) '
+            "VALUES (1, 1, 'MONTHLY', $january312026, 1, $january312026)",
+      ],
+      31,
+    );
+
+    final database = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(database.close);
+
+    // The anchor is backfilled from the stored next run date so existing
+    // month-end schedules keep their clamped cadence instead of shifting.
+    final schedule = await database.select(database.recurringInvoices).getSingle();
+    expect(schedule.anchorDay, 31);
+  });
 }

@@ -1564,4 +1564,97 @@ void main() {
       );
     });
   });
+
+  group('DuplicateKeepsPaymentTerm', () {
+    late AppDatabase database;
+    late ProviderContainer container;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({'active_business_id': 1});
+      final sharedPreferences = await SharedPreferences.getInstance();
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+      );
+
+      await database.into(database.businesses).insert(
+            BusinessesCompanion.insert(
+              name: 'Test Business',
+              gstin: '27AAPFU0939F1ZV',
+              address: 'Address',
+              city: 'Mumbai',
+              stateCode: 27,
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+
+      await database.into(database.customers).insert(
+            CustomersCompanion.insert(
+              businessId: 1,
+              name: 'Test Customer',
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    Future<int> createIssued({DateTime? dueDate}) {
+      final invoiceDate = DateTime(2026, 1, 10);
+      return container.read(invoiceProvider).createInvoiceWithItems(
+        InvoicesCompanion.insert(
+          businessId: 1,
+          customerId: 1,
+          invoiceNumber: 'PENDING',
+          invoiceDate: invoiceDate,
+          dueDate: drift.Value(dueDate),
+          invoiceType: 'TAX_INVOICE',
+          supplyType: 'B2B',
+          placeOfSupply: 27,
+          subtotal: 100,
+          taxableAmount: 100,
+          totalAmount: 118,
+          amountInWords: const drift.Value('One Hundred Eighteen Rupees Only'),
+          status: const drift.Value('SENT'),
+          createdAt: invoiceDate,
+          updatedAt: invoiceDate,
+        ),
+        const [],
+      );
+    }
+
+    test('duplicating keeps the payment term, not the old due date',
+        () async {
+      final notifier = container.read(invoiceProvider);
+      // Source: 15-day term (Jan 10 -> Jan 25).
+      final sourceId = await createIssued(dueDate: DateTime(2026, 1, 25));
+
+      final duplicateId = await notifier.duplicateInvoice(sourceId);
+      final duplicate = await database.invoiceDao.getInvoiceById(duplicateId);
+
+      expect(duplicate, isNotNull);
+      expect(
+        duplicate!.dueDate!.difference(duplicate.invoiceDate).inDays,
+        15,
+      );
+      expect(duplicate.dueDate, isNot(DateTime(2026, 1, 25)));
+    });
+
+    test('a source without a due date duplicates without one', () async {
+      final notifier = container.read(invoiceProvider);
+      final sourceId = await createIssued(dueDate: null);
+
+      final duplicateId = await notifier.duplicateInvoice(sourceId);
+      final duplicate = await database.invoiceDao.getInvoiceById(duplicateId);
+
+      expect(duplicate?.dueDate, isNull);
+    });
+  });
 }

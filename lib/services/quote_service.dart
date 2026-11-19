@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../database/app_database.dart';
+import '../core/utils/due_dates.dart';
 import '../database/daos/business_dao.dart';
 import '../database/daos/quote_dao.dart';
 import '../core/utils/invoice_number.dart';
@@ -174,6 +175,12 @@ class QuoteService
     required Quote source,
     required DateTime duplicateDate,
   }) {
+    // Keep the source's validity term rather than its literal due date.
+    final dueDate = dueDateForCopy(
+      sourceInvoiceDate: source.invoiceDate,
+      sourceDueDate: source.dueDate,
+      newInvoiceDate: duplicateDate,
+    );
     return QuotesCompanion.insert(
       businessId: source.businessId,
       customerId: source.customerId,
@@ -186,7 +193,7 @@ class QuoteService
       taxableAmount: source.taxableAmount,
       totalAmount: source.totalAmount,
       roundOffAmount: drift.Value(source.roundOffAmount),
-      dueDate: drift.Value(source.dueDate),
+      dueDate: drift.Value(dueDate),
       isIgst: drift.Value(source.isIgst),
       reverseCharge: drift.Value(source.reverseCharge),
       shipToName: drift.Value(source.shipToName),

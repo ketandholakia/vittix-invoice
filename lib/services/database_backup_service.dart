@@ -96,6 +96,7 @@ class DatabaseBackupService {
     final templateConfigs = await db.select(db.templateConfigs).get();
     final documentSequences = await db.select(db.documentSequences).get();
     final stockMovements = await db.select(db.stockMovements).get();
+    final recurringInvoices = await db.select(db.recurringInvoices).get();
 
     // Preferences are best-effort metadata: a headless or plugin-less host
     // must still be able to export the database itself.
@@ -142,6 +143,8 @@ class DatabaseBackupService {
       'documentSequences':
           documentSequences.map((row) => row.toJson()).toList(),
       'stockMovements': stockMovements.map((row) => row.toJson()).toList(),
+      'recurringInvoices':
+          recurringInvoices.map((row) => row.toJson()).toList(),
       'settings': settings,
       'logos': logos,
     });
@@ -278,6 +281,10 @@ class DatabaseBackupService {
     _validateBackupPayload(decoded, db.schemaVersion);
 
     await db.transaction(() async {
+      // Foreign keys are ON, so children are deleted before the parents they
+      // point at. Recurring schedules reference invoices and businesses, so
+      // they go first of all.
+      await db.delete(db.recurringInvoices).go();
       await db.delete(db.customerActivityEvents).go();
       await db.delete(db.invoicePayments).go();
       await db.delete(db.invoiceItems).go();
@@ -330,6 +337,14 @@ class DatabaseBackupService {
         batch.insertAll(
           db.invoices,
           _decodeList(decoded['invoices'], Invoice.fromJson),
+        );
+        // Schedules point at invoices, so they are inserted after them.
+        batch.insertAll(
+          db.recurringInvoices,
+          _decodeList(
+            decoded['recurringInvoices'],
+            RecurringInvoice.fromJson,
+          ),
         );
         batch.insertAll(
           db.quotes,
@@ -442,16 +457,18 @@ class DatabaseBackupService {
   }
 
   /// Validates the payload before any data is touched: schema version must
-  /// match, and required tables must be present and well-formed lists.
-  /// Tables introduced after the first release (`templateConfigs`,
-  /// `documentSequences`) are optional and decode as empty when missing.
+  /// not be newer than the running app, and required tables must be present
+  /// and well-formed lists. Older backups are accepted — Drift's `fromJson`
+  /// falls back to the declared default for columns the backup predates, and
+  /// tables introduced after the backup was made (`recurringInvoices`) decode
+  /// as empty when missing.
   /// Throws [BackupVersionMismatch] or [FormatException] on failure.
   static void _validateBackupPayload(
     Map<String, dynamic> decoded,
     int currentSchemaVersion,
   ) {
     final backupVersion = decoded['schemaVersion'];
-    if (backupVersion is! int || backupVersion != currentSchemaVersion) {
+    if (backupVersion is! int || backupVersion > currentSchemaVersion) {
       throw BackupVersionMismatch(
         backupVersion: backupVersion,
         currentVersion: currentSchemaVersion,

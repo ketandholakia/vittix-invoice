@@ -114,6 +114,8 @@ void main() {
     expect(invoice!.invoiceNumber, startsWith('INV-'));
     expect(invoice.status, 'DRAFT');
 
+    // Payments need an issued invoice, so mark it sent first.
+    await invoiceService.updateInvoiceStatus(invoiceId, 'SENT');
     await invoiceService.recordPayment(invoiceId, 500);
 
     final paidInvoice = await database.invoiceDao.getInvoiceById(invoiceId);

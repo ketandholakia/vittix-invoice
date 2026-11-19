@@ -171,7 +171,10 @@ class _RecordPaymentAction extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (invoice.status == 'PAID' || invoice.status == 'CANCELLED') {
+    // Drafts have not been issued yet, so they cannot take payments.
+    if (invoice.status == 'DRAFT' ||
+        invoice.status == 'PAID' ||
+        invoice.status == 'CANCELLED') {
       return const SizedBox.shrink();
     }
 

@@ -309,8 +309,37 @@ class InvoiceService
     }
   }
 
-  /// Payments may only be recorded against a live (non-cancelled) invoice.
+  /// Cancelling an invoice undoes its stock effect: every line is reversed
+  /// (goods for a sale come back, goods returned by a credit note go back
+  /// out) in the same transaction as the status change. The reversal runs
+  /// only on the live → cancelled transition, so re-cancelling an already
+  /// cancelled document never double-counts stock.
+  @override
+  Future<void> updateStatus(int documentId, String status) async {
+    final document = await getDocument(documentId);
+    if (document == null) throw Exception('$docNoun not found');
+    validateStatusTransition(document, status);
+
+    if (status != 'CANCELLED' || document.status == 'CANCELLED') {
+      await updateDocument(documentCopyWithStatus(document, status));
+      return;
+    }
+
+    final items = await getItems(documentId);
+    await db.transaction(() async {
+      for (final item in items) {
+        await reverseItemEffects(documentId: documentId, item: item);
+      }
+      await updateDocument(documentCopyWithStatus(document, status));
+    });
+  }
+
+  /// Payments may only be recorded against an issued, live invoice: drafts
+  /// have not been sent yet and cancelled ones are void.
   void _assertPaymentsAllowed(Invoice invoice) {
+    if (invoice.status == 'DRAFT') {
+      throw Exception('Issue the invoice before recording payments');
+    }
     if (invoice.status == 'CANCELLED') {
       throw Exception('Payments cannot be recorded on a cancelled invoice');
     }
@@ -477,6 +506,9 @@ class InvoiceService
   // ---- payment domain (invoice only) ----
 
   String _statusFromPayments(Invoice invoice, double amountPaid) {
+    // A zero-amount invoice has no balance to settle: computing PAID from
+    // `0 >= 0` would flip it wrongly, so keep its current status.
+    if (invoice.totalAmount <= 0 && amountPaid <= 0) return invoice.status;
     if (amountPaid >= invoice.totalAmount) return 'PAID';
     if (amountPaid > 0) return 'PARTIALLY_PAID';
     if (invoice.status == 'PAID' || invoice.status == 'PARTIALLY_PAID') return 'SENT';
@@ -514,11 +546,14 @@ class InvoiceService
   }) async {
     if (paymentAmount <= 0) throw Exception('Payment amount must be greater than zero');
     final dao = invoiceDao;
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-    _assertPaymentsAllowed(invoice);
 
     await db.transaction(() async {
+      // Read and validate inside the transaction so the guard cannot pass on
+      // a stale row while the lifecycle changes concurrently.
+      final invoice = await dao.getInvoiceById(invoiceId);
+      if (invoice == null) throw Exception('Invoice not found');
+      _assertPaymentsAllowed(invoice);
+
       await dao.insertInvoicePayment(
         InvoicePaymentsCompanion.insert(
           invoiceId: invoiceId,
@@ -546,26 +581,28 @@ class InvoiceService
   }) async {
     if (amount <= 0) throw Exception('Payment amount must be greater than zero');
     final dao = invoiceDao;
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-    _assertPaymentsAllowed(invoice);
-
-    final payments = await dao.getPaymentsForInvoice(invoiceId);
-    final payment = payments.firstWhere(
-      (e) => e.id == paymentId,
-      orElse: () => throw Exception('Payment not found'),
-    );
-    if (payment.kind == 'VOID') throw Exception('Voided payments cannot be edited');
-
-    final otherTotal = payments
-        .where((e) => e.id != paymentId)
-        .fold<double>(0, (s, e) => s + _signedPaymentAmount(e));
-    final nextAmountPaid = round2(otherTotal + (payment.kind == 'REFUND' ? -amount : amount));
-    if (payment.kind == 'REFUND' && nextAmountPaid < 0) {
-      throw Exception('Refund exceeds balance');
-    }
 
     await db.transaction(() async {
+      final invoice = await dao.getInvoiceById(invoiceId);
+      if (invoice == null) throw Exception('Invoice not found');
+      _assertPaymentsAllowed(invoice);
+
+      final payments = await dao.getPaymentsForInvoice(invoiceId);
+      final payment = payments.firstWhere(
+        (e) => e.id == paymentId,
+        orElse: () => throw Exception('Payment not found'),
+      );
+      if (payment.kind == 'VOID') throw Exception('Voided payments cannot be edited');
+
+      final otherTotal = payments
+          .where((e) => e.id != paymentId)
+          .fold<double>(0, (s, e) => s + _signedPaymentAmount(e));
+      final nextAmountPaid =
+          round2(otherTotal + (payment.kind == 'REFUND' ? -amount : amount));
+      if (payment.kind == 'REFUND' && nextAmountPaid < 0) {
+        throw Exception('Refund exceeds balance');
+      }
+
       await dao.updateInvoicePayment(
         payment.copyWith(
           amount: round2(amount),
@@ -581,18 +618,19 @@ class InvoiceService
 
   Future<void> voidPayment({required int invoiceId, required int paymentId}) async {
     final dao = invoiceDao;
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-    _assertPaymentsAllowed(invoice);
-
-    final payments = await dao.getPaymentsForInvoice(invoiceId);
-    final payment = payments.firstWhere(
-      (e) => e.id == paymentId,
-      orElse: () => throw Exception('Payment not found'),
-    );
-    if (payment.kind == 'VOID') throw Exception('Payment is already voided');
 
     await db.transaction(() async {
+      final invoice = await dao.getInvoiceById(invoiceId);
+      if (invoice == null) throw Exception('Invoice not found');
+      _assertPaymentsAllowed(invoice);
+
+      final payments = await dao.getPaymentsForInvoice(invoiceId);
+      final payment = payments.firstWhere(
+        (e) => e.id == paymentId,
+        orElse: () => throw Exception('Payment not found'),
+      );
+      if (payment.kind == 'VOID') throw Exception('Payment is already voided');
+
       await dao.updateInvoicePayment(payment.copyWith(kind: 'VOID'));
       await _refreshInvoicePaymentState(invoiceId, dao);
     });
@@ -608,12 +646,15 @@ class InvoiceService
   }) async {
     if (refundAmount <= 0) throw Exception('Refund amount must be greater than zero');
     final dao = invoiceDao;
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-    _assertPaymentsAllowed(invoice);
-    if (refundAmount > invoice.amountPaid) throw Exception('Refund amount exceeds balance');
 
     await db.transaction(() async {
+      final invoice = await dao.getInvoiceById(invoiceId);
+      if (invoice == null) throw Exception('Invoice not found');
+      _assertPaymentsAllowed(invoice);
+      if (refundAmount > invoice.amountPaid) {
+        throw Exception('Refund amount exceeds balance');
+      }
+
       await dao.insertInvoicePayment(
         InvoicePaymentsCompanion.insert(
           invoiceId: invoiceId,
@@ -632,11 +673,12 @@ class InvoiceService
 
   Future<void> deletePayment({required int invoiceId, required int paymentId}) async {
     final dao = invoiceDao;
-    final invoice = await dao.getInvoiceById(invoiceId);
-    if (invoice == null) throw Exception('Invoice not found');
-    _assertPaymentsAllowed(invoice);
 
     await db.transaction(() async {
+      final invoice = await dao.getInvoiceById(invoiceId);
+      if (invoice == null) throw Exception('Invoice not found');
+      _assertPaymentsAllowed(invoice);
+
       if (await dao.deleteInvoicePayment(paymentId) == 0) {
         throw Exception('Payment not found');
       }

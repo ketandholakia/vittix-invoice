@@ -489,6 +489,7 @@ void main() {
       ];
 
       final invoiceId = await notifier.createInvoiceWithItems(invoice, items);
+      await notifier.updateInvoiceStatus(invoiceId, 'SENT');
       await notifier.recordPayment(invoiceId, 50);
 
       await expectLater(
@@ -541,6 +542,7 @@ void main() {
         ];
 
         final invoiceId = await notifier.createInvoiceWithItems(invoice, items);
+        await notifier.updateInvoiceStatus(invoiceId, 'SENT');
         await notifier.recordPayment(invoiceId, 50);
 
         final firstPayment = (await database.invoiceDao.getPaymentsForInvoice(
@@ -613,6 +615,7 @@ void main() {
       ];
 
       final invoiceId = await notifier.createInvoiceWithItems(invoice, items);
+      await notifier.updateInvoiceStatus(invoiceId, 'SENT');
       await notifier.recordPayment(invoiceId, 118);
       await notifier.recordRefund(invoiceId: invoiceId, refundAmount: 18);
 
@@ -669,6 +672,7 @@ void main() {
       ];
 
       final invoiceId = await notifier.createInvoiceWithItems(invoice, items);
+      await notifier.updateInvoiceStatus(invoiceId, 'SENT');
       await notifier.recordPayment(invoiceId, 150);
 
       final storedInvoice = await database.invoiceDao.getInvoiceById(invoiceId);
@@ -1106,6 +1110,7 @@ void main() {
     test('blocks editing a paid invoice', () async {
       final notifier = container.read(invoiceProvider);
       final id = await notifier.createInvoiceWithItems(companion(), lineItems());
+      await notifier.updateInvoiceStatus(id, 'SENT');
       await notifier.recordPayment(id, 118);
 
       final stored = await database.invoiceDao.getInvoiceById(id);
@@ -1194,6 +1199,7 @@ void main() {
     test('records a backdated payment with mode and reference', () async {
       final notifier = container.read(invoiceProvider);
       final id = await notifier.createInvoiceWithItems(companion(), lineItems());
+      await notifier.updateInvoiceStatus(id, 'SENT');
 
       await notifier.recordPayment(
         id,
@@ -1209,6 +1215,241 @@ void main() {
       expect(payment.mode, 'UPI');
       expect(payment.reference, 'TXN-123');
       expect(payment.amount, 50);
+    });
+  });
+
+  group('CancellationRestoresStock', () {
+    late AppDatabase database;
+    late ProviderContainer container;
+    late int productId;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({'active_business_id': 1});
+      final sharedPreferences = await SharedPreferences.getInstance();
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+      );
+
+      await database.into(database.businesses).insert(
+            BusinessesCompanion.insert(
+              name: 'Test Business',
+              gstin: '27AAPFU0939F1ZV',
+              address: 'Address',
+              city: 'Mumbai',
+              stateCode: 27,
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+
+      await database.into(database.customers).insert(
+            CustomersCompanion.insert(
+              businessId: 1,
+              name: 'Test Customer',
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+
+      productId = await database.into(database.products).insert(
+        ProductsCompanion.insert(
+          businessId: 1,
+          name: 'Tracked Item',
+          hsnSac: '1234',
+          unit: 'PCS',
+          salePrice: 100,
+          gstRate: 18,
+          createdAt: DateTime(2026, 6, 30),
+        ),
+      );
+      await database.productDao.recordStockMovement(
+        productId: productId,
+        quantityDelta: 10,
+        reason: 'OPENING',
+      );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    Future<int> createInvoiceWithTwoUnits() {
+      final invoiceDate = DateTime(2026, 6, 30);
+      return container.read(invoiceProvider).createInvoiceWithItems(
+        InvoicesCompanion.insert(
+          businessId: 1,
+          customerId: 1,
+          invoiceNumber: 'PENDING',
+          invoiceDate: invoiceDate,
+          invoiceType: 'TAX_INVOICE',
+          supplyType: 'B2B',
+          placeOfSupply: 27,
+          subtotal: 200,
+          taxableAmount: 200,
+          totalAmount: 236,
+          cgstAmount: const drift.Value(18),
+          sgstAmount: const drift.Value(18),
+          amountInWords: const drift.Value('Two Hundred Thirty Six Rupees Only'),
+          createdAt: invoiceDate,
+          updatedAt: invoiceDate,
+        ),
+        [
+          InvoiceItemsCompanion(
+            productId: drift.Value(productId),
+            name: const drift.Value('Tracked Item'),
+            hsnSac: const drift.Value('1234'),
+            unit: const drift.Value('PCS'),
+            quantity: const drift.Value(2),
+            rate: const drift.Value(100),
+            discountPct: const drift.Value(0),
+            taxableAmount: const drift.Value(200),
+            gstRate: const drift.Value(18),
+            cgstRate: const drift.Value(9),
+            sgstRate: const drift.Value(9),
+            igstRate: const drift.Value(0),
+            cgstAmount: const drift.Value(18),
+            sgstAmount: const drift.Value(18),
+            igstAmount: const drift.Value(0),
+            cessAmount: const drift.Value(0),
+            totalAmount: const drift.Value(236),
+          ),
+        ],
+      );
+    }
+
+    test('cancelling an invoice returns its stock exactly once', () async {
+      final notifier = container.read(invoiceProvider);
+      final id = await createInvoiceWithTwoUnits();
+      expect(
+        (await database.productDao.getProductById(productId))?.stockQuantity,
+        8,
+      );
+
+      await notifier.updateInvoiceStatus(id, 'CANCELLED');
+      expect(
+        (await database.productDao.getProductById(productId))?.stockQuantity,
+        10,
+      );
+
+      // A repeated cancel call must not reverse the stock a second time.
+      await notifier.updateInvoiceStatus(id, 'CANCELLED');
+      expect(
+        (await database.productDao.getProductById(productId))?.stockQuantity,
+        10,
+      );
+      final movements = await database.productDao.getStockMovements(productId);
+      expect(movements.where((m) => m.reason == 'INVOICE_REVERSAL'), hasLength(1));
+    });
+  });
+
+  group('DraftPaymentGuard', () {
+    late AppDatabase database;
+    late ProviderContainer container;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({'active_business_id': 1});
+      final sharedPreferences = await SharedPreferences.getInstance();
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+      );
+
+      await database.into(database.businesses).insert(
+            BusinessesCompanion.insert(
+              name: 'Test Business',
+              gstin: '27AAPFU0939F1ZV',
+              address: 'Address',
+              city: 'Mumbai',
+              stateCode: 27,
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+
+      await database.into(database.customers).insert(
+            CustomersCompanion.insert(
+              businessId: 1,
+              name: 'Test Customer',
+              createdAt: DateTime(2026, 6, 30),
+            ),
+          );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    Future<int> createInvoice({double totalAmount = 118, String? status}) {
+      final invoiceDate = DateTime(2026, 6, 30);
+      return container.read(invoiceProvider).createInvoiceWithItems(
+        InvoicesCompanion.insert(
+          businessId: 1,
+          customerId: 1,
+          invoiceNumber: 'PENDING',
+          invoiceDate: invoiceDate,
+          invoiceType: 'TAX_INVOICE',
+          supplyType: 'B2B',
+          placeOfSupply: 27,
+          subtotal: totalAmount,
+          taxableAmount: totalAmount,
+          totalAmount: totalAmount,
+          amountInWords: const drift.Value('Only'),
+          status: status == null
+              ? const drift.Value<String>.absent()
+              : drift.Value(status),
+          createdAt: invoiceDate,
+          updatedAt: invoiceDate,
+        ),
+        const [],
+      );
+    }
+
+    test('blocks recording a payment on a draft invoice', () async {
+      final notifier = container.read(invoiceProvider);
+      final id = await createInvoice();
+
+      await expectLater(
+        notifier.recordPayment(id, 50),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Issue the invoice before recording payments'),
+          ),
+        ),
+      );
+      expect((await database.invoiceDao.getInvoiceById(id))?.amountPaid, 0);
+    });
+
+    test('a zero-total invoice never flips to PAID from an empty payment set',
+        () async {
+      final notifier = container.read(invoiceProvider);
+      final id = await createInvoice(totalAmount: 0, status: 'SENT');
+
+      // Seed a voided payment so a refresh path (delete) runs over it.
+      final paymentId = await database.into(database.invoicePayments).insert(
+        InvoicePaymentsCompanion.insert(
+          invoiceId: id,
+          amount: 0,
+          kind: const drift.Value('VOID'),
+          paidAt: DateTime(2026, 6, 30),
+          createdAt: DateTime(2026, 6, 30),
+        ),
+      );
+
+      await notifier.deletePayment(invoiceId: id, paymentId: paymentId);
+
+      final stored = await database.invoiceDao.getInvoiceById(id);
+      expect(stored?.amountPaid, 0);
+      expect(stored?.status, 'SENT');
     });
   });
 }

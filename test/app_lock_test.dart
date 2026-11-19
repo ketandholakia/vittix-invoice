@@ -25,7 +25,11 @@ void main() {
   group('AppLockService', () {
     test('stores only a hashed PIN and verifies it', () async {
       final storage = FakeSecureKeyValueStore();
-      final service = AppLockService(storage);
+      final service = AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      );
 
       expect(await service.hasPin(), isFalse);
 
@@ -42,12 +46,19 @@ void main() {
 
     test('stretches the PIN with a random per-install salt', () async {
       final storage = FakeSecureKeyValueStore();
-      final service = AppLockService(storage);
+      final service = AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      );
 
       await service.setPin('1234');
       final first = storage.values.values.single;
-      expect(first.startsWith('v2:'), isTrue);
+      expect(first.startsWith('v3:'), isTrue);
       expect(first, isNot(contains('1234')));
+      // The format records the iteration count that produced the hash.
+      expect(first.split(':').length, greaterThanOrEqualTo(4));
+      expect(int.parse(first.split(':')[1]), 1000);
 
       // A re-set of the same PIN must not reproduce the same digest.
       await service.setPin('1234');
@@ -59,17 +70,52 @@ void main() {
       final storage = FakeSecureKeyValueStore();
       final legacy = AppLockService.legacyHashForTest('1234');
       await storage.write('app_lock_pin_hash', legacy);
-      final service = AppLockService(storage);
+      final service = AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      );
 
       expect(await service.verifyPin('4321'), isFalse);
       expect(storage.values.values.single, legacy, reason: 'no upgrade on a wrong PIN');
 
       expect(await service.verifyPin('1234'), isTrue);
       final upgraded = storage.values.values.single;
-      expect(upgraded.startsWith('v2:'), isTrue,
+      expect(upgraded.startsWith('v3:'), isTrue,
           reason: 'legacy digest is replaced after a successful unlock');
       expect(await service.verifyPin('1234'), isTrue);
       expect(await service.verifyPin('4321'), isFalse);
+    });
+
+    test('verifies a v2 (100k) hash and upgrades it to v3 on unlock',
+        () async {
+      final storage = FakeSecureKeyValueStore();
+      final v2 = await AppLockService.v2HashForTest('1234');
+      await storage.write('app_lock_pin_hash', v2);
+      final service = AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      );
+
+      // The old hash still verifies before any upgrade.
+      expect(await service.verifyPin('1234'), isTrue);
+      final upgraded = storage.values.values.single;
+      expect(upgraded.startsWith('v3:'), isTrue,
+          reason: 'v2 hash is re-stored under v3 after a successful unlock');
+      expect(int.parse(upgraded.split(':')[1]), 1000);
+      expect(await service.verifyPin('1234'), isTrue);
+      expect(await service.verifyPin('4321'), isFalse);
+    });
+
+    test('new PINs default to the hardened 600k iteration count', () async {
+      final storage = FakeSecureKeyValueStore();
+      final service = AppLockService(storage);
+
+      await service.setPin('1234');
+      final stored = storage.values.values.single;
+      expect(stored.startsWith('v3:'), isTrue);
+      expect(int.parse(stored.split(':')[1]), 600000);
     });
   });
 
@@ -78,12 +124,23 @@ void main() {
       SharedPreferences.setMockInitialValues({'app_lock_enabled': true});
       final prefs = await SharedPreferences.getInstance();
       final storage = FakeSecureKeyValueStore();
-      await AppLockService(storage).setPin('2468');
+      await AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      ).setPin('2468');
 
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           secureKeyValueStoreProvider.overrideWithValue(storage),
+          appLockServiceProvider.overrideWithValue(
+            AppLockService(
+              storage,
+              kdfIterations: 1000,
+              offloadToIsolate: false,
+            ),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -111,6 +168,13 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           secureKeyValueStoreProvider.overrideWithValue(storage),
+          appLockServiceProvider.overrideWithValue(
+            AppLockService(
+              storage,
+              kdfIterations: 1000,
+              offloadToIsolate: false,
+            ),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -127,12 +191,23 @@ void main() {
       SharedPreferences.setMockInitialValues({'app_lock_enabled': true});
       final prefs = await SharedPreferences.getInstance();
       final storage = FakeSecureKeyValueStore();
-      await AppLockService(storage).setPin('2468');
+      await AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      ).setPin('2468');
 
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           secureKeyValueStoreProvider.overrideWithValue(storage),
+          appLockServiceProvider.overrideWithValue(
+            AppLockService(
+              storage,
+              kdfIterations: 1000,
+              offloadToIsolate: false,
+            ),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -164,13 +239,24 @@ void main() {
       SharedPreferences.setMockInitialValues({'app_lock_enabled': true});
       final prefs = await SharedPreferences.getInstance();
       final storage = FakeSecureKeyValueStore();
-      await AppLockService(storage).setPin('1234');
+      await AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      ).setPin('1234');
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
             secureKeyValueStoreProvider.overrideWithValue(storage),
+            appLockServiceProvider.overrideWithValue(
+              AppLockService(
+                storage,
+                kdfIterations: 1000,
+                offloadToIsolate: false,
+              ),
+            ),
           ],
           child: const MaterialApp(home: LockScreen()),
         ),

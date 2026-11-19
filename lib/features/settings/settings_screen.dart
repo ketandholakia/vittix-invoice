@@ -368,6 +368,14 @@ class SettingsScreen extends ConsumerWidget {
                                           allowEmpty: true,
                                         );
                                     if (passphrase == null) return;
+                                    if (passphrase.isEmpty) {
+                                      if (!context.mounted) return;
+                                      if (!await _confirmUnencryptedExport(
+                                        context,
+                                      )) {
+                                        return;
+                                      }
+                                    }
                                     try {
                                       final result = await GoogleDriveService
                                           .instance
@@ -560,6 +568,14 @@ class SettingsScreen extends ConsumerWidget {
                                       allowEmpty: true,
                                     );
                                 if (passphrase == null) return;
+                                if (passphrase.isEmpty) {
+                                  if (!context.mounted) return;
+                                  if (!await _confirmUnencryptedExport(
+                                    context,
+                                  )) {
+                                    return;
+                                  }
+                                }
                                 try {
                                   final result = await NextcloudService.instance
                                       .uploadBackup(
@@ -780,6 +796,12 @@ class SettingsScreen extends ConsumerWidget {
                         allowEmpty: true,
                       );
                       if (passphrase == null) return;
+                      if (passphrase.isEmpty) {
+                        if (!context.mounted) return;
+                        if (!await _confirmUnencryptedExport(context)) {
+                          return;
+                        }
+                      }
                       try {
                         await DatabaseBackupService.shareBackup(
                           database,

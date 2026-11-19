@@ -349,29 +349,125 @@ void main() {
       expect(restoredActiveId, 1);
       expect((await target.select(target.businesses).get()), hasLength(1));
     });
+
+    test('prunes pre-restore snapshots by age (7 days) and count (3)',
+        () async {
+      final source = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(source.close);
+      await source.into(source.businesses).insert(
+        BusinessesCompanion.insert(
+          name: 'Snapshot Business',
+          gstin: '27AAPFU0939F1ZV',
+          address: 'Address',
+          city: 'Mumbai',
+          stateCode: 27,
+          createdAt: DateTime(2026, 6, 30),
+        ),
+      );
+
+      final directory = await Directory.systemTemp.createTemp('vittix_snapshot');
+      addTearDown(() => directory.delete(recursive: true));
+
+      // Snapshots live in the pre_restore_snapshots subfolder the service
+      // manages; seed it with four stale snapshots (older than 7 days) and
+      // two recent ones.
+      final snapshotsDir = Directory(
+        '${directory.path}${Platform.pathSeparator}pre_restore_snapshots',
+      );
+      await snapshotsDir.create(recursive: true);
+
+      Future<void> seed(String name, DateTime mtime) async {
+        final file = File('${snapshotsDir.path}${Platform.pathSeparator}$name');
+        await file.writeAsString('{}');
+        await file.setLastModified(mtime);
+      }
+
+      final now = DateTime.now();
+      await seed('pre_restore_a.json', now.subtract(const Duration(days: 30)));
+      await seed('pre_restore_b.json', now.subtract(const Duration(days: 20)));
+      await seed('pre_restore_c.json', now.subtract(const Duration(days: 10)));
+      await seed('pre_restore_d.json', now.subtract(const Duration(days: 8)));
+      await seed('pre_restore_e.json', now.subtract(const Duration(hours: 1)));
+      await seed('pre_restore_f.json', now.subtract(const Duration(minutes: 1)));
+
+      await DatabaseBackupService.createRestoreSafetySnapshot(
+        source,
+        directory: directory,
+      );
+
+      final remaining = snapshotsDir
+          .listSync()
+          .whereType<File>()
+          .map((file) => file.path.split(Platform.pathSeparator).last)
+          .where((name) => name.startsWith('pre_restore_'))
+          .toList()
+        ..sort();
+
+      // The 7-day cutoff removes the four stale snapshots; the count cap
+      // keeps at most 3 of what is left (the new snapshot included).
+      expect(remaining.where((name) => name.endsWith('_a.json')), isEmpty);
+      expect(remaining.where((name) => name.endsWith('_d.json')), isEmpty);
+      expect(remaining, hasLength(3));
+    });
   });
 
   group('BackupEncryption', () {
-    test('round-trips a payload and rejects a wrong passphrase', () {
+    test('round-trips a payload and rejects a wrong passphrase', () async {
       const plaintext = '{"hello":"world"}';
-      final envelope = BackupCipher.encrypt(plaintext, 'correct horse');
+      // Fast test iterations; the production count is asserted separately.
+      final envelope = await BackupCipher.encrypt(
+        plaintext,
+        'correct horse',
+        kdfIterations: 1000,
+      );
 
       expect(BackupCipher.isEncrypted(envelope), isTrue);
       expect(BackupCipher.isEncrypted(plaintext), isFalse);
-      expect(BackupCipher.decrypt(envelope, 'correct horse'), plaintext);
-      expect(
-        () => BackupCipher.decrypt(envelope, 'wrong'),
+      expect(await BackupCipher.decrypt(envelope, 'correct horse'), plaintext);
+      await expectLater(
+        BackupCipher.decrypt(envelope, 'wrong'),
         throwsA(isA<FormatException>()),
       );
     });
 
-    test('rejects a tampered envelope', () {
-      final envelope = BackupCipher.encrypt('{"a":1}', 'pw');
+    test('rejects a tampered envelope', () async {
+      final envelope = await BackupCipher.encrypt(
+        '{"a":1}',
+        'pw-stdin-ok',
+        kdfIterations: 1000,
+      );
       final tampered = envelope.replaceFirst('"payload":"', '"payload":"!!');
 
-      expect(
-        () => BackupCipher.decrypt(tampered, 'pw'),
+      await expectLater(
+        BackupCipher.decrypt(tampered, 'pw-stdin-ok'),
         throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('records the KDF iteration count in the envelope', () {
+      final envelope = BackupCipher.encryptSync('{"a":1}', 'long enough');
+      final decoded = jsonDecode(envelope) as Map<String, dynamic>;
+
+      expect(decoded['kdfIterations'], 600000);
+    });
+
+    test('still decrypts legacy envelopes without an iteration count',
+        () async {
+      // An envelope produced by the pre-600k scheme: version 1, 100k
+      // iterations, no kdfIterations field.
+      final legacyEnvelope =
+          BackupCipher.legacyEnvelopeForTest('{"a":1}', 'legacy ok');
+
+      expect(
+        await BackupCipher.decrypt(legacyEnvelope, 'legacy ok'),
+        '{"a":1}',
+      );
+    });
+
+    test('rejects a too-short passphrase', () async {
+      await expectLater(
+        BackupCipher.encrypt('{"a":1}', 'short'),
+        throwsA(isA<ArgumentError>()),
       );
     });
 
@@ -391,7 +487,7 @@ void main() {
 
       final encrypted = await DatabaseBackupService.buildBackupJson(
         source,
-        passphrase: 'secret',
+        passphrase: 'secret-passphrase',
       );
       expect(BackupCipher.isEncrypted(encrypted), isTrue);
 
@@ -401,7 +497,7 @@ void main() {
         await DatabaseBackupService.restoreFromJson(
           target,
           encrypted,
-          passphrase: 'secret',
+          passphrase: 'secret-passphrase',
         ),
         1,
       );

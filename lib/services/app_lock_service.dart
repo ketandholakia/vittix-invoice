@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
@@ -10,17 +11,22 @@ import '../core/storage/secure_key_value_store.dart';
 
 /// Stores and verifies the app-lock PIN in platform secure storage.
 ///
-/// The PIN is stretched with PBKDF2-HMAC-SHA256 (100k iterations, random
-/// per-install salt — the same parameters the encrypted backups use), so a
-/// leaked store cannot reveal even a 4-digit PIN at brute-force speed. Pins
-/// stored by the earlier single-SHA-256 scheme are verified and transparently
-/// upgraded on the next successful unlock. Biometric unlock is delegated to
-/// the platform via `local_auth`.
+/// The PIN is stretched with PBKDF2-HMAC-SHA256 and a random per-install
+/// salt. New PINs use 600,000 iterations under the `v3:` format, which
+/// records the iteration count so the parameter can be raised again without
+/// locking anyone out. The earlier schemes — single-SHA-256 digests and the
+/// `v2:` 100k-iteration format — still verify, and are re-stored under `v3:`
+/// transparently on the next successful unlock. The key derivation runs in a
+/// background isolate so a long PIN stretch cannot freeze the UI.
 class AppLockService {
   static const _pinHashKey = 'app_lock_pin_hash';
-  static const _versionPrefix = 'v2:';
-  static const _kdfIterations = 100000;
+  static const _versionPrefix = 'v3:';
   static const _saltBytes = 16;
+
+  // The previous stretched scheme, kept to verify stored digests and to
+  // migrate them on the first successful unlock.
+  static const _v2Prefix = 'v2:';
+  static const _v2KdfIterations = 100000;
 
   // Legacy single-iteration scheme, kept only to migrate stored digests.
   static const _legacySalt = 'vittix-app-lock';
@@ -29,12 +35,28 @@ class AppLockService {
   final LocalAuthentication _biometrics;
   final Random _random;
 
+  /// Iterations used when storing a new PIN (the format records it, so this
+  /// can be raised without locking anyone out). Tests inject a small value.
+  final int kdfIterations;
+
+  /// Whether the key derivation runs in a background isolate. Real apps
+  /// always offload; tests that pump the widget tree synchronously turn it
+  /// off because a fake-async zone cannot await a real isolate.
+  final bool offloadToIsolate;
+
   AppLockService(
     this._storage, {
     LocalAuthentication? biometrics,
     Random? random,
+    int? kdfIterations,
+    bool? offloadToIsolate,
   }) : _biometrics = biometrics ?? LocalAuthentication(),
-       _random = random ?? Random.secure();
+       _random = random ?? Random.secure(),
+       kdfIterations = kdfIterations ?? AppLockService.defaultKdfIterations,
+       offloadToIsolate = offloadToIsolate ?? true;
+
+  /// Production iteration count for new PINs.
+  static const defaultKdfIterations = 600000;
 
   static String _legacyHashPin(String pin) =>
       sha256.convert(utf8.encode('$_legacySalt:$pin')).toString();
@@ -44,21 +66,50 @@ class AppLockService {
   @visibleForTesting
   static String legacyHashForTest(String pin) => _legacyHashPin(pin);
 
-  String _encodePin(String pin, Uint8List salt) {
+  /// A `v2:`-format hash for [pin], exposed so migration tests can seed the
+  /// pre-600k stretched scheme.
+  @visibleForTesting
+  static Future<String> v2HashForTest(String pin) async {
+    final salt = _randomSalt();
     final derivator = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-      ..init(Pbkdf2Parameters(salt, _kdfIterations, 32));
+      ..init(Pbkdf2Parameters(salt, _v2KdfIterations, 32));
     final key = derivator.process(Uint8List.fromList(utf8.encode(pin)));
-    return '$_versionPrefix${base64Encode(salt)}:${base64Encode(key)}';
+    return '$_v2Prefix${base64Encode(salt)}:${base64Encode(key)}';
   }
 
-  Uint8List _newSalt() => Uint8List.fromList(
-    List<int>.generate(_saltBytes, (_) => _random.nextInt(256)),
-  );
+  /// The stretched key for [pin]; off the UI thread unless disabled for
+  /// tests (a fake-async widget-test zone cannot await a real isolate).
+  Future<Uint8List> _stretchedKey(String pin, Uint8List salt, int iterations) {
+    final saltCopy = Uint8List.fromList(salt);
+    Uint8List derive() {
+      final derivator = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
+        ..init(Pbkdf2Parameters(saltCopy, iterations, 32));
+      return derivator.process(Uint8List.fromList(utf8.encode(pin)));
+    }
+
+    return offloadToIsolate ? Isolate.run(derive) : Future.value(derive());
+  }
+
+  static Uint8List _randomSalt() {
+    final random = Random.secure();
+    return Uint8List.fromList(
+      List<int>.generate(_saltBytes, (_) => random.nextInt(256)),
+    );
+  }
 
   Future<bool> hasPin() async => (await _storage.read(_pinHashKey)) != null;
 
-  Future<void> setPin(String pin) =>
-      _storage.write(_pinHashKey, _encodePin(pin, _newSalt()));
+  Future<void> setPin(String pin) async {
+    final salt = Uint8List.fromList(
+      List<int>.generate(_saltBytes, (_) => _random.nextInt(256)),
+    );
+    final key = await _stretchedKey(pin, salt, kdfIterations);
+    await _storage.write(
+      _pinHashKey,
+      '$_versionPrefix$kdfIterations:'
+      '${base64Encode(salt)}:${base64Encode(key)}',
+    );
+  }
 
   Future<void> clearPin() => _storage.delete(_pinHashKey);
 
@@ -66,15 +117,47 @@ class AppLockService {
     final stored = await _storage.read(_pinHashKey);
     if (stored == null) return false;
 
+    // Current v3 format: v3:<iterations>:<salt>:<key>.
     if (stored.startsWith(_versionPrefix)) {
       final parts = stored.substring(_versionPrefix.length).split(':');
-      if (parts.length != 2) return false;
+      if (parts.length != 3) return false;
+      final iterations = int.tryParse(parts[0]);
+      if (iterations == null || iterations <= 0) return false;
+
+      final Uint8List key;
       try {
-        final salt = base64Decode(parts[0]);
-        return _constantTimeEquals(_encodePin(pin, salt), stored);
+        key = await _stretchedKey(pin, base64Decode(parts[1]), iterations);
       } on FormatException {
         return false;
       }
+      final matches = _constantTimeEquals(
+        base64Encode(key),
+        parts[2],
+      );
+      if (!matches) return false;
+      // A v3 hash with fewer than the current iterations (or any other
+      // difference) is re-stored under the hardened parameters.
+      if (iterations != kdfIterations) await setPin(pin);
+      return true;
+    }
+
+    // Previous v2 format: v2:<salt>:<key> at 100k iterations. Verify, then
+    // re-store under the current scheme so the weaker form only survives
+    // until the first successful unlock.
+    if (stored.startsWith(_v2Prefix)) {
+      final parts = stored.substring(_v2Prefix.length).split(':');
+      if (parts.length != 2) return false;
+
+      final Uint8List salt;
+      try {
+        salt = base64Decode(parts[0]);
+      } on FormatException {
+        return false;
+      }
+      final key = await _stretchedKey(pin, salt, _v2KdfIterations);
+      if (!_constantTimeEquals(base64Encode(key), parts[1])) return false;
+      await setPin(pin);
+      return true;
     }
 
     // Legacy digest: verify, then re-store under the stretched scheme so the

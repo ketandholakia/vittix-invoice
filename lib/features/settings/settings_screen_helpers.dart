@@ -96,7 +96,8 @@ Future<String?> _promptForNewPin(BuildContext context) async {
 }
 
 /// Prompts for a backup passphrase. Returns null when cancelled; an empty
-/// string means "no encryption" for exports.
+/// string means "no encryption" for exports. A non-empty passphrase must be
+/// at least 8 characters — the same minimum the service enforces.
 Future<String?> _promptForPassphrase(
   BuildContext context, {
   required String title,
@@ -139,6 +140,14 @@ Future<String?> _promptForPassphrase(
                 setState(() => error = 'Enter a passphrase');
                 return;
               }
+              if (value.isNotEmpty &&
+                  value.length < DatabaseBackupService.minimumPassphraseLength) {
+                setState(
+                  () => error =
+                      'Use at least ${DatabaseBackupService.minimumPassphraseLength} characters',
+                );
+                return;
+              }
               Navigator.pop(ctx, value);
             },
             child: const Text('Continue'),
@@ -150,6 +159,34 @@ Future<String?> _promptForPassphrase(
 
   controller.dispose();
   return result;
+}
+
+/// Confirms an unencrypted export before the backup leaves the device.
+/// Returns true when the user accepts the risk.
+Future<bool> _confirmUnencryptedExport(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Export without encryption?'),
+      content: const Text(
+        'This backup will contain ALL your business data — customers, '
+        'invoices and payments — as readable text. Anyone with the file can '
+        'open it.\n\nEncrypt it with a passphrase if it will leave this '
+        'device (email, cloud storage, chat).',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Encrypt instead'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Export unencrypted'),
+        ),
+      ],
+    ),
+  );
+  return confirmed == true;
 }
 
 /// Runs a cloud restore, prompting for a passphrase when the backup turns out

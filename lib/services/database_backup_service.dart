@@ -39,8 +39,17 @@ class BackupPassphraseRequired implements Exception {
 class DatabaseBackupService {
   static const _backupExtension = 'json';
 
+  /// Minimum length for a backup passphrase, enforced when sealing
+  /// (delegated to [BackupCipher]).
+  static const minimumPassphraseLength = BackupCipher.minimumPassphraseLength;
+
   /// How many pre-restore snapshots to keep on disk.
-  static const _maxSnapshots = 5;
+  static const _maxSnapshots = 3;
+
+  /// Pre-restore snapshots older than this are deleted even under the cap,
+  /// so a folder of stale safety copies cannot sit around forever holding
+  /// personal data in the clear.
+  static const _snapshotMaxAge = Duration(days: 7);
 
   /// App preferences carried in the backup (and restored with it).
   static const _settingsKeys = [
@@ -152,8 +161,7 @@ class DatabaseBackupService {
     // Optionally sealed with a user passphrase so a backup stored in Drive or
     // Nextcloud is useless without it.
     if (passphrase == null || passphrase.isEmpty) return payload;
-    return BackupCipher.encrypt(payload, passphrase);
-  }
+    return BackupCipher.encrypt(payload, passphrase);  }
 
   static Future<File> createBackupFile(
     AppDatabase db, {
@@ -190,10 +198,12 @@ class DatabaseBackupService {
     return file.path;
   }
 
-  /// Keeps only the newest [_maxSnapshots] pre-restore snapshots so the
-  /// directory cannot grow without bound.
+  /// Deletes pre-restore snapshots older than [_snapshotMaxAge], then keeps
+  /// only the newest [_maxSnapshots] of what remains, so the directory
+  /// cannot grow without bound and stale plaintext copies do not linger.
   static Future<void> _pruneSnapshots(Directory snapshots) async {
     try {
+      final cutoff = DateTime.now().subtract(_snapshotMaxAge);
       final files =
           snapshots
               .listSync()
@@ -201,12 +211,42 @@ class DatabaseBackupService {
               .where(
                 (file) => p.basename(file.path).startsWith('pre_restore_'),
               )
-              .toList()
-            ..sort((a, b) => a.path.compareTo(b.path));
+              .toList();
 
-      final excess = files.length - _maxSnapshots;
+      DateTime? modifiedOf(File file) {
+        try {
+          return file.lastModifiedSync();
+        } catch (_) {
+          // An unreadable timestamp marks the file as expired.
+          return null;
+        }
+      }
+
+      // Age cutoff first: expired snapshots go regardless of the cap.
+      for (final file in files) {
+        final modified = modifiedOf(file);
+        if (modified == null || modified.isBefore(cutoff)) {
+          try {
+            file.deleteSync();
+          } catch (_) {
+            // Best effort; the cap below still bounds the directory.
+          }
+        }
+      }
+
+      final survivors =
+          files
+              .where((file) => file.existsSync())
+              .toList()
+            ..sort(
+              (a, b) => b
+                  .lastModifiedSync()
+                  .compareTo(a.lastModifiedSync()),
+            );
+
+      final excess = survivors.length - _maxSnapshots;
       for (var i = 0; i < excess; i++) {
-        files[i].deleteSync();
+        survivors[i].deleteSync();
       }
     } catch (_) {
       // Pruning is best-effort; never block the restore over it.
@@ -218,13 +258,24 @@ class DatabaseBackupService {
     String? passphrase,
   }) async {
     final file = await createBackupFile(db, passphrase: passphrase);
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        text: 'Database backup attached.',
-        subject: 'VittixInvoice database backup',
-      ),
-    );
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Database backup attached.',
+          subject: 'VittixInvoice database backup',
+        ),
+      );
+    } finally {
+      // The temp export must not outlive the share, success or failure.
+      try {
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (_) {
+        // Best effort: a locked temp file must not mask the share result.
+      }
+    }
   }
 
   static Future<int?> restoreFromPickedFile(
@@ -268,7 +319,7 @@ class DatabaseBackupService {
       if (passphrase == null || passphrase.isEmpty) {
         throw const BackupPassphraseRequired();
       }
-      resolved = BackupCipher.decrypt(jsonString, passphrase);
+      resolved = await BackupCipher.decrypt(jsonString, passphrase);
     } else {
       resolved = jsonString;
     }

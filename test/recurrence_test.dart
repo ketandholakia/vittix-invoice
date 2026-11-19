@@ -304,16 +304,16 @@ void main() {
         firstRunDate: DateTime(2026, 1, 31),
       );
 
-      // Opening the app on Feb 28: the missed January run (dated Jan 31)
-      // and February's own run (the anchor 31 clamped to the 28th) both
-      // generate.
-      expect(await recurring.runDue(now: DateTime(2026, 2, 28)), 2);
+      // Opening the app on Feb 28: one catch-up draft dated today, and the
+      // schedule jumps to the anchor-aligned March date.
+      expect(await recurring.runDue(now: DateTime(2026, 2, 28)), 1);
       final schedule = (await recurring.listForBusiness(1)).single;
       // Without the anchor this would drift to the 28th forever.
       expect(schedule.nextRunDate, DateTime(2026, 3, 31));
     });
 
-    test('generates one draft per missed period', () async {
+    test('catch-up drafts are dated today, not in the missed period',
+        () async {
       final recurring = container.read(recurringInvoiceProvider);
       final invoiceId = await createIssuedInvoice();
       await recurring.startRecurrence(
@@ -322,26 +322,27 @@ void main() {
         firstRunDate: DateTime(2026, 1, 1),
       );
 
-      // Jan-Apr all ran while the app was closed; opening it mid-April
-      // generates a dated draft for every missed period.
-      expect(await recurring.runDue(now: DateTime(2026, 4, 15)), 4);
+      // Three months were missed: opening mid-April produces ONE draft,
+      // dated today, so it cannot land in an already-filed GSTR-1 month and
+      // draws its number from the current financial year's series.
+      expect(await recurring.runDue(now: DateTime(2026, 4, 15)), 1);
 
-      final drafts = await database.select(database.invoices).get();
-      final generated = drafts.where((row) => row.status == 'DRAFT').toList()
-        ..sort((a, b) => a.invoiceDate.compareTo(b.invoiceDate));
-      expect(generated.map((row) => row.invoiceDate), [
-        DateTime(2026, 1, 1),
-        DateTime(2026, 2, 1),
-        DateTime(2026, 3, 1),
-        DateTime(2026, 4, 1),
-      ]);
+      final drafts =
+          (await database.select(database.invoices).get())
+              .where((row) => row.status == 'DRAFT')
+              .toList();
+      expect(drafts, hasLength(1));
+      expect(drafts.single.invoiceDate, DateTime(2026, 4, 15));
+
+      // The schedule jumps past every missed period to the next upcoming
+      // one — the missed drafts are not silently queued for later runs.
       expect(
         (await recurring.listForBusiness(1)).single.nextRunDate,
         DateTime(2026, 5, 1),
       );
     });
 
-    test('catch-up is capped at twelve drafts per schedule and run',
+    test('a schedule missed many months still produces a single draft',
         () async {
       final recurring = container.read(recurringInvoiceProvider);
       final invoiceId = await createIssuedInvoice();
@@ -351,14 +352,45 @@ void main() {
         firstRunDate: DateTime(2025, 1, 1),
       );
 
-      // 23 months were missed: the first run stops at the cap, the second
-      // catches up the remaining 11, and the schedule is then caught up.
-      expect(await recurring.runDue(now: DateTime(2026, 11, 19)), 12);
-      expect(await recurring.runDue(now: DateTime(2026, 11, 19)), 11);
-      expect(await recurring.runDue(now: DateTime(2026, 11, 19)), 0);
-
+      // 23 missed months: one draft today, schedule fully caught up.
+      expect(await recurring.runDue(now: DateTime(2026, 11, 19)), 1);
       final schedule = (await recurring.listForBusiness(1)).single;
       expect(schedule.nextRunDate, DateTime(2026, 12, 1));
+      expect(
+        await recurring.runDue(now: DateTime(2026, 11, 19)),
+        0,
+        reason: 'the catch-up must not queue the skipped periods for later',
+      );
+    });
+
+    test('a migrated clamped schedule keeps its clamped cadence', () async {
+      final recurring = container.read(recurringInvoiceProvider);
+      final invoiceId = await createIssuedInvoice();
+
+      // A v32-migrated row whose anchor was backfilled from a clamped
+      // next_run_date (a 31st-anchored schedule stuck on the 28th since
+      // February). Seeded directly, exactly as the migration leaves it.
+      await database.into(database.recurringInvoices).insert(
+        RecurringInvoicesCompanion.insert(
+          businessId: 1,
+          sourceInvoiceId: invoiceId,
+          frequency: const drift.Value('MONTHLY'),
+          nextRunDate: DateTime(2026, 1, 28),
+          anchorDay: const drift.Value(28),
+          createdAt: DateTime(2026, 1, 31),
+        ),
+      );
+
+      expect(await recurring.runDue(now: DateTime(2026, 2, 28)), 1);
+      final schedule = (await recurring.listForBusiness(1)).single;
+      // The catch-up lands on the next anchor-aligned date and the
+      // cadence stays pinned to the 28th — it does not snap back to a 31st
+      // it never held at migration time.
+      expect(schedule.nextRunDate, DateTime(2026, 3, 28));
+
+      expect(await recurring.runDue(now: DateTime(2026, 3, 28)), 1);
+      expect((await recurring.listForBusiness(1)).single.nextRunDate,
+          DateTime(2026, 4, 28));
     });
 
     test('generated drafts keep the source payment term and rebuild stale '
@@ -491,10 +523,9 @@ void main() {
 
     test('a failing draft generation leaves the schedule untouched',
         () async {
-      var generateCalls = 0;
       final flakyService = _ThrowingInvoiceService(
         container.read(invoiceServiceProvider),
-        () => generateCalls++ >= 1, // first call succeeds, second throws
+        () => true, // every generation fails
       );
       final recurring = RecurringInvoiceService(
         invoiceDao: container.read(invoiceDaoProvider),
@@ -509,21 +540,20 @@ void main() {
         firstRunDate: DateTime(2026, 1, 1),
       );
 
-      // Two missed periods; the second generation fails.
       await expectLater(
         recurring.runDue(now: DateTime(2026, 2, 15)),
         throwsA(isA<Exception>()),
       );
 
-      // The first period committed atomically: exactly one draft, and the
-      // schedule sits at the second period — no partial second draft.
+      // The generation and the schedule advance commit atomically: the
+      // failure leaves no draft and does not move the schedule.
       final drafts = await database
           .select(database.invoices)
           .get()
           .then((rows) => rows.where((row) => row.status == 'DRAFT').length);
-      expect(drafts, 1);
+      expect(drafts, 0);
       final schedule = (await recurring.listForBusiness(1)).single;
-      expect(schedule.nextRunDate, DateTime(2026, 2, 1));
+      expect(schedule.nextRunDate, DateTime(2026, 1, 1));
     });
   });
 }

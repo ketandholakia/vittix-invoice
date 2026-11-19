@@ -477,6 +477,8 @@ void main() {
       () async {
     final january312026 =
         DateTime.utc(2026, 1, 31).millisecondsSinceEpoch ~/ 1000;
+    final january282026 =
+        DateTime.utc(2026, 1, 28).millisecondsSinceEpoch ~/ 1000;
 
     final file = buildLegacyDatabase(
       'v31',
@@ -585,6 +587,11 @@ void main() {
         'INSERT INTO recurring_invoices (business_id, source_invoice_id, '
             'frequency, next_run_date, is_active, created_at) '
             "VALUES (1, 1, 'MONTHLY', $january312026, 1, $january312026)",
+        // A schedule that already drifted: a 31st-anchored monthly run was
+        // clamped to the 28th by February before the upgrade.
+        'INSERT INTO recurring_invoices (business_id, source_invoice_id, '
+            'frequency, next_run_date, is_active, created_at) '
+            "VALUES (1, 1, 'MONTHLY', $january282026, 1, $january312026)",
       ],
       31,
     );
@@ -593,8 +600,17 @@ void main() {
     addTearDown(database.close);
 
     // The anchor is backfilled from the stored next run date so existing
-    // month-end schedules keep their clamped cadence instead of shifting.
-    final schedule = await database.select(database.recurringInvoices).getSingle();
-    expect(schedule.anchorDay, 31);
+    // schedules keep the cadence they actually had at upgrade time. The
+    // untouched 31st keeps its anchor...
+    final schedules = await database.select(database.recurringInvoices).get();
+    expect(schedules, hasLength(2));
+    final byNextRun = {
+      for (final schedule in schedules)
+        schedule.nextRunDate.millisecondsSinceEpoch ~/ 1000: schedule,
+    };
+    expect(byNextRun[january312026]!.anchorDay, 31);
+    // ...and the already-clamped 28th anchors on the 28th — it reproduces
+    // the clamped cadence instead of silently snapping back to the 31st.
+    expect(byNextRun[january282026]!.anchorDay, 28);
   });
 }

@@ -56,7 +56,13 @@ class AppLockService {
        offloadToIsolate = offloadToIsolate ?? true;
 
   /// Production iteration count for new PINs.
-  static const defaultKdfIterations = 600000;
+  ///
+  /// Deliberately lower than the backup cipher's 600k: an app-lock PIN has
+  /// at most 8 digits, its wrong-attempt lockout already throttles online
+  /// guessing, and at 600k the stretch costs seconds of unlock latency on a
+  /// cheap phone. 100k keeps the offline-stretch meaningful without making
+  /// the lock screen feel broken.
+  static const defaultKdfIterations = 100000;
 
   static String _legacyHashPin(String pin) =>
       sha256.convert(utf8.encode('$_legacySalt:$pin')).toString();

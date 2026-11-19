@@ -108,14 +108,36 @@ void main() {
       expect(await service.verifyPin('4321'), isFalse);
     });
 
-    test('new PINs default to the hardened 600k iteration count', () async {
+    test('new PINs default to the production iteration count', () async {
       final storage = FakeSecureKeyValueStore();
       final service = AppLockService(storage);
 
       await service.setPin('1234');
       final stored = storage.values.values.single;
       expect(stored.startsWith('v3:'), isTrue);
-      expect(int.parse(stored.split(':')[1]), 600000);
+      expect(int.parse(stored.split(':')[1]), 100000);
+    });
+
+    test('a PIN stretch at the production count stays under ten seconds',
+        () async {
+      // Guard against an accidentally brutal default: on a low-end phone
+      // this path runs on every unlock, so it must stay well under the
+      // seconds a user will wait. CI hosts are faster than the target
+      // hardware, hence the generous bound.
+      final storage = FakeSecureKeyValueStore();
+      final service = AppLockService(storage);
+
+      final stopwatch = Stopwatch()..start();
+      await service.setPin('1234');
+      expect(await service.verifyPin('1234'), isTrue);
+      stopwatch.stop();
+
+      // ignore: avoid_print
+      print(
+        'PIN set+verify at ${AppLockService.defaultKdfIterations} '
+        'iterations took ${stopwatch.elapsedMilliseconds} ms',
+      );
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 10)));
     });
   });
 
@@ -275,5 +297,64 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Enter your PIN'), findsNothing);
     });
+
+    testWidgets('shows a spinner while the PIN is being verified',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({'app_lock_enabled': true});
+      final prefs = await SharedPreferences.getInstance();
+      final storage = FakeSecureKeyValueStore();
+      await AppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      ).setPin('1234');
+
+      // A deliberately slow verification so the in-flight state is visible.
+      final slowService = _SlowVerifyAppLockService(
+        storage,
+        kdfIterations: 1000,
+        offloadToIsolate: false,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            secureKeyValueStoreProvider.overrideWithValue(storage),
+            appLockServiceProvider.overrideWithValue(slowService),
+          ],
+          child: const MaterialApp(home: LockScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '1234');
+      await tester.tap(find.text('Unlock'));
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // In flight: the spinner is visible and the button is disabled.
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(find.widgetWithText(FilledButton, 'Checking...'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Enter your PIN'), findsNothing);
+    });
   });
+}
+
+/// Wraps the real service with a delayed verification so tests can observe
+/// the lock screen's in-flight state.
+class _SlowVerifyAppLockService extends AppLockService {
+  _SlowVerifyAppLockService(
+    super.storage, {
+    required super.kdfIterations,
+    required super.offloadToIsolate,
+  });
+
+  @override
+  Future<bool> verifyPin(String pin) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return super.verifyPin(pin);
+  }
 }

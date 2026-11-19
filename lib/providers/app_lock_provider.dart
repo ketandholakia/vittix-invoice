@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/storage/secure_key_value_store.dart';
+import '../core/storage/secure_screen_guard.dart';
 import '../services/app_lock_service.dart';
 import 'shared_preferences_provider.dart';
 
@@ -45,6 +46,9 @@ class AppLockEnabledNotifier extends StateNotifier<bool> {
       await _prefs.remove(_appLockFailedAttemptsKey);
       await _prefs.remove(_appLockLockoutUntilKey);
     }
+    // Apply the screen-capture block to the CURRENT session; the native
+    // resume fallback only re-reads the preference on the next resume.
+    unawaited(SecureScreenGuard.apply(enabled));
   }
 }
 

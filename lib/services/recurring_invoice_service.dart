@@ -22,10 +22,9 @@ class RecurringInvoiceService {
   /// Mirrors the invoice form's round-off preference at generation time.
   final bool applyRoundOff;
 
-  /// How many missed periods a single schedule may catch up in one run, so
-  /// an app left closed for a year generates at most this many drafts per
-  /// day until it has caught up.
-  static const _maxCatchUpPerSchedule = 12;
+  /// How many anchor-aligned steps a schedule may advance to catch up after
+  /// missed periods (a safety bound, never a batch of drafts).
+  static const _maxCatchUpSteps = 120;
 
   RecurringInvoiceService({
     required this.invoiceDao,
@@ -84,11 +83,15 @@ class RecurringInvoiceService {
   /// Stops a schedule. The invoices it already generated are left alone.
   Future<void> stopRecurrence(int id) => _dao.deleteRecurrence(id);
 
-  /// Generates a draft for every due schedule — one dated draft per missed
-  /// period rather than silently skipping — capped at
-  /// [_maxCatchUpPerSchedule] drafts per schedule per run, so an app left
-  /// closed for a long time catches up over consecutive runs instead of
-  /// producing an unbounded batch.
+  /// Generates one catch-up draft per due schedule and advances it in the
+  /// same transaction, so a failed generation leaves neither behind.
+  ///
+  /// The draft is dated **today**, never in the missed periods: a draft
+  /// dated in a month whose GSTR-1 has already been filed cannot be
+  /// corrected by a draft, and a number drawn from an older financial
+  /// year's series would break number/date ordering. The missed periods are
+  /// skipped — the schedule jumps to the first upcoming anchor-aligned
+  /// date — so one run never floods the books with backdated documents.
   ///
   /// Returns how many drafts were created. Errors on a single schedule are
   /// reported by the caller and never stop the others.
@@ -106,44 +109,31 @@ class RecurringInvoiceService {
       }
 
       final sourceLines = await invoiceDao.getItemsForInvoice(source.id);
-      var cursor = recurrence.nextRunDate;
-      for (var period = 0;
-          period < _maxCatchUpPerSchedule && !cursor.isAfter(today);
-          period++) {
-        // The next date is pure math, so it can be computed up front and
-        // committed in the same transaction as the draft it enables.
-        final nextCursor = advanceFromAnchor(
-          cursor,
-          recurrence.frequency,
-          recurrence.anchorDay,
+      final nextRunDate = _catchUpTo(recurrence, today);
+      await invoiceService.db.transaction(() async {
+        await invoiceService.createInvoiceWithItems(
+          _draftCompanion(source, sourceLines, today),
+          _rebuiltItems(source, sourceLines),
         );
-        await _generatePeriod(recurrence, source, sourceLines, cursor, nextCursor);
-        cursor = nextCursor;
-        generated++;
-      }
+        await _dao.updateRecurrence(
+          recurrence.copyWith(nextRunDate: nextRunDate),
+        );
+      });
+      generated++;
     }
 
     return generated;
   }
 
-  /// One atomic period: the draft insert and the schedule advance commit or
-  /// roll back together, so a failed generation leaves neither behind.
-  Future<void> _generatePeriod(
-    RecurringInvoice recurrence,
-    Invoice source,
-    List<InvoiceItem> sourceLines,
-    DateTime runDate,
-    DateTime nextRunDate,
-  ) {
-    return invoiceService.db.transaction(() async {
-      await invoiceService.createInvoiceWithItems(
-        _draftCompanion(source, sourceLines, runDate),
-        _rebuiltItems(source, sourceLines),
-      );
-      await _dao.updateRecurrence(
-        recurrence.copyWith(nextRunDate: nextRunDate),
-      );
-    });
+  /// The first anchor-aligned run date strictly after [today], stepping from
+  /// the schedule's current [RecurringInvoice.nextRunDate]. Bounded so a
+  /// nonsensical date can never spin forever.
+  DateTime _catchUpTo(RecurringInvoice recurrence, DateTime today) {
+    var cursor = recurrence.nextRunDate;
+    for (var i = 0; i < _maxCatchUpSteps && !cursor.isAfter(today); i++) {
+      cursor = advanceFromAnchor(cursor, recurrence.frequency, recurrence.anchorDay);
+    }
+    return cursor;
   }
 
   /// The draft for one period: dated on the run date, carrying the source's

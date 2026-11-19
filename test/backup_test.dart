@@ -252,6 +252,13 @@ void main() {
     });
 
     test('restores an older (v30) backup into the current schema', () async {
+      // Column-faithful to a REAL v30 export, checked against
+      // test/drift_schemas/drift_schema_v30.json: the businesses table has
+      // no bill_of_supply_series_format yet (v31), and the recurring
+      // invoices table existed but the v30 backup code never exported it.
+      // Drop a backup exported by a released v30 build through this test if
+      // one surfaces — only real data can prove every column carries a
+      // usable fromJson default.
       final source = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(source.close);
       await source.into(source.businesses).insert(

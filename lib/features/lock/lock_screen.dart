@@ -151,7 +151,13 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: (_checking || lockedOut) ? null : _unlock,
-                    icon: const Icon(Icons.lock_open),
+                    icon: _checking
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.lock_open),
                     label: Text(
                       lockedOut
                           ? 'Locked (${_lockoutRemaining.inSeconds + 1}s)'
@@ -160,6 +166,16 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                           : 'Unlock',
                     ),
                   ),
+                  // The PIN stretch runs in an isolate and can take a
+                  // moment on slow hardware; keep the wait visible.
+                  if (_checking) ...[
+                    const SizedBox(height: 16),
+                    const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ],
                   if (_biometricsAvailable) ...[
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
